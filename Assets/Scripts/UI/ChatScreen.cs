@@ -1,4 +1,6 @@
-﻿using System.Net;
+﻿
+using System.Net;
+using UnityEngine;
 using UnityEngine.UI;
 
 public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
@@ -21,22 +23,42 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
         {
             NetworkManager.Instance.Broadcast(data);
         }
+        var type = NetByteTranslator.getNetworkType(data);
+        switch (type)
+        {
+            case MessageType.HandShake:
+                break;
+            case MessageType.Console:
+                break;
+            case MessageType.Position:
+                break;
+            case MessageType.String:
+                NetConsole message = new();
+                Debug.Log("MessageType not found");
+                messages.text += message.Deserialize(data) + System.Environment.NewLine;
+                break;
+            default:
+                Debug.Log("MessageType not found");
+                break;
 
-        messages.text += System.Text.ASCIIEncoding.UTF8.GetString(data) + System.Environment.NewLine;
+        }
+
+
     }
 
     void OnEndEdit(string str)
     {
         if (inputMessage.text != "")
         {
+            NetConsole message = new(inputMessage.text);
             if (NetworkManager.Instance.isServer)
             {
-                NetworkManager.Instance.Broadcast(System.Text.ASCIIEncoding.UTF8.GetBytes(inputMessage.text));
+                NetworkManager.Instance.Broadcast(message.Serialize());
                 messages.text += inputMessage.text + System.Environment.NewLine;
             }
             else
             {
-                NetworkManager.Instance.SendToServer(System.Text.ASCIIEncoding.UTF8.GetBytes(inputMessage.text));
+                NetworkManager.Instance.SendToServer(message.Serialize());
             }
 
             inputMessage.ActivateInputField();
@@ -47,3 +69,4 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
     }
 
 }
+

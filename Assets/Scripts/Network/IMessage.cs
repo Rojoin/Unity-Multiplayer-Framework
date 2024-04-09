@@ -4,12 +4,17 @@ using UnityEngine;
 using System;
 using System.Text;
 using System.Net;
+using System.Runtime.Serialization.Formatters.Binary;
+using Newtonsoft.Json.Linq;
+using UnityEngine.UI;
+using System.ComponentModel;
 
 public enum MessageType
 {
     HandShake = -1,
     Console = 0,
-    Position = 1
+    Position = 1,
+    String = 2
 }
 
 public interface IMessage<T>
@@ -34,7 +39,7 @@ public class NetHandShake : IMessage<(long, int)>
 
     public MessageType GetMessageType()
     {
-       return MessageType.HandShake;
+        return MessageType.HandShake;
     }
 
     public byte[] Serialize()
@@ -91,4 +96,63 @@ public class NetVector3 : IMessage<UnityEngine.Vector3>
     }
 
     //Dictionary<Client,Dictionary<msgType,int>>
+}
+public class NetConsole : IMessage<string>
+{
+    private static ulong lastMsgID = 0;
+    private string data;
+
+    public NetConsole()
+    {
+    }
+
+    public NetConsole(string data)
+    {
+        this.data = data;
+    }
+
+
+    public string Deserialize(byte[] message)
+    {
+        string outData = "";
+        int messageLenght = BitConverter.ToInt32(message, 8);
+        Debug.Log(messageLenght);
+        for (int i = 0; i < messageLenght; i++)
+        {
+            outData += BitConverter.ToChar(message, 12 + i);
+        }
+
+        return outData;
+
+    }
+
+
+    public MessageType GetMessageType()
+    {
+        return MessageType.String;
+    }
+
+    public byte[] Serialize()
+    {
+        List<byte> outData = new List<byte>();
+        outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
+        outData.AddRange(BitConverter.GetBytes(lastMsgID++));
+        outData.AddRange(BitConverter.GetBytes(data.Length));
+        for (int i = 0; i < data.Length; i++)
+        {
+            outData.Add((byte)data[i]);
+        }
+
+        return outData.ToArray();
+    }
+}
+public class NetByteTranslator
+{
+
+    public static MessageType getNetworkType(byte[] data)
+    {
+        (long, int) dataOut;
+        dataOut.Item1 = BitConverter.ToInt32(data, 0);
+        return (MessageType)dataOut.Item1;
+    }
 }
