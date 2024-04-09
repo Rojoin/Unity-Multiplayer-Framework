@@ -34,7 +34,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
                 break;
             case MessageType.String:
                 NetConsole message = new();
-                Debug.Log("MessageType not found");
+                Debug.Log("MessageType is String");
                 messages.text += message.Deserialize(data) + System.Environment.NewLine;
                 break;
             default:
