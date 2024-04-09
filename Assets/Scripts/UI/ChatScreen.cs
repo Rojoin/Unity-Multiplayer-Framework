@@ -13,20 +13,36 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
         inputMessage.onEndEdit.AddListener(OnEndEdit);
 
         this.gameObject.SetActive(false);
-
+        //TODO: Buscar donde mandan la data.
         NetworkManager.Instance.OnReceiveEvent += OnReceiveDataEvent;
     }
 
     void OnReceiveDataEvent(byte[] data, IPEndPoint ep)
     {
+        var type = NetByteTranslator.getNetworkType(data);
         if (NetworkManager.Instance.isServer)
         {
-            NetworkManager.Instance.Broadcast(data);
+            switch (type)
+            {
+                case MessageType.HandShake:
+                    //TODO: Mandar el HandShake de vuelta.
+                    break;
+                case MessageType.Console:
+                    break;
+                case MessageType.Position:
+                    break;
+                case MessageType.String:
+                    NetworkManager.Instance.Broadcast(data);
+                    break;
+                default:
+                    break;
+            }
         }
-        var type = NetByteTranslator.getNetworkType(data);
         switch (type)
         {
             case MessageType.HandShake:
+                //TODO: YA no tengo que mandar handShake
+
                 break;
             case MessageType.Console:
                 break;
