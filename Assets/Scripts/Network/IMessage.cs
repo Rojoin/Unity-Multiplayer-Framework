@@ -16,18 +16,62 @@ public enum MessageType
     Position = 1,
     String = 2
 }
+//TODO: Cambiar a Clase base
 
-public interface IMessage<T>
+public abstract class BaseMessage<PayloadType>
 {
-    public MessageType GetMessageType();
-    public byte[] Serialize();
-    public T Deserialize(byte[] message);
+    protected MessageType Type;
+    protected PayloadType Data;
+
+    protected BaseMessage(PayloadType data)
+    {
+        Data = data;
+    }
+
+    protected BaseMessage()
+    {
+        
+    }
+
+    public MessageType GetMessageType()
+    {
+        return Type;
+    }
+    public abstract byte[] Serialize();
+    public abstract PayloadType Deserialize(byte[] message);
+
+    public PayloadType GetData()
+    {
+        return Data;
+    } 
 }
 
-public class NetHandShake : IMessage<(long, int)>
+public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
 {
-    (long, int) data;
-    public (long, int) Deserialize(byte[] message)
+    protected static ulong lastMsgID = 0;
+    protected static Dictionary<MessageType, ulong> lastSendMessage;
+    protected ulong messageId;
+
+   
+    
+    protected ulong GetMessageID(byte[] data)
+    {
+        return BitConverter.ToUInt64(data, 4);
+    }
+}
+
+public class NetHandShake : BaseMessage<(long, int)>
+{
+    public (long, int) data;
+
+    public NetHandShake(long data1, int id)
+    {
+        data.Item1 = data1;
+        data.Item2 = id;
+        Type = MessageType.HandShake;
+    }
+
+    public override (long, int) Deserialize(byte[] message)
     {
         (long, int) outData;
 
@@ -37,12 +81,9 @@ public class NetHandShake : IMessage<(long, int)>
         return outData;
     }
 
-    public MessageType GetMessageType()
-    {
-        return MessageType.HandShake;
-    }
+    
 
-    public byte[] Serialize()
+    public override byte[] Serialize()
     {
         List<byte> outData = new List<byte>();
 
@@ -56,17 +97,17 @@ public class NetHandShake : IMessage<(long, int)>
     }
 }
 
-public class NetVector3 : IMessage<UnityEngine.Vector3>
+public class NetVector3 : OrderableMessage<UnityEngine.Vector3>
 {
-    private static ulong lastMsgID = 0;
     private Vector3 data;
 
     public NetVector3(Vector3 data)
     {
         this.data = data;
+        Type = MessageType.Position;
     }
 
-    public Vector3 Deserialize(byte[] message)
+    public override Vector3 Deserialize(byte[] message)
     {
         Vector3 outData;
 
@@ -77,12 +118,7 @@ public class NetVector3 : IMessage<UnityEngine.Vector3>
         return outData;
     }
 
-    public MessageType GetMessageType()
-    {
-        return MessageType.Position;
-    }
-
-    public byte[] Serialize()
+    public override byte[] Serialize()
     {
         List<byte> outData = new List<byte>();
 
@@ -97,9 +133,9 @@ public class NetVector3 : IMessage<UnityEngine.Vector3>
 
     //Dictionary<Client,Dictionary<msgType,int>>
 }
-public class NetConsole : IMessage<string>
+
+public class NetConsole : OrderableMessage<string>
 {
-    private static ulong lastMsgID = 0;
     private string data;
 
     public NetConsole()
@@ -109,10 +145,11 @@ public class NetConsole : IMessage<string>
     public NetConsole(string data)
     {
         this.data = data;
+        Type = MessageType.String;
     }
 
 
-    public string Deserialize(byte[] message)
+    public override string Deserialize(byte[] message)
     {
         string outData = "";
         int messageLength = BitConverter.ToInt32(message, 12);
@@ -124,16 +161,11 @@ public class NetConsole : IMessage<string>
         }
 
         return outData;
-
     }
 
 
-    public MessageType GetMessageType()
-    {
-        return MessageType.String;
-    }
 
-    public byte[] Serialize()
+    public override byte[] Serialize()
     {
         List<byte> outData = new List<byte>();
         outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
@@ -148,9 +180,9 @@ public class NetConsole : IMessage<string>
         return outData.ToArray();
     }
 }
+
 public class NetByteTranslator
 {
-
     public static MessageType getNetworkType(byte[] data)
     {
         (long, int) dataOut;

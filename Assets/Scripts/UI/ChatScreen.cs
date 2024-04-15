@@ -25,6 +25,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
             switch (type)
             {
                 case MessageType.HandShake:
+                    NetHandShake handShake = new NetHandShake(0,1);
                     //TODO: Mandar el HandShake de vuelta.
                     break;
                 case MessageType.Console:
