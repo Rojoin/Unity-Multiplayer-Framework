@@ -22,6 +22,7 @@ public abstract class BaseMessage<PayloadType>
 {
     protected MessageType Type;
     protected PayloadType Data;
+    protected int PlayerID;
 
     protected BaseMessage(PayloadType data)
     {
@@ -30,33 +31,36 @@ public abstract class BaseMessage<PayloadType>
 
     protected BaseMessage()
     {
-        
     }
 
     public MessageType GetMessageType()
     {
         return Type;
     }
+
     public abstract byte[] Serialize();
     public abstract PayloadType Deserialize(byte[] message);
 
     public PayloadType GetData()
     {
         return Data;
-    } 
+    }
 }
 
 public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
 {
     protected static ulong lastMsgID = 0;
-    protected static Dictionary<MessageType, ulong> lastSendMessage;
+    protected static Dictionary<MessageType, ulong> lastSendMessage = new();
     protected ulong messageId;
 
-   
-    
-    protected ulong GetMessageID(byte[] data)
+    public bool IsTheNewestMessage()
     {
-        return BitConverter.ToUInt64(data, 4);
+        if (lastSendMessage[Type] < messageId)
+        {
+            return false;
+        }
+        lastSendMessage[Type] = messageId;
+        return true;
     }
 }
 
@@ -81,7 +85,6 @@ public class NetHandShake : BaseMessage<(long, int)>
         return outData;
     }
 
-    
 
     public override byte[] Serialize()
     {
@@ -111,9 +114,10 @@ public class NetVector3 : OrderableMessage<UnityEngine.Vector3>
     {
         Vector3 outData;
 
-        outData.x = BitConverter.ToSingle(message, 8);
-        outData.y = BitConverter.ToSingle(message, 12);
-        outData.z = BitConverter.ToSingle(message, 16);
+        messageId = BitConverter.ToUInt64(message, 4);
+        outData.x = BitConverter.ToSingle(message, 12);
+        outData.y = BitConverter.ToSingle(message, 16);
+        outData.z = BitConverter.ToSingle(message, 20);
 
         return outData;
     }
@@ -152,6 +156,7 @@ public class NetConsole : OrderableMessage<string>
     public override string Deserialize(byte[] message)
     {
         string outData = "";
+        messageId = BitConverter.ToUInt64(message, 4);
         int messageLength = BitConverter.ToInt32(message, 12);
         Debug.Log(messageLength);
         for (int i = 0; i < messageLength; i++)
@@ -162,7 +167,6 @@ public class NetConsole : OrderableMessage<string>
 
         return outData;
     }
-
 
 
     public override byte[] Serialize()
