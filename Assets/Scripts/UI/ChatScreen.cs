@@ -1,4 +1,5 @@
 ﻿
+using System;
 using System.Net;
 using UnityEngine;
 using UnityEngine.UI;
@@ -17,8 +18,10 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
        
     }
 
-    
-    
+    private void OnDestroy()
+    {
+        inputMessage.onEndEdit.RemoveAllListeners();
+    }
 
     void OnEndEdit(string str)
     {

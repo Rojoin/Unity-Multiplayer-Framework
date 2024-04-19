@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using UnityEngine;
 
-public class NetworkMessage : MonoBehaviourSingleton<NetworkMessage>
+public class NetworkDataHandler : MonoBehaviourSingleton<NetworkDataHandler>
 {
     public ChatScreen chat;
 
@@ -45,7 +45,7 @@ public class NetworkMessage : MonoBehaviourSingleton<NetworkMessage>
             case MessageType.String:
                 NetConsole message = new();
                 Debug.Log("MessageType is String");
-                //messages.text += message.Deserialize(data) + System.Environment.NewLine;
+                chat.messages.text += message.Deserialize(data) + System.Environment.NewLine;
                 break;
             default:
                 Debug.Log("MessageType not found");
