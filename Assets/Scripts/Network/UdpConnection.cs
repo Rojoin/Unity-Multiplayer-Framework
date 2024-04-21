@@ -11,6 +11,8 @@ public class UdpConnection
         public IPEndPoint ipEndPoint;
     }
 
+    public int playerId = -1;
+    
     private readonly UdpClient connection;
     private IReceiveData receiver = null;
     private Queue<DataReceived> dataReceivedQueue = new Queue<DataReceived>();
@@ -34,6 +36,9 @@ public class UdpConnection
         this.receiver = receiver;
 
         connection.BeginReceive(OnReceive, null);
+
+        NetHandShake handShake = new NetHandShake(playerId);
+        Send(handShake.Serialize());
     }
 
     public void Close()
@@ -49,7 +54,7 @@ public class UdpConnection
             {
                 DataReceived dataReceived = dataReceivedQueue.Dequeue();
                 if (receiver != null)
-                    receiver.OnReceiveData(dataReceived.data, dataReceived.ipEndPoint);
+                    receiver.OnReceiveData(dataReceived.data, dataReceived.ipEndPoint,playerId);
             }
         }
     }

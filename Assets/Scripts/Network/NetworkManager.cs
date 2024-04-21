@@ -19,31 +19,31 @@ public struct Client
 
 public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveData
 {
-    public IPAddress ipAddress
-    {
-        get; private set;
-    }
+    public IPAddress ipAddress { get; private set; }
 
-    public int port
-    {
-        get; private set;
-    }
+    public int port { get; private set; }
 
-    public bool isServer
-    {
-        get; private set;
-    }
+    public bool isServer { get; private set; }
 
     public int TimeOut = 30;
 
-    public Action<byte[], IPEndPoint> OnReceiveEvent;
+    public Action<byte[], IPEndPoint, int> OnReceiveEvent;
 
-    private UdpConnection connection;
+    public UdpConnection connection;
 
     private readonly Dictionary<int, Client> clients = new Dictionary<int, Client>();
     private readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
 
     int clientId = 0; // This id should be generated during first handshake
+
+    private void OnDestroy()
+    {
+        if (!isServer)
+        {
+            NetExit netExit = new NetExit();
+            SendToServer(netExit.Serialize());
+        }
+    }
 
     public void StartServer(int port)
     {
@@ -61,25 +61,29 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
         connection = new UdpConnection(ip, port, this);
 
-        AddClient(new IPEndPoint(ip, port));
+        // AddClient(new IPEndPoint(ip, port), out var id);
     }
 
-    void AddClient(IPEndPoint ip)
+    void AddClient(IPEndPoint ip, out int id)
     {
         if (!ipToId.ContainsKey(ip))
         {
             Debug.Log("Adding client: " + ip.Address);
 
-            int id = clientId;
+            id = clientId;
             ipToId[ip] = clientId;
 
             clients.Add(clientId, new Client(ip, id, Time.realtimeSinceStartup));
 
             clientId++;
         }
+        else
+        {
+            id = ipToId[ip];
+        }
     }
 
-    void RemoveClient(IPEndPoint ip)
+    public void RemoveClient(IPEndPoint ip)
     {
         if (ipToId.ContainsKey(ip))
         {
@@ -88,17 +92,26 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         }
     }
 
-    public void OnReceiveData(byte[] data, IPEndPoint ip)
+    public void OnReceiveData(byte[] data, IPEndPoint ip, int id)
     {
-        AddClient(ip);
+        if (isServer)
+        {
+            Debug.Log("Im Server");
+            AddClient(ip, out id);
+        }
 
         if (OnReceiveEvent != null)
-            OnReceiveEvent.Invoke(data, ip);
+            OnReceiveEvent.Invoke(data, ip, id);
     }
 
     public void SendToServer(byte[] data)
     {
         connection.Send(data);
+    }
+
+    public void SendToClient(byte[] data, IPEndPoint ip)
+    {
+        connection.Send(data, ip);
     }
 
     public void Broadcast(byte[] data)
