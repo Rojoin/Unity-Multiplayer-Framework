@@ -14,7 +14,8 @@ public enum MessageType
     HandShake = -1,
     Console = 0,
     Position = 1,
-    String = 2
+    String = 2,
+    Exit = 3
 }
 //TODO: Cambiar a Clase base
 
@@ -59,47 +60,64 @@ public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
         {
             return false;
         }
+
         lastSendMessage[Type] = messageId;
         return true;
     }
 }
 
-public class NetHandShake : BaseMessage<(long, int)>
+public class NetHandShake : BaseMessage<int>
 {
-    public (long, int) data;
 
-    public NetHandShake(long data1, int id)
+    public NetHandShake( int id)
     {
-        data.Item1 = data1;
-        data.Item2 = id;
+        PlayerID = id;
+        Type = MessageType.HandShake;
+    } 
+    public NetHandShake()
+    {
         Type = MessageType.HandShake;
     }
 
-    public override (long, int) Deserialize(byte[] message)
+    public override int Deserialize(byte[] message)
     {
-        (long, int) outData;
-
-        outData.Item1 = BitConverter.ToInt64(message, 4);
-        outData.Item2 = BitConverter.ToInt32(message, 12);
-
-        return outData;
+        PlayerID = BitConverter.ToInt32(message, 4);
+        return PlayerID;
     }
-
-
+    
     public override byte[] Serialize()
     {
         List<byte> outData = new List<byte>();
 
         outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
 
-        outData.AddRange(BitConverter.GetBytes(data.Item1));
-        outData.AddRange(BitConverter.GetBytes(data.Item2));
-
-
+        outData.AddRange(BitConverter.GetBytes(PlayerID));
+        
         return outData.ToArray();
     }
 }
 
+public class NetExit : BaseMessage<int>
+{
+    public NetExit()
+    {
+        Type = MessageType.Exit;
+    }
+    public override byte[] Serialize()
+    {
+        List<byte> outData = new List<byte>();
+        outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
+
+        outData.AddRange(BitConverter.GetBytes(PlayerID));
+        return outData.ToArray();
+    }
+
+    public override int Deserialize(byte[] message)
+    {
+        PlayerID = BitConverter.ToInt32(message, 4);
+        return PlayerID;
+    }
+}
 public class NetVector3 : OrderableMessage<UnityEngine.Vector3>
 {
     private Vector3 data;
@@ -114,10 +132,10 @@ public class NetVector3 : OrderableMessage<UnityEngine.Vector3>
     {
         Vector3 outData;
 
-        messageId = BitConverter.ToUInt64(message, 4);
-        outData.x = BitConverter.ToSingle(message, 12);
-        outData.y = BitConverter.ToSingle(message, 16);
-        outData.z = BitConverter.ToSingle(message, 20);
+        messageId = BitConverter.ToUInt64(message, 8);
+        outData.x = BitConverter.ToSingle(message, 16);
+        outData.y = BitConverter.ToSingle(message, 20);
+        outData.z = BitConverter.ToSingle(message, 24);
 
         return outData;
     }
@@ -127,6 +145,7 @@ public class NetVector3 : OrderableMessage<UnityEngine.Vector3>
         List<byte> outData = new List<byte>();
 
         outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
+        outData.AddRange(BitConverter.GetBytes(PlayerID));
         outData.AddRange(BitConverter.GetBytes(lastMsgID++));
         outData.AddRange(BitConverter.GetBytes(data.x));
         outData.AddRange(BitConverter.GetBytes(data.y));
@@ -156,13 +175,13 @@ public class NetConsole : OrderableMessage<string>
     public override string Deserialize(byte[] message)
     {
         string outData = "";
-        messageId = BitConverter.ToUInt64(message, 4);
-        int messageLength = BitConverter.ToInt32(message, 12);
+        messageId = BitConverter.ToUInt64(message, 8);
+        int messageLength = BitConverter.ToInt32(message, 16);
         Debug.Log(messageLength);
         for (int i = 0; i < messageLength; i++)
         {
             //outData += BitConverter.ToChar(message, 16 + i);
-            outData += (char)message[16 + i];
+            outData += (char)message[20 + i];
         }
 
         return outData;
@@ -173,6 +192,7 @@ public class NetConsole : OrderableMessage<string>
     {
         List<byte> outData = new List<byte>();
         outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
+        outData.AddRange(BitConverter.GetBytes(PlayerID));
         outData.AddRange(BitConverter.GetBytes(lastMsgID++));
         Debug.Log("Array Data" + data.Length);
         outData.AddRange(BitConverter.GetBytes(data.Length));
