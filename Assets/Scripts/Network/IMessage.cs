@@ -213,4 +213,11 @@ public class NetByteTranslator
         dataOut.Item1 = BitConverter.ToInt32(data, 0);
         return (MessageType)dataOut.Item1;
     }
+
+    public static int GetPlayerID(byte[] data)
+    {
+        (long, int) dataOut;
+        dataOut.Item2 = BitConverter.ToInt32(data, 4);
+        return dataOut.Item2;
+    }
 }
