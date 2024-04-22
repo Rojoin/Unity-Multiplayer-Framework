@@ -23,8 +23,21 @@ public abstract class BaseMessage<PayloadType>
 {
     protected MessageType Type;
     protected PayloadType Data;
-    protected int PlayerID;
+    public static int PlayerID;
 
+    // protected static BaseMessage<PayloadType> instance;
+    // public static BaseMessage<PayloadType> Instance
+    // {
+    //     get
+    //     {
+    //         if (instance == null)
+    //         {
+    //             // Create the singleton instance with a shared value
+    //             instance = new BaseMessage<PayloadType>(); // Example player ID
+    //         }
+    //         return instance;
+    //     }
+    // }
     protected BaseMessage(PayloadType data)
     {
         Data = data;
@@ -39,6 +52,14 @@ public abstract class BaseMessage<PayloadType>
         return Type;
     }
 
+    public static void SetPlayerId(int playerId)
+    {
+        // Instance.PlayerID = playerId;
+    }
+    public int GetID()
+    {
+        return PlayerID;
+    }
     public abstract byte[] Serialize();
     public abstract PayloadType Deserialize(byte[] message);
 
@@ -193,6 +214,7 @@ public class NetConsole : OrderableMessage<string>
         List<byte> outData = new List<byte>();
         outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
         outData.AddRange(BitConverter.GetBytes(PlayerID));
+        Debug.Log(PlayerID);
         outData.AddRange(BitConverter.GetBytes(lastMsgID++));
         Debug.Log("Array Data" + data.Length);
         outData.AddRange(BitConverter.GetBytes(data.Length));

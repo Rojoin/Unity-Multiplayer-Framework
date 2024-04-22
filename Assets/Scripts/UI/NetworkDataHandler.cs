@@ -28,6 +28,8 @@ public class NetworkDataHandler : MonoBehaviourSingleton<NetworkDataHandler>
                 case MessageType.Position:
                     break;
                 case MessageType.String:
+                    NetConsole message = new();
+                    chat.AddText(message.Deserialize(data),NetByteTranslator.GetPlayerID(data));
                     NetworkManager.Instance.Broadcast(data);
                     break;
                 case MessageType.Exit:
@@ -44,7 +46,7 @@ public class NetworkDataHandler : MonoBehaviourSingleton<NetworkDataHandler>
         }
 
         if (NetworkManager.Instance.connection.playerId == playerID ||
-            NetworkManager.Instance.connection.playerId == -2)
+            NetworkManager.Instance.connection.playerId == -10)
         {
             switch (type)
             {
@@ -63,7 +65,8 @@ public class NetworkDataHandler : MonoBehaviourSingleton<NetworkDataHandler>
                 case MessageType.String:
                     NetConsole message = new();
                     Debug.Log("MessageType is String");
-                    chat.messages.text +=  message.Deserialize(data) + System.Environment.NewLine;
+                    Debug.Log(NetByteTranslator.GetPlayerID(data));
+                    chat.AddText(message.Deserialize(data),NetByteTranslator.GetPlayerID(data));
                     break;
                 default:
                     Debug.Log("MessageType not found");

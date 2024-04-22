@@ -50,6 +50,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         isServer = true;
         this.port = port;
         connection = new UdpConnection(port, this);
+        NetHandShake netHandShake = new NetHandShake(-10);
     }
 
     public void StartClient(IPAddress ip, int port)
