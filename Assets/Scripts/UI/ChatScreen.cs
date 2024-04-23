@@ -10,13 +10,6 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
     protected override void Initialize()
     {
-        NetHandShake.SetPlayerId(10);
-        NetHandShake message = new NetHandShake(11);
-        
-        Debug.Log(message.GetID());
-        NetConsole me = new NetConsole();
-        
-        Debug.Log(me.GetID());
         
         inputMessage.onEndEdit.AddListener(OnEndEdit);
 

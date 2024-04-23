@@ -8,12 +8,26 @@ public struct Client
     public float timeStamp;
     public int id;
     public IPEndPoint ipEndPoint;
+    public string tag;
 
-    public Client(IPEndPoint ipEndPoint, int id, float timeStamp)
+    public Client(IPEndPoint ipEndPoint, int id, float timeStamp, string tag)
     {
         this.timeStamp = timeStamp;
         this.id = id;
         this.ipEndPoint = ipEndPoint;
+        this.tag = tag;
+    }
+}
+
+public struct Player
+{
+    public int id;
+    public string tag;
+
+   public Player(int id, string tag)
+    {
+        this.id = id;
+        this.tag = tag;
     }
 }
 
@@ -33,6 +47,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     private readonly Dictionary<int, Client> clients = new Dictionary<int, Client>();
     private readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
+    public List<Player> players = new();
+    public string tagName = "";
 
     int clientId = 0; // This id should be generated during first handshake
 
@@ -50,7 +66,6 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         isServer = true;
         this.port = port;
         connection = new UdpConnection(port, this);
-        NetHandShake netHandShake = new NetHandShake(-10);
     }
 
     public void StartClient(IPAddress ip, int port)
@@ -60,12 +75,12 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         this.port = port;
         this.ipAddress = ip;
 
-        connection = new UdpConnection(ip, port, this);
+        connection = new UdpConnection(ip, port, tagName, this);
 
         // AddClient(new IPEndPoint(ip, port), out var id);
     }
 
-    void AddClient(IPEndPoint ip, out int id)
+    void AddClient(IPEndPoint ip, out int id, string tag)
     {
         if (!ipToId.ContainsKey(ip))
         {
@@ -73,9 +88,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
             id = clientId;
             ipToId[ip] = clientId;
-
-            clients.Add(clientId, new Client(ip, id, Time.realtimeSinceStartup));
-
+            clients.Add(clientId, new Client(ip, id, Time.realtimeSinceStartup, tag));
+            players.Add(new Player(clientId,tag));
             clientId++;
         }
         else
@@ -93,12 +107,12 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         }
     }
 
-    public void OnReceiveData(byte[] data, IPEndPoint ip, int id)
+    public void OnReceiveData(byte[] data, IPEndPoint ip, int id, string tag)
     {
         if (isServer)
         {
             Debug.Log("Im Server");
-            AddClient(ip, out id);
+            AddClient(ip, out id, tag);
         }
 
         if (OnReceiveEvent != null)

@@ -18,7 +18,7 @@ public class UdpConnection
     private Queue<DataReceived> dataReceivedQueue = new Queue<DataReceived>();
 
     object handler = new object();
-    
+    public string nameTag;
     public UdpConnection(int port, IReceiveData receiver = null)
     {
         connection = new UdpClient(port);
@@ -28,7 +28,7 @@ public class UdpConnection
         connection.BeginReceive(OnReceive, null);
     }
 
-    public UdpConnection(IPAddress ip, int port, IReceiveData receiver = null)
+    public UdpConnection(IPAddress ip, int port, string tag, IReceiveData receiver = null)
     {
         connection = new UdpClient();
         connection.Connect(ip, port);
@@ -37,7 +37,7 @@ public class UdpConnection
 
         connection.BeginReceive(OnReceive, null);
 
-        NetHandShake handShake = new NetHandShake(playerId);
+        NetHandShake handShake = new NetHandShake(tag);
         Send(handShake.Serialize());
     }
 
@@ -54,7 +54,7 @@ public class UdpConnection
             {
                 DataReceived dataReceived = dataReceivedQueue.Dequeue();
                 if (receiver != null)
-                    receiver.OnReceiveData(dataReceived.data, dataReceived.ipEndPoint,playerId);
+                    receiver.OnReceiveData(dataReceived.data, dataReceived.ipEndPoint,playerId,nameTag);
             }
         }
     }

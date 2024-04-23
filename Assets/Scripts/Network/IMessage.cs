@@ -11,7 +11,8 @@ using System.ComponentModel;
 
 public enum MessageType
 {
-    HandShake = -1,
+    HandShake = -2,
+    HandShakeOK = -1,
     Console = 0,
     Position = 1,
     String = 2,
@@ -25,19 +26,6 @@ public abstract class BaseMessage<PayloadType>
     protected PayloadType Data;
     public static int PlayerID;
 
-    // protected static BaseMessage<PayloadType> instance;
-    // public static BaseMessage<PayloadType> Instance
-    // {
-    //     get
-    //     {
-    //         if (instance == null)
-    //         {
-    //             // Create the singleton instance with a shared value
-    //             instance = new BaseMessage<PayloadType>(); // Example player ID
-    //         }
-    //         return instance;
-    //     }
-    // }
     protected BaseMessage(PayloadType data)
     {
         Data = data;
@@ -56,10 +44,12 @@ public abstract class BaseMessage<PayloadType>
     {
         // Instance.PlayerID = playerId;
     }
+
     public int GetID()
     {
         return PlayerID;
     }
+
     public abstract byte[] Serialize();
     public abstract PayloadType Deserialize(byte[] message);
 
@@ -87,25 +77,95 @@ public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
     }
 }
 
-public class NetHandShake : BaseMessage<int>
+public class NetHandShakeOK : BaseMessage<List<Player>>
 {
-
-    public NetHandShake( int id)
+    public NetHandShakeOK(List<Player> clients)
     {
-        PlayerID = id;
+        Data = clients;
+        Type = MessageType.HandShakeOK;
+    }
+
+    public override byte[] Serialize()
+    {
+        List<byte> outData = new List<byte>();
+        //Tamaño de la lista
+        //tamaño de caracter
+        //chars
+
+        int listSize = Data.Count;
+        outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
+
+        outData.AddRange(BitConverter.GetBytes(PlayerID));
+
+        outData.AddRange(BitConverter.GetBytes(Data.Count));
+
+        for (int i = 0; i < listSize; i++)
+        {
+            outData.AddRange(BitConverter.GetBytes(Data[i].id));
+            outData.AddRange(BitConverter.GetBytes(Data[i].tag.Length));
+            for (int j = 0; j < Data[i].tag.Length; j++)
+            {
+                outData.Add((byte)Data[i].tag[j]);
+            }
+        }
+
+        return outData.ToArray();
+    }
+
+    public override List<Player> Deserialize(byte[] message)
+    {
+        List<Player> clients = new List<Player>();
+
+        int var = 2;
+        int maxClients = BitConverter.ToInt32(message, 12);
+        int baseByte = 16;
+        int wordsUpTo = 0;
+        for (int i = 0; i < maxClients; i++)
+        {
+            int currentClientId = BitConverter.ToInt32(message, baseByte + wordsUpTo);
+            int currentClient = BitConverter.ToInt32(message, baseByte +wordsUpTo);
+            string clientName = "";
+            
+            for (int j = 0; j < currentClient; i++)
+            {
+                //Todo: Contar los bits 
+                //outData += BitConverter.ToChar(message, 16 + i);
+                clientName += (char)message[12 + i];
+                wordsUpTo++;
+            }
+            clients.Add(new Player(currentClientId,clientName));
+        }
+
+        return clients;
+    }
+}
+
+public class NetHandShake : BaseMessage<string>
+{
+    public NetHandShake(string tag)
+    {
+        Data = tag;
         Type = MessageType.HandShake;
-    } 
+    }
+
     public NetHandShake()
     {
         Type = MessageType.HandShake;
     }
 
-    public override int Deserialize(byte[] message)
+    public override string Deserialize(byte[] message)
     {
-        PlayerID = BitConverter.ToInt32(message, 4);
-        return PlayerID;
+        string outData = "";
+        int max = BitConverter.ToInt32(message, 8);
+        for (int i = 0; i < max; i++)
+        {
+            //outData += BitConverter.ToChar(message, 16 + i);
+            outData += (char)message[12 + i];
+        }
+
+        return outData;
     }
-    
+
     public override byte[] Serialize()
     {
         List<byte> outData = new List<byte>();
@@ -113,7 +173,13 @@ public class NetHandShake : BaseMessage<int>
         outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
 
         outData.AddRange(BitConverter.GetBytes(PlayerID));
-        
+
+        outData.AddRange(BitConverter.GetBytes(Data.Length));
+        for (int i = 0; i < Data.Length; i++)
+        {
+            outData.Add((byte)Data[i]);
+        }
+
         return outData.ToArray();
     }
 }
@@ -124,6 +190,7 @@ public class NetExit : BaseMessage<int>
     {
         Type = MessageType.Exit;
     }
+
     public override byte[] Serialize()
     {
         List<byte> outData = new List<byte>();
@@ -139,6 +206,7 @@ public class NetExit : BaseMessage<int>
         return PlayerID;
     }
 }
+
 public class NetVector3 : OrderableMessage<UnityEngine.Vector3>
 {
     private Vector3 data;

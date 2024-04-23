@@ -19,9 +19,18 @@ public class NetworkDataHandler : MonoBehaviourSingleton<NetworkDataHandler>
             switch (type)
             {
                 case MessageType.HandShake:
-                    NetHandShake handShake = new NetHandShake(id);
-                    Debug.Log("La ip de el cliente es: " + ep.Address + " y el ID es: " + id);
+                    NetHandShake handShake = new NetHandShake();
+                    Debug.Log("La ip de el cliente es: " + ep.Address + " y el tag es: " + handShake.Deserialize(data));
+
+                    NetHandShakeOK handOK = new NetHandShakeOK(NetworkManager.Instance.players);
                     NetworkManager.Instance.SendToClient(handShake.Serialize(), ep);
+                    
+                    //Todo darle nueva lista de clientes.
+                    //Hacer handshake OK 
+                    
+                    
+                   // NetworkManager.Instance.Broadcast();
+                    
                     break;
                 case MessageType.Console:
                     break;
@@ -41,7 +50,7 @@ public class NetworkDataHandler : MonoBehaviourSingleton<NetworkDataHandler>
         if (NetworkManager.Instance.connection.playerId == -1 && type ==  MessageType.HandShake && !NetworkManager.Instance.isServer)
         {
             NetHandShake handShake = new NetHandShake();
-            NetworkManager.Instance.connection.playerId = handShake.Deserialize(data);
+          //  NetworkManager.Instance.connection.playerId = handShake.Deserialize(data);
             Debug.Log("New ID is: " + NetworkManager.Instance.connection.playerId);
         }
 
