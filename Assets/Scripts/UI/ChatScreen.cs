@@ -24,7 +24,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
     public void AddText(string textString, int id)
     { 
-        string idName = id != -10 ? "Player " + id + ":" : "Server:";
+        string idName = id != -10 ? NetworkManager.Instance.GetPlayer(id).nameTag + ":" : "Server:";
         messages.text += idName + textString + System.Environment.NewLine;
     }
     void OnEndEdit(string str)

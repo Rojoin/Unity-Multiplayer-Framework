@@ -22,12 +22,12 @@ public struct Client
 public struct Player
 {
     public int id;
-    public string tag;
+    public string nameTag;
 
-   public Player(int id, string tag)
+   public Player(int id, string nameTag)
     {
         this.id = id;
-        this.tag = tag;
+        this.nameTag = nameTag;
     }
 }
 
@@ -50,8 +50,9 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public List<Player> players = new();
     public string tagName = "";
 
-    int clientId = 0; // This id should be generated during first handshake
+    public int clientId = 0; // This id should be generated during first handshake
 
+    //Todo dividir logica segun cliente y servidor
     private void OnDestroy()
     {
         if (!isServer)
@@ -66,6 +67,9 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         isServer = true;
         this.port = port;
         connection = new UdpConnection(port, this);
+        NetConsole.PlayerID = -10;
+        NetExit.PlayerID = -10;
+        NetVector3.PlayerID = -10;
     }
 
     public void StartClient(IPAddress ip, int port)
@@ -80,7 +84,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         // AddClient(new IPEndPoint(ip, port), out var id);
     }
 
-    void AddClient(IPEndPoint ip, out int id, string tag)
+    public void AddClient(IPEndPoint ip, out int id, string nameTag)
     {
         if (!ipToId.ContainsKey(ip))
         {
@@ -89,7 +93,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
             id = clientId;
             ipToId[ip] = clientId;
             clients.Add(clientId, new Client(ip, id, Time.realtimeSinceStartup, tag));
-            players.Add(new Player(clientId,tag));
+            players.Add(new Player(clientId,nameTag));
             clientId++;
         }
         else
@@ -107,13 +111,23 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         }
     }
 
+    public void SetPlayer(List<Player> newPlayersList)
+    {
+        foreach (Player player in newPlayersList)
+        {
+            if (tagName != player.nameTag) continue;
+            clientId = player.id;
+            break;
+        }
+
+        players = newPlayersList;
+        NetConsole.PlayerID = clientId;
+        NetExit.PlayerID = clientId;
+        NetVector3.PlayerID = clientId;
+        
+    }
     public void OnReceiveData(byte[] data, IPEndPoint ip, int id, string tag)
     {
-        if (isServer)
-        {
-            Debug.Log("Im Server");
-            AddClient(ip, out id, tag);
-        }
 
         if (OnReceiveEvent != null)
             OnReceiveEvent.Invoke(data, ip, id);
@@ -145,5 +159,18 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         // Flush the data in main thread
         if (connection != null)
             connection.FlushReceiveData();
+    }
+
+    public Player GetPlayer(int id)
+    {
+        foreach (Player player in players)
+        {
+            if (player.id == id)
+            {
+                return player;
+            }
+        }
+
+        return new Player(-999, "Not Found");
     }
 }

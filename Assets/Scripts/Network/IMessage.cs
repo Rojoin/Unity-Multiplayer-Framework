@@ -85,6 +85,10 @@ public class NetHandShakeOK : BaseMessage<List<Player>>
         Type = MessageType.HandShakeOK;
     }
 
+    public NetHandShakeOK()
+    {
+    }
+
     public override byte[] Serialize()
     {
         List<byte> outData = new List<byte>();
@@ -102,10 +106,10 @@ public class NetHandShakeOK : BaseMessage<List<Player>>
         for (int i = 0; i < listSize; i++)
         {
             outData.AddRange(BitConverter.GetBytes(Data[i].id));
-            outData.AddRange(BitConverter.GetBytes(Data[i].tag.Length));
-            for (int j = 0; j < Data[i].tag.Length; j++)
+            outData.AddRange(BitConverter.GetBytes(Data[i].nameTag.Length));
+            for (int j = 0; j < Data[i].nameTag.Length; j++)
             {
-                outData.Add((byte)Data[i].tag[j]);
+                outData.Add((byte)Data[i].nameTag[j]);
             }
         }
 
@@ -116,24 +120,25 @@ public class NetHandShakeOK : BaseMessage<List<Player>>
     {
         List<Player> clients = new List<Player>();
 
-        int var = 2;
-        int maxClients = BitConverter.ToInt32(message, 12);
-        int baseByte = 16;
+        int maxClients = BitConverter.ToInt32(message, 8);
+        int baseByte = 12;
         int wordsUpTo = 0;
         for (int i = 0; i < maxClients; i++)
         {
             int currentClientId = BitConverter.ToInt32(message, baseByte + wordsUpTo);
-            int currentClient = BitConverter.ToInt32(message, baseByte +wordsUpTo);
-            string clientName = "";
-            
-            for (int j = 0; j < currentClient; i++)
+            int clientNameLength = BitConverter.ToInt32(message, baseByte + wordsUpTo + 4);
+
+            StringBuilder clientNameBuilder = new StringBuilder();
+            for (int j = 0; j < clientNameLength; j++)
             {
-                //Todo: Contar los bits 
-                //outData += BitConverter.ToChar(message, 16 + i);
-                clientName += (char)message[12 + i];
-                wordsUpTo++;
+                char currentChar = (char)message[baseByte + wordsUpTo + 8 + j];
+                clientNameBuilder.Append(currentChar);
             }
-            clients.Add(new Player(currentClientId,clientName));
+
+            string clientName = clientNameBuilder.ToString();
+            wordsUpTo += 8 + clientNameLength;
+            Debug.Log("New name" + clientName);
+            clients.Add(new Player(currentClientId, clientName));
         }
 
         return clients;
@@ -269,7 +274,6 @@ public class NetConsole : OrderableMessage<string>
         Debug.Log(messageLength);
         for (int i = 0; i < messageLength; i++)
         {
-            //outData += BitConverter.ToChar(message, 16 + i);
             outData += (char)message[20 + i];
         }
 
