@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public struct Client
 {
@@ -9,13 +10,14 @@ public struct Client
     public int id;
     public IPEndPoint ipEndPoint;
     public string tag;
-
+    public Coroutine timeOutCorroutine;
     public Client(IPEndPoint ipEndPoint, int id, float timeStamp, string tag)
     {
         this.timeStamp = timeStamp;
         this.id = id;
         this.ipEndPoint = ipEndPoint;
         this.tag = tag;
+        timeOutCorroutine = null;
     }
 }
 
@@ -39,7 +41,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     public bool isServer { get; private set; }
 
-    public int TimeOut = 30;
+    [FormerlySerializedAs("TimeOut")] public int timeOut = 30;
 
     public Action<byte[], IPEndPoint, int> OnReceiveEvent;
 
@@ -50,9 +52,16 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public List<Player> players = new();
     public string tagName = "";
 
+    private WaitForSeconds timeUntilTimeOut;
     public int clientId = 0; // This id should be generated during first handshake
 
     //Todo dividir logica segun cliente y servidor
+    protected override void Initialize()
+    {
+        base.Initialize();
+        timeUntilTimeOut = new WaitForSeconds(timeOut);
+    }
+
     private void OnDestroy()
     {
         if (!isServer)
@@ -70,6 +79,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         NetConsole.PlayerID = -10;
         NetExit.PlayerID = -10;
         NetVector3.PlayerID = -10;
+        NetPing.PlayerID = -10;
     }
 
     public void StartClient(IPAddress ip, int port)
@@ -80,8 +90,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         this.ipAddress = ip;
 
         connection = new UdpConnection(ip, port, tagName, this);
-
-        // AddClient(new IPEndPoint(ip, port), out var id);
+        
     }
 
     public void AddClient(IPEndPoint ip, out int id, string nameTag)
@@ -124,11 +133,12 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         NetConsole.PlayerID = clientId;
         NetExit.PlayerID = clientId;
         NetVector3.PlayerID = clientId;
+        NetPing.PlayerID = clientId;
+        NetPong.PlayerID = clientId;
         
     }
     public void OnReceiveData(byte[] data, IPEndPoint ip, int id, string tag)
     {
-
         if (OnReceiveEvent != null)
             OnReceiveEvent.Invoke(data, ip, id);
     }
@@ -138,9 +148,33 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         connection.Send(data);
     }
 
-    public void SendToClient(byte[] data, IPEndPoint ip)
+    public void SendToClient(byte[] data, string nameTag,IPEndPoint ep)
     {
-        connection.Send(data, ip);
+        IPEndPoint clientIp = ep;
+
+        foreach (var client in clients)
+        {
+            if (client.Value.tag == nameTag)
+            {
+                clientIp = client.Value.ipEndPoint;
+                break;
+            }
+        }
+        connection.Send(data, clientIp);
+    }
+    public void SendToClient(byte[] data, int id,IPEndPoint ep)
+    {
+        IPEndPoint clientIp = ep;
+
+        foreach (var client in clients)
+        {
+            if (client.Value.id == id)
+            {
+                clientIp = client.Value.ipEndPoint;
+                break;
+            }
+        }
+        connection.Send(data, clientIp);
     }
 
     public void Broadcast(byte[] data)

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
 
@@ -6,6 +7,8 @@ public class NetworkDataHandler : MonoBehaviourSingleton<NetworkDataHandler>
 {
     public ChatScreen chat;
 
+    private float lastTime =0.0f;
+    private float currentTime=0.0f;
     protected override void Initialize()
     {
         NetworkManager.Instance.OnReceiveEvent += OnReceiveDataEvent;
@@ -26,10 +29,12 @@ public class NetworkDataHandler : MonoBehaviourSingleton<NetworkDataHandler>
                     NetworkManager.Instance. AddClient(ep, out id, gameTag);
                     NetHandShakeOK handOK = new NetHandShakeOK(NetworkManager.Instance.players);
                     NetworkManager.Instance.Broadcast(handOK.Serialize());
-
-                    //Todo darle nueva lista de clientes.
-                    //Hacer handshake OK 
-
+                    
+                    //Todo mandar Ping 
+                    NetPing ping = new NetPing();
+                    lastTime = Time.time;
+                    NetworkManager.Instance.SendToClient(ping.Serialize(),gameTag,ep);
+                    
 
                     break;
                 case MessageType.Console:
@@ -43,6 +48,19 @@ public class NetworkDataHandler : MonoBehaviourSingleton<NetworkDataHandler>
                     break;
                 case MessageType.Exit:
                     NetworkManager.Instance.RemoveClient(ep);
+                    break;
+                case MessageType.HandShakeOk:
+                    break;
+                case MessageType.Ping:
+                    break;
+                case MessageType.Pong:
+                    NetPing pingMessage = new NetPing();
+                    NetPong pongMessage = new NetPong();
+                    NetworkManager.Instance.SendToClient(pingMessage.Serialize(),pingMessage.Deserialize(data),ep);
+                    currentTime = Time.time;
+                    var a = currentTime - lastTime;
+                    Debug.Log("Pong with " + pongMessage.Deserialize(data) + "in " + a + "ms" );
+                    lastTime = currentTime;
                     break;
             }
         }
@@ -65,7 +83,7 @@ public class NetworkDataHandler : MonoBehaviourSingleton<NetworkDataHandler>
                     Debug.Log(NetByteTranslator.GetPlayerID(data));
                     chat.AddText(message.Deserialize(data), NetByteTranslator.GetPlayerID(data));
                     break;
-                case MessageType.HandShakeOK:
+                case MessageType.HandShakeOk:
                     NetHandShakeOK handOk = new NetHandShakeOK();
                     List<Player> players = handOk.Deserialize(data);
                     NetworkManager.Instance.SetPlayer(players);
@@ -78,6 +96,17 @@ public class NetworkDataHandler : MonoBehaviourSingleton<NetworkDataHandler>
 
                     break;
                 case MessageType.Exit:
+                    break;
+                case MessageType.Ping:
+                    Debug.Log("Ping");
+                    NetPong netPong = new NetPong();
+                    NetworkManager.Instance.SendToServer(netPong.Serialize());
+                    currentTime = Time.time;
+                    var a = currentTime - lastTime;
+                    Debug.Log("Ping in " + a + "ms" );
+                    lastTime = currentTime;
+                    break;
+                case MessageType.Pong:
                     break;
                 default:
                     Debug.Log("MessageType not found");

@@ -12,11 +12,13 @@ using System.ComponentModel;
 public enum MessageType
 {
     HandShake = -2,
-    HandShakeOK = -1,
+    HandShakeOk = -1,
     Console = 0,
     Position = 1,
     String = 2,
-    Exit = 3
+    Ping,
+    Pong,
+    Exit  
 }
 //TODO: Cambiar a Clase base
 
@@ -57,6 +59,13 @@ public abstract class BaseMessage<PayloadType>
     {
         return Data;
     }
+
+    protected virtual void BasicSerialize(List<byte> outData, MessageType type)
+    {
+        outData.AddRange(BitConverter.GetBytes((int)type));
+
+        outData.AddRange(BitConverter.GetBytes(PlayerID));
+    }
 }
 
 public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
@@ -75,6 +84,12 @@ public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
         lastSendMessage[Type] = messageId;
         return true;
     }
+    protected override void BasicSerialize(List<byte> outData, MessageType type)
+    {
+        outData.AddRange(BitConverter.GetBytes((int)type));
+        outData.AddRange(BitConverter.GetBytes(PlayerID));
+        outData.AddRange(BitConverter.GetBytes(lastMsgID++));
+    }
 }
 
 public class NetHandShakeOK : BaseMessage<List<Player>>
@@ -82,7 +97,7 @@ public class NetHandShakeOK : BaseMessage<List<Player>>
     public NetHandShakeOK(List<Player> clients)
     {
         Data = clients;
-        Type = MessageType.HandShakeOK;
+        Type = MessageType.HandShakeOk;
     }
 
     public NetHandShakeOK()
@@ -168,6 +183,7 @@ public class NetHandShake : BaseMessage<string>
             outData += (char)message[12 + i];
         }
 
+        Data = outData;
         return outData;
     }
 
@@ -299,6 +315,46 @@ public class NetConsole : OrderableMessage<string>
     }
 }
 
+public class NetPing : BaseMessage<int>
+{
+    public NetPing()
+    {
+        Type = MessageType.Ping;
+    }
+    public override byte[] Serialize()
+    {
+        List<byte> outData = new List<byte>();
+        outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
+        outData.AddRange(BitConverter.GetBytes(PlayerID));
+        return outData.ToArray();
+    }
+
+    public override int Deserialize(byte[] message)
+    {
+        //PlayerID = BitConverter.ToInt32(message, 4);
+        return BitConverter.ToInt32(message, 4);
+    }
+}
+public class NetPong : BaseMessage<int>
+{
+    public NetPong()
+    {
+        Type = MessageType.Pong;
+    }
+    public override byte[] Serialize()
+    {
+        List<byte> outData = new List<byte>();
+        outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
+        outData.AddRange(BitConverter.GetBytes(PlayerID));
+        Debug.Log(PlayerID);
+        return outData.ToArray();
+    }
+
+    public override int Deserialize(byte[] message)
+    {
+        return BitConverter.ToInt32(message, 4);
+    }
+}
 public class NetByteTranslator
 {
     public static MessageType getNetworkType(byte[] data)
