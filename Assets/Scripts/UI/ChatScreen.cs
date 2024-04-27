@@ -7,14 +7,15 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 {
     public Text messages;
     public InputField inputMessage;
-
+    public Button exitNetwork;
     protected override void Initialize()
     {
         
         inputMessage.onEndEdit.AddListener(OnEndEdit);
 
         this.gameObject.SetActive(false);
-        //TODO: Buscar donde mandan la data.
+        exitNetwork.onClick.AddListener(SwitchToNetworkScreen);
+
     }
 
     private void OnDestroy()
@@ -48,5 +49,10 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
             inputMessage.Select();
             inputMessage.text = "";
         }
+    }
+    public void SwitchToNetworkScreen()
+    {
+        NetworkScreen.Instance.gameObject.SetActive(true);
+        this.gameObject.SetActive(false);
     }
 }

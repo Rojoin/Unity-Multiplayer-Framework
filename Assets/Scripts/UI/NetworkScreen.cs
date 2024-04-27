@@ -35,7 +35,7 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
         SwitchToChatScreen();
     }
 
-    void SwitchToChatScreen()
+    public void SwitchToChatScreen()
     {
         ChatScreen.Instance.gameObject.SetActive(true);
         this.gameObject.SetActive(false);
