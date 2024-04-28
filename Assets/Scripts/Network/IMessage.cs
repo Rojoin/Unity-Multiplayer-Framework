@@ -1,13 +1,8 @@
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using System;
 using System.Text;
-using System.Net;
-using System.Runtime.Serialization.Formatters.Binary;
-using Newtonsoft.Json.Linq;
-using UnityEngine.UI;
-using System.ComponentModel;
+
 
 public enum MessageType
 {
@@ -18,7 +13,7 @@ public enum MessageType
     String = 2,
     Ping,
     Pong,
-    Exit  
+    Exit
 }
 //TODO: Cambiar a Clase base
 
@@ -27,6 +22,7 @@ public abstract class BaseMessage<PayloadType>
     protected MessageType Type;
     protected PayloadType Data;
     public static int PlayerID;
+
 
     protected BaseMessage(PayloadType data)
     {
@@ -66,6 +62,111 @@ public abstract class BaseMessage<PayloadType>
 
         outData.AddRange(BitConverter.GetBytes(PlayerID));
     }
+
+    protected virtual void DataCheckSumEncryption(List<byte> outData)
+    {
+        uint checkSum1 = 0;
+        for (int i = 0; i < outData.Count; i++)
+        {
+            byte singleByte = outData[i];
+            if (singleByte <= 50)
+            {
+                checkSum1 >>= 4;
+            }
+            else if (singleByte <= 100)
+            {
+                checkSum1 += singleByte;
+            }
+            else if (singleByte <= 150)
+            {
+                checkSum1 -= singleByte;
+            }
+            else
+            {
+                checkSum1 <<= 4;
+            }
+        }
+
+        uint checkSum2 = 0;
+        for (int i = 0; i < outData.Count; i++)
+        {
+            byte singleByte = outData[i];
+            if (singleByte <= 50)
+            {
+                checkSum2 += singleByte;
+            }
+            else if (singleByte <= 100)
+            {
+                checkSum2 >>= 2;
+            }
+            else if (singleByte <= 150)
+            {
+                checkSum2 <<= 8;
+            }
+            else
+            {
+                checkSum2 -= singleByte;
+            }
+        }
+
+        outData.AddRange(BitConverter.GetBytes(checkSum1));
+        outData.AddRange(BitConverter.GetBytes(checkSum2));
+    }
+
+    public virtual bool IsMessageCorrect(byte[] outData)
+    {
+        int byteCountBeforeCheck = outData.Length - 8;
+        uint checkSum1 = 0;
+        for (int i = 0; i < byteCountBeforeCheck; i++)
+        {
+            byte singleByte = outData[i];
+            if (singleByte <= 50)
+            {
+                checkSum1 >>= 4;
+            }
+            else if (singleByte <= 100)
+            {
+                checkSum1 += singleByte;
+            }
+            else if (singleByte <= 150)
+            {
+                checkSum1 -= singleByte;
+            }
+            else
+            {
+                checkSum1 <<= 4;
+            }
+        }
+
+        uint checkSum2 = 0;
+        for (int i = 0; i < byteCountBeforeCheck; i++)
+        {
+            byte singleByte = outData[i];
+            if (singleByte <= 50)
+            {
+                checkSum2 += singleByte;
+            }
+            else if (singleByte <= 100)
+            {
+                checkSum2 >>= 2;
+            }
+            else if (singleByte <= 150)
+            {
+                checkSum2 <<= 8;
+            }
+            else
+            {
+                checkSum2 -= singleByte;
+            }
+        }
+
+        Debug.Log(outData.Length);
+        uint u1 = BitConverter.ToUInt32(outData, outData.Length - 8);
+        Debug.Log(u1);
+        uint u2 = BitConverter.ToUInt32(outData, outData.Length - 4);
+        Debug.Log(u2);
+        return checkSum1 == u1 && checkSum2 == u2;
+    }
 }
 
 public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
@@ -84,6 +185,7 @@ public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
         lastSendMessage[Type] = messageId;
         return true;
     }
+
     protected override void BasicSerialize(List<byte> outData, MessageType type)
     {
         outData.AddRange(BitConverter.GetBytes((int)type));
@@ -201,6 +303,9 @@ public class NetHandShake : BaseMessage<string>
             outData.Add((byte)Data[i]);
         }
 
+        Debug.Log(outData.Count);
+        DataCheckSumEncryption(outData);
+        Debug.Log(outData.Count);
         return outData.ToArray();
     }
 }
@@ -321,6 +426,7 @@ public class NetPing : BaseMessage<int>
     {
         Type = MessageType.Ping;
     }
+
     public override byte[] Serialize()
     {
         List<byte> outData = new List<byte>();
@@ -335,12 +441,14 @@ public class NetPing : BaseMessage<int>
         return BitConverter.ToInt32(message, 4);
     }
 }
+
 public class NetPong : BaseMessage<int>
 {
     public NetPong()
     {
         Type = MessageType.Pong;
     }
+
     public override byte[] Serialize()
     {
         List<byte> outData = new List<byte>();
@@ -355,6 +463,7 @@ public class NetPong : BaseMessage<int>
         return BitConverter.ToInt32(message, 4);
     }
 }
+
 public class NetByteTranslator
 {
     public static MessageType getNetworkType(byte[] data)
