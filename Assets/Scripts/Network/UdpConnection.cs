@@ -13,7 +13,7 @@ public class UdpConnection
 
     public int playerId = -1;
 
-    private readonly UdpClient connection;
+    private UdpClient connection;
     private IReceiveData receiver = null;
     private Queue<DataReceived> dataReceivedQueue = new Queue<DataReceived>();
 
@@ -23,7 +23,7 @@ public class UdpConnection
     public UdpConnection(int port, IReceiveData receiver = null)
     {
         connection = new UdpClient(port);
-
+        connection.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
         this.receiver = receiver;
 
         connection.BeginReceive(OnReceive, null);
@@ -44,14 +44,9 @@ public class UdpConnection
     public void Close()
     {
         dataReceivedQueue.Clear();
-        lock (handler)
-        {
-            connection.Close();
-            connection.Dispose();
-            connection.Client.Shutdown(SocketShutdown.Both);
-            connection.Client.Close();
-        }
+        connection.Close();
     }
+    
 
     public void FlushReceiveData()
     {

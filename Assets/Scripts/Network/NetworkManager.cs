@@ -89,14 +89,23 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         {
             timeUntilDisconnect = new WaitForSeconds(timeOut);
         }
+
         OnServerDisconnect.AddListener(CloseConnection);
     }
 
     public void CloseConnection()
     {
-        connection.Close();
-        connection = null;
-        ChatScreen.Instance.SwitchToNetworkScreen();
+        if (!isServer && connection != null)
+        {
+            NetExit netExit = new NetExit();
+            SendToServer(netExit.Serialize());
+            connection.Close();
+        }
+        else
+        {
+            Debug.Log("Closing Server");
+            connection?.Close();
+        }
     }
 
     private void OnDestroy()
@@ -105,6 +114,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         {
             NetExit netExit = new NetExit();
             SendToServer(netExit.Serialize());
+            connection.Close();
         }
         else
         {
@@ -251,15 +261,23 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
             {
                 case MessageType.HandShake:
                     NetHandShake handShake = new NetHandShake();
-                    string gameTag = handShake.Deserialize(data);
-                    Debug.Log($"La ip de el cliente es: {ep.Address} y el nameTag es: {gameTag}");
+                   // data[0] = 243;
+                    if (handShake.IsMessageCorrect(data))
+                    {
+                        string gameTag = handShake.Deserialize(data);
+                        Debug.Log($"La ip de el cliente es: {ep.Address} y el nameTag es: {gameTag}");
 
-                    AddClient(ep, out id, gameTag);
-                    NetHandShakeOK handOK = new(players);
-                    Broadcast(handOK.Serialize());
+                        AddClient(ep, out id, gameTag);
+                        NetHandShakeOK handOK = new(players);
+                        Broadcast(handOK.Serialize());
 
-                    NetPing ping = new();
-                    SendToClient(ping.Serialize(), gameTag, ep);
+                        NetPing ping = new();
+                        SendToClient(ping.Serialize(), gameTag, ep);
+                    }
+                    else
+                    {
+                        Debug.Log("The message is corrupted");
+                    }
 
                     break;
                 case MessageType.Console:
