@@ -33,7 +33,7 @@ public class Client
 
     public void ResetTimer(float currentTimeStamp)
     {
-        Debug.Log($" Timer for {id} has been resetted from {timer}.");
+        //Debug.Log($" Timer for {id} has been resetted from {timer}.");
         this.timer = 0.0f;
         timeStamp = currentTimeStamp;
     }
@@ -141,7 +141,6 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         while (client.timer < timeOut)
         {
             client.timer += Time.deltaTime;
-            Debug.Log(client.timer);
             yield return null;
         }
 
@@ -153,7 +152,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         while (clientDisconnectTimer < timeOut)
         {
             clientDisconnectTimer += Time.deltaTime;
-            Debug.Log(clientDisconnectTimer);
+         //   Debug.Log(clientDisconnectTimer);
             yield return null;
         }
 
@@ -253,7 +252,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     {
         var type = NetByteTranslator.getNetworkType(data);
         var playerID = NetByteTranslator.GetPlayerID(data);
-        Debug.Log("Checking");
+       
 
         if (isServer)
         {
@@ -262,7 +261,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 case MessageType.HandShake:
                     NetHandShake handShake = new NetHandShake();
                    // data[0] = 243;
-                    if (handShake.IsMessageCorrect(data))
+                    if (handShake.IsMessageCorrect(new List<byte>(data)))
                     {
                         string gameTag = handShake.Deserialize(data);
                         Debug.Log($"La ip de el cliente es: {ep.Address} y el nameTag es: {gameTag}");
@@ -304,8 +303,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     int currentClientId = pingMessage.Deserialize(data);
                     SendToClient(pingMessage.Serialize(), currentClientId, ep);
                     float currentTime = Time.time;
-                    Debug.Log(
-                        $"Pong with {pongMessage.Deserialize(data)} in {clients[currentClientId].GetCurrentMS(currentTime)} ms");
+                    //Debug.Log($"Pong with {pongMessage.Deserialize(data)} in {clients[currentClientId].GetCurrentMS(currentTime)} ms");
                     clients[currentClientId].ResetTimer(currentTime);
                     break;
             }
@@ -352,7 +350,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     SendToServer(netPong.Serialize());
                     clientCurrentTime = Time.time;
                     var a = clientCurrentTime - clientLastTime;
-                    Debug.Log("Ping in " + a + "ms");
+                    //Debug.Log("Ping in " + a + "ms");
                     clientLastTime = clientCurrentTime;
                     clientDisconnectTimer = 0;
                     break;
