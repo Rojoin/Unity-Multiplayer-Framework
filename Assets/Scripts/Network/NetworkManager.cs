@@ -3,20 +3,18 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
-using UnityEngine.Serialization;
 using UnityEngine.Events;
-
 
 public class Client
 {
-    public float timeStamp;
+    public DateTime timeStamp;
     public int id;
     public IPEndPoint ipEndPoint;
     public string tag;
     public Coroutine timeOutCorroutine;
     public float timer;
 
-    public Client(IPEndPoint ipEndPoint, int id, float timeStamp, string tag)
+    public Client(IPEndPoint ipEndPoint, int id, DateTime timeStamp, string tag)
     {
         this.timeStamp = timeStamp;
         this.id = id;
@@ -26,12 +24,12 @@ public class Client
         timer = 0.0f;
     }
 
-    public float GetCurrentMS(float currentTimeStamp)
+    public TimeSpan GetCurrentMS(DateTime currentTimeStamp)
     {
         return currentTimeStamp - this.timeStamp;
     }
 
-    public void ResetTimer(float currentTimeStamp)
+    public void ResetTimer(DateTime currentTimeStamp)
     {
         //Debug.Log($" Timer for {id} has been resetted from {timer}.");
         this.timer = 0.0f;
@@ -53,6 +51,10 @@ public struct Player
 
 public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveData
 {
+    //Todo: Change into logic for client and server. Use heredity
+    //Todo: Change corroutines to update method that checks all clients 
+    //Todo: Make logic for obligatory messages
+    //Todo: Make Basic shooter to test.
     public IPAddress ipAddress { get; private set; }
 
     public int port { get; private set; }
@@ -60,8 +62,6 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public bool isServer { get; private set; }
 
     public int timeOut = 30;
-    private WaitForSeconds timeUntilDisconnect;
-
 
     public Action<byte[], IPEndPoint, int> OnReceiveEvent;
 
@@ -85,10 +85,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     protected override void Initialize()
     {
         base.Initialize();
-        if (isServer)
-        {
-            timeUntilDisconnect = new WaitForSeconds(timeOut);
-        }
+      
 
         OnServerDisconnect.AddListener(CloseConnection);
     }
@@ -174,7 +171,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
         players.Remove(playerToRemove);
 
-        NetHandShakeOK newPlayerList = new NetHandShakeOK(players);
+        NetHandShakeOK newPlayerList = new NetHandShakeOK(players,MessageFlags.None);
         Broadcast(newPlayerList.Serialize());
         Debug.Log("New Player list:");
         foreach (Player player in players)
@@ -201,7 +198,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
             id = clientId;
             ipToId[ip] = clientId;
-            clients.Add(clientId, new Client(ip, id, Time.realtimeSinceStartup, tag));
+            clients.Add(clientId, new Client(ip, id, DateTime.UtcNow, tag));
             players.Add(new Player(clientId, nameTag));
             clients[clientId].timeOutCorroutine = StartCoroutine(StartTimeOutServer(clients[clientId]));
             clientId++;
@@ -302,8 +299,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     NetPong pongMessage = new();
                     int currentClientId = pingMessage.Deserialize(data);
                     SendToClient(pingMessage.Serialize(), currentClientId, ep);
-                    float currentTime = Time.time;
-                    //Debug.Log($"Pong with {pongMessage.Deserialize(data)} in {clients[currentClientId].GetCurrentMS(currentTime)} ms");
+                    DateTime currentTime = DateTime.UtcNow;
+                    Debug.Log($"Pong with {pongMessage.Deserialize(data)} in {clients[currentClientId].GetCurrentMS(currentTime).TotalMilliseconds} ms");
                     clients[currentClientId].ResetTimer(currentTime);
                     break;
             }
@@ -333,12 +330,12 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     SetPlayer(players);
 
                     StartCoroutine(StartTimeOutClient());
-                    foreach (Player pl in NetworkManager.Instance.players)
+                    foreach (Player pl in Instance.players)
                     {
                         Debug.Log("This is " + pl.nameTag + "with id:" + pl.id);
                     }
 
-                    Debug.Log("My id is" + NetworkManager.Instance.clientId);
+                    Debug.Log("My id is" + Instance.clientId);
 
                     break;
                 case MessageType.Exit:

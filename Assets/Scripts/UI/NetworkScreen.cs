@@ -12,6 +12,8 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
     public InputField addressInputField;
     public InputField nameTagInputField;
 
+
+    //Todo:Make loading screen
     protected override void Initialize()
     {
         connectBtn.onClick.AddListener(OnConnectBtnClick);

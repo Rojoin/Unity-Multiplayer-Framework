@@ -23,26 +23,42 @@ public enum BitOperations
     moveLeft,
     moveRight
 }
-//TODO: Cambiar a Clase base
 
+[Flags]
+public enum MessageFlags
+{
+    None = 0,
+    CheckSum = 1,
+    Ordenable = 2,
+    Important = 4
+}
+
+//Todo: Add message flags to all messages types.
+//Todo: Add Ordenable messages logic
+//Todo: Check if PlayerID has to be passed EveryTime.
+//Todo: Maybe check if server can be a flag?
 public abstract class BaseMessage<PayloadType>
 {
     protected MessageType Type;
     protected PayloadType Data;
+    protected MessageFlags Flags;
     public static int PlayerID;
+
     private BitOperations[] _operationsArray1 = new[]
     {
         BitOperations.substract, BitOperations.sum, BitOperations.moveLeft, BitOperations.moveRight,
-         BitOperations.sum, BitOperations.moveLeft, BitOperations.moveRight, BitOperations.moveRight
+        BitOperations.sum, BitOperations.moveLeft, BitOperations.moveRight, BitOperations.moveRight
     };
+
     private BitOperations[] _operationsArray2 = new[]
     {
         BitOperations.moveRight, BitOperations.sum, BitOperations.moveLeft, BitOperations.substract
     };
 
-    protected BaseMessage(PayloadType data)
+    protected BaseMessage(PayloadType data, MessageFlags messageFlags = MessageFlags.None)
     {
         Data = data;
+        Flags = messageFlags;
     }
 
     protected BaseMessage()
@@ -75,8 +91,8 @@ public abstract class BaseMessage<PayloadType>
     protected virtual void BasicSerialize(List<byte> outData, MessageType type)
     {
         outData.AddRange(BitConverter.GetBytes((int)type));
-
         outData.AddRange(BitConverter.GetBytes(PlayerID));
+        outData.AddRange(BitConverter.GetBytes((int)Type));
     }
 
     protected virtual void DataCheckSumEncryption(List<byte> outData)
@@ -84,7 +100,7 @@ public abstract class BaseMessage<PayloadType>
         uint checkSum1 = NetByteTranslator.EncryptBitSizeOperations(outData, _operationsArray1);
 
         uint checkSum2 = NetByteTranslator.EncryptBitSizeOperations(outData, _operationsArray2);
-        
+
         Debug.Log($"CheckSum 1:{checkSum1}");
         Debug.Log($"CheckSum 2:{checkSum2}");
 
@@ -94,13 +110,13 @@ public abstract class BaseMessage<PayloadType>
 
     public virtual bool IsMessageCorrect(List<byte> outData)
     {
-        uint checkSum1 = NetByteTranslator.DecryptBitSizeOperations(outData,_operationsArray1);
-      
-        uint checkSum2 = NetByteTranslator.DecryptBitSizeOperations(outData,_operationsArray2);
-   
+        uint checkSum1 = NetByteTranslator.DecryptBitSizeOperations(outData, _operationsArray1);
+
+        uint checkSum2 = NetByteTranslator.DecryptBitSizeOperations(outData, _operationsArray2);
+
         Debug.Log($"CheckSum 1:{checkSum1}");
         Debug.Log($"CheckSum 2:{checkSum2}");
-        
+
         uint u1 = BitConverter.ToUInt32(outData.ToArray(), outData.Count - 8);
         Debug.Log(u1);
         uint u2 = BitConverter.ToUInt32(outData.ToArray(), outData.Count - 4);
@@ -136,10 +152,13 @@ public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
 
 public class NetHandShakeOK : BaseMessage<List<Player>>
 {
-    public NetHandShakeOK(List<Player> clients)
+    private const MessageFlags DefaultFlags = MessageFlags.CheckSum | MessageFlags.Important;
+
+    public NetHandShakeOK(List<Player> clients, MessageFlags messageFlags = DefaultFlags) : base(clients, messageFlags)
     {
         Data = clients;
         Type = MessageType.HandShakeOk;
+        Flags = messageFlags;
     }
 
     public NetHandShakeOK()
@@ -149,9 +168,6 @@ public class NetHandShakeOK : BaseMessage<List<Player>>
     public override byte[] Serialize()
     {
         List<byte> outData = new List<byte>();
-        //Tamaño de la lista
-        //tamaño de caracter
-        //chars
 
         int listSize = Data.Count;
         outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
@@ -242,7 +258,7 @@ public class NetHandShake : BaseMessage<string>
         {
             outData.Add((byte)Data[i]);
         }
-        
+
         DataCheckSumEncryption(outData);
         return outData.ToArray();
     }
@@ -422,7 +438,8 @@ public class NetByteTranslator
         }
 
         return checkSum;
-    } 
+    }
+
     public static uint DecryptBitSizeOperations(List<byte> outData, BitOperations[] operationsToDo)
     {
         uint checkSum = 0;
@@ -438,21 +455,14 @@ public class NetByteTranslator
     private static uint SelectOperations(BitOperations[] operationsToDo, uint chekSum, byte currentByte)
     {
         int index = currentByte % operationsToDo.Length;
-        switch (operationsToDo[index])
+        chekSum = operationsToDo[index] switch
         {
-            case BitOperations.sum:
-                chekSum = BitSum(chekSum, currentByte);
-                break;
-            case BitOperations.substract:
-                chekSum = BitSus(chekSum, currentByte);
-                break;
-            case BitOperations.moveLeft:
-                chekSum = BitLeft(chekSum, currentByte);
-                break;
-            case BitOperations.moveRight:
-                chekSum = BitRight(chekSum, currentByte);
-                break;
-        }
+            BitOperations.sum => BitSum(chekSum, currentByte),
+            BitOperations.substract => BitSus(chekSum, currentByte),
+            BitOperations.moveLeft => BitLeft(chekSum, currentByte),
+            BitOperations.moveRight => BitRight(chekSum, currentByte),
+            _ => chekSum
+        };
 
         return chekSum;
     }
@@ -469,11 +479,11 @@ public class NetByteTranslator
 
     private static uint BitLeft(uint chekSum, byte currentByte)
     {
-        return chekSum <<= currentByte;
+        return chekSum <<= 3;
     }
 
     private static uint BitRight(uint chekSum, byte currentByte)
     {
-        return chekSum >>= currentByte;
+        return chekSum >>= 3;
     }
 }
