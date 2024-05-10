@@ -1,6 +1,5 @@
 ﻿using System;
-using System.Net;
-using UnityEngine;
+using ScriptableObjects;
 using UnityEngine.UI;
 
 public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
@@ -8,14 +7,15 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
     public Text messages;
     public InputField inputMessage;
     public Button exitNetwork;
+    public StringChannelSO onTextCreated;
+    public VoidChannelSO closeChatScreen;
+
     protected override void Initialize()
     {
-        
         inputMessage.onEndEdit.AddListener(OnEndEdit);
 
         this.gameObject.SetActive(false);
         exitNetwork.onClick.AddListener(SwitchToNetworkScreen);
-
     }
 
     private void OnDestroy()
@@ -23,36 +23,27 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
         inputMessage.onEndEdit.RemoveAllListeners();
     }
 
-    public void AddText(string textString, int id)
-    { 
-        string idName = id != -10 ? NetworkManager.Instance.GetPlayer(id).nameTag + ":" : "Server:";
-        messages.text += idName + textString + System.Environment.NewLine;
+    public void AddText(string textString)
+    {
+        messages.text += textString + Environment.NewLine;
     }
+
     void OnEndEdit(string str)
     {
         if (inputMessage.text != "")
         {
-            if (NetworkManager.Instance.isServer)
-            {
-                NetConsole message = new(inputMessage.text);
-                AddText(inputMessage.text,-10);
-                NetworkManager.Instance.Broadcast(message.Serialize());
-                
-            }
-            else
-            {
-                NetConsole message = new(inputMessage.text);
-                NetworkManager.Instance.SendToServer(message.Serialize());
-            }
-
+            onTextCreated.RaiseEvent(inputMessage.text);
+            
             inputMessage.ActivateInputField();
             inputMessage.Select();
             inputMessage.text = "";
         }
     }
+
     public void SwitchToNetworkScreen()
     {
-        NetworkManager.Instance.OnServerDisconnect.Invoke();
+        // Todo: Add Server Disconnect
+        closeChatScreen.RaiseEvent();
         NetworkScreen.Instance.gameObject.SetActive(true);
         this.gameObject.SetActive(false);
     }

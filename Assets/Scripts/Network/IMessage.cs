@@ -12,7 +12,6 @@ public enum MessageType
     Position = 1,
     String = 2,
     Ping,
-    Pong,
     Exit
 }
 
@@ -37,6 +36,8 @@ public enum MessageFlags
 //Todo: Add Ordenable messages logic
 //Todo: Check if PlayerID has to be passed EveryTime.
 //Todo: Maybe check if server can be a flag?
+//Todo: Message for tag already exist {Related to loading screen}
+//Todo: Change to a different file
 public abstract class BaseMessage<PayloadType>
 {
     protected MessageType Type;
@@ -393,26 +394,6 @@ public class NetPing : BaseMessage<int>
     }
 }
 
-public class NetPong : BaseMessage<int>
-{
-    public NetPong()
-    {
-        Type = MessageType.Pong;
-    }
-
-    public override byte[] Serialize()
-    {
-        List<byte> outData = new List<byte>();
-        outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
-        outData.AddRange(BitConverter.GetBytes(PlayerID));
-        return outData.ToArray();
-    }
-
-    public override int Deserialize(byte[] message)
-    {
-        return BitConverter.ToInt32(message, 4);
-    }
-}
 
 public class NetByteTranslator
 {

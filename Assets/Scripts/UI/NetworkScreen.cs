@@ -12,6 +12,8 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
     public InputField addressInputField;
     public InputField nameTagInputField;
 
+    public ClientNetManager client;
+    public ServerNetManager server;
 
     //Todo:Make loading screen
     protected override void Initialize()
@@ -24,16 +26,20 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
     {
         IPAddress ipAddress = IPAddress.Parse(addressInputField.text);
         int port = System.Convert.ToInt32(portInputField.text);
-        NetworkManager.Instance.tagName = nameTagInputField.text;
-        NetworkManager.Instance.StartClient(ipAddress, port);
         
+        client.tagName = nameTagInputField.text;
+        client.ipAddress = ipAddress;
+        client.port = port;
+        client.enabled = true;
+
         SwitchToChatScreen();
     }
 
     void OnStartServerBtnClick()
     {
         int port = System.Convert.ToInt32(portInputField.text);
-        NetworkManager.Instance.StartServer(port);
+        server.port = port;
+        server.enabled = true;
         SwitchToChatScreen();
     }
 

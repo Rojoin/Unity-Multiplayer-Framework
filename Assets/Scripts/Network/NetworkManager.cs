@@ -4,414 +4,80 @@ using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
-public class Client
+public abstract class NetworkManager : MonoBehaviour, IReceiveData
 {
-    public DateTime timeStamp;
-    public int id;
-    public IPEndPoint ipEndPoint;
-    public string tag;
-    public Coroutine timeOutCorroutine;
-    public float timer;
-
-    public Client(IPEndPoint ipEndPoint, int id, DateTime timeStamp, string tag)
-    {
-        this.timeStamp = timeStamp;
-        this.id = id;
-        this.ipEndPoint = ipEndPoint;
-        this.tag = tag;
-        timeOutCorroutine = null;
-        timer = 0.0f;
-    }
-
-    public TimeSpan GetCurrentMS(DateTime currentTimeStamp)
-    {
-        return currentTimeStamp - this.timeStamp;
-    }
-
-    public void ResetTimer(DateTime currentTimeStamp)
-    {
-        //Debug.Log($" Timer for {id} has been resetted from {timer}.");
-        this.timer = 0.0f;
-        timeStamp = currentTimeStamp;
-    }
-}
-
-public struct Player
-{
-    public int id;
-    public string nameTag;
-
-    public Player(int id, string nameTag)
-    {
-        this.id = id;
-        this.nameTag = nameTag;
-    }
-}
-
-public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveData
-{
-    //Todo: Change into logic for client and server. Use heredity
-    //Todo: Change corroutines to update method that checks all clients 
     //Todo: Make logic for obligatory messages
     //Todo: Make Basic shooter to test.
-    public IPAddress ipAddress { get; private set; }
-
-    public int port { get; private set; }
-
-    public bool isServer { get; private set; }
+    public IPAddress ipAddress { get; set; }
+    public int port { get; set; }
 
     public int timeOut = 30;
 
-    public Action<byte[], IPEndPoint, int> OnReceiveEvent;
-
     public UdpConnection connection;
 
-    public readonly Dictionary<int, Client> clients = new Dictionary<int, Client>();
-    private readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
-    public List<Player> players = new();
+    public List<Player> players = new List<Player>();
     public string tagName = "";
 
-    private WaitForSeconds timeUntilTimeOut;
-    public int clientId = 0; // This id should be generated during first handshake
+    public int clientId = 0; 
 
     public UnityEvent<Client> OnPlayerDisconnect;
     public UnityEvent OnServerDisconnect;
-    public UnityEvent<string, int> OnChatMessage;
-    private float clientCurrentTime;
-    private float clientLastTime;
-    private float clientDisconnectTimer;
+    public UnityEvent OnNewPlayer;
+    public UnityEvent<string> OnChatMessage;
+    public StringChannelSO OnMessageCreatedChannel;
+    public VoidChannelSO OnCloseNetworkChannel;
 
-    protected override void Initialize()
+
+    protected virtual void OnEnable()
     {
-        base.Initialize();
-      
-
-        OnServerDisconnect.AddListener(CloseConnection);
+        OnConnect();
     }
 
-    public void CloseConnection()
+    protected virtual void OnConnect()
     {
-        if (!isServer && connection != null)
-        {
-            NetExit netExit = new NetExit();
-            SendToServer(netExit.Serialize());
-            connection.Close();
-        }
-        else
-        {
-            Debug.Log("Closing Server");
-            connection?.Close();
-        }
+        OnMessageCreatedChannel.Subscribe(OnTextAdded);
+        OnCloseNetworkChannel.Subscribe(Deactivate);
     }
 
-    private void OnDestroy()
+    protected void OnDisable()
     {
-        if (!isServer && connection != null)
-        {
-            NetExit netExit = new NetExit();
-            SendToServer(netExit.Serialize());
-            connection.Close();
-        }
-        else
-        {
-            connection?.Close();
-        }
+        OnDisconect();
+    }
 
+    private void Deactivate() => this.enabled = false;
+    public abstract void CloseConnection();
+
+    protected virtual void OnDisconect()
+    {
+        OnMessageCreatedChannel.Unsubscribe(OnTextAdded);
+        OnCloseNetworkChannel.Unsubscribe(Deactivate);
         OnPlayerDisconnect.RemoveAllListeners();
         OnServerDisconnect.RemoveAllListeners();
     }
 
-    public void StartServer(int port)
+
+    public void OnReceiveData(byte[] data, IPEndPoint ip)
     {
-        isServer = true;
-        this.port = port;
-        connection = new UdpConnection(port, this);
-        NetConsole.PlayerID = -10;
-        NetExit.PlayerID = -10;
-        NetVector3.PlayerID = -10;
-        NetPing.PlayerID = -10;
+        OnReceiveDataEvent(data, ip);
     }
 
-    public IEnumerator StartTimeOutServer(Client client)
-    {
-        while (client.timer < timeOut)
-        {
-            client.timer += Time.deltaTime;
-            yield return null;
-        }
-
-        DisconnectPlayer(client);
-    }
-
-    public IEnumerator StartTimeOutClient()
-    {
-        while (clientDisconnectTimer < timeOut)
-        {
-            clientDisconnectTimer += Time.deltaTime;
-         //   Debug.Log(clientDisconnectTimer);
-            yield return null;
-        }
-
-        connection.Close();
-    }
-
-    private void DisconnectPlayer(Client client)
-    {
-        RemoveClient(client.ipEndPoint);
-        Player playerToRemove = new();
-        foreach (Player player in players)
-        {
-            if (client.id == player.id)
-            {
-                playerToRemove = player;
-                break;
-            }
-        }
-
-        players.Remove(playerToRemove);
-
-        NetHandShakeOK newPlayerList = new NetHandShakeOK(players,MessageFlags.None);
-        Broadcast(newPlayerList.Serialize());
-        Debug.Log("New Player list:");
-        foreach (Player player in players)
-        {
-            Debug.Log(player.nameTag);
-        }
-    }
-
-    public void StartClient(IPAddress ip, int port)
-    {
-        isServer = false;
-
-        this.port = port;
-        this.ipAddress = ip;
-
-        connection = new UdpConnection(ip, port, tagName, this);
-    }
-
-    public void AddClient(IPEndPoint ip, out int id, string nameTag)
-    {
-        if (!ipToId.ContainsKey(ip))
-        {
-            Debug.Log("Adding client: " + ip.Address);
-
-            id = clientId;
-            ipToId[ip] = clientId;
-            clients.Add(clientId, new Client(ip, id, DateTime.UtcNow, tag));
-            players.Add(new Player(clientId, nameTag));
-            clients[clientId].timeOutCorroutine = StartCoroutine(StartTimeOutServer(clients[clientId]));
-            clientId++;
-        }
-        else
-        {
-            id = ipToId[ip];
-        }
-    }
-
-    public void RemoveClient(IPEndPoint ip)
-    {
-        if (ipToId.ContainsKey(ip))
-        {
-            Debug.Log("Removing client: " + ip.Address);
-            clients.Remove(ipToId[ip]);
-        }
-    }
-
-    public void SetPlayer(List<Player> newPlayersList)
-    {
-        foreach (Player player in newPlayersList)
-        {
-            if (tagName != player.nameTag) continue;
-            clientId = player.id;
-            break;
-        }
-
-        players = newPlayersList;
-        NetConsole.PlayerID = clientId;
-        NetExit.PlayerID = clientId;
-        NetVector3.PlayerID = clientId;
-        NetPing.PlayerID = clientId;
-        NetPong.PlayerID = clientId;
-    }
-
-    public void OnReceiveData(byte[] data, IPEndPoint ip, int id, string tag)
-    {
-        if (OnReceiveEvent != null)
-        {
-            OnReceiveEvent.Invoke(data, ip, id);
-        }
-
-        OnReceiveDataEvent(data, ip, id);
-    }
-
-    void OnReceiveDataEvent(byte[] data, IPEndPoint ep, int id)
+    public virtual void OnReceiveDataEvent(byte[] data, IPEndPoint ep)
     {
         var type = NetByteTranslator.getNetworkType(data);
         var playerID = NetByteTranslator.GetPlayerID(data);
-       
-
-        if (isServer)
-        {
-            switch (type)
-            {
-                case MessageType.HandShake:
-                    NetHandShake handShake = new NetHandShake();
-                   // data[0] = 243;
-                    if (handShake.IsMessageCorrect(new List<byte>(data)))
-                    {
-                        string gameTag = handShake.Deserialize(data);
-                        Debug.Log($"La ip de el cliente es: {ep.Address} y el nameTag es: {gameTag}");
-
-                        AddClient(ep, out id, gameTag);
-                        NetHandShakeOK handOK = new(players);
-                        Broadcast(handOK.Serialize());
-
-                        NetPing ping = new();
-                        SendToClient(ping.Serialize(), gameTag, ep);
-                    }
-                    else
-                    {
-                        Debug.Log("The message is corrupted");
-                    }
-
-                    break;
-                case MessageType.Console:
-                    break;
-                case MessageType.Position:
-                    break;
-                case MessageType.String when !clients.ContainsKey(playerID):
-                    break;
-                case MessageType.String:
-
-                    NetConsole message = new();
-                    OnChatMessage.Invoke(message.Deserialize(data), NetByteTranslator.GetPlayerID(data));
-                    Broadcast(data);
-
-                    break;
-                case MessageType.Exit:
-                    RemoveClient(ep);
-                    break;
-                case MessageType.Pong when !clients.ContainsKey(playerID):
-                    break;
-                case MessageType.Pong:
-                    NetPing pingMessage = new();
-                    NetPong pongMessage = new();
-                    int currentClientId = pingMessage.Deserialize(data);
-                    SendToClient(pingMessage.Serialize(), currentClientId, ep);
-                    DateTime currentTime = DateTime.UtcNow;
-                    Debug.Log($"Pong with {pongMessage.Deserialize(data)} in {clients[currentClientId].GetCurrentMS(currentTime).TotalMilliseconds} ms");
-                    clients[currentClientId].ResetTimer(currentTime);
-                    break;
-            }
-        }
-
-        else
-        {
-            switch (type)
-            {
-                case MessageType.HandShake:
-
-
-                    break;
-                case MessageType.Console:
-                    break;
-                case MessageType.Position:
-                    break;
-                case MessageType.String:
-                    NetConsole message = new();
-                    Debug.Log("MessageType is String");
-                    Debug.Log(NetByteTranslator.GetPlayerID(data));
-                    OnChatMessage.Invoke(message.Deserialize(data), NetByteTranslator.GetPlayerID(data));
-                    break;
-                case MessageType.HandShakeOk:
-                    NetHandShakeOK handOk = new();
-                    List<Player> players = handOk.Deserialize(data);
-                    SetPlayer(players);
-
-                    StartCoroutine(StartTimeOutClient());
-                    foreach (Player pl in Instance.players)
-                    {
-                        Debug.Log("This is " + pl.nameTag + "with id:" + pl.id);
-                    }
-
-                    Debug.Log("My id is" + Instance.clientId);
-
-                    break;
-                case MessageType.Exit:
-                    break;
-                case MessageType.Ping:
-
-                    //Empezar la corrutina del timeout del servidor
-                    NetPong netPong = new NetPong();
-                    SendToServer(netPong.Serialize());
-                    clientCurrentTime = Time.time;
-                    var a = clientCurrentTime - clientLastTime;
-                    //Debug.Log("Ping in " + a + "ms");
-                    clientLastTime = clientCurrentTime;
-                    clientDisconnectTimer = 0;
-                    break;
-
-                default:
-                    Debug.Log("MessageType not found");
-                    break;
-            }
-        }
-    }
-
-    public void SendToServer(byte[] data)
-    {
-        connection.Send(data);
-    }
-
-    public void SendToClient(byte[] data, string nameTag, IPEndPoint ep)
-    {
-        IPEndPoint clientIp = ep;
-
-        foreach (var client in clients)
-        {
-            if (client.Value.tag == nameTag)
-            {
-                clientIp = client.Value.ipEndPoint;
-                break;
-            }
-        }
-
-        connection.Send(data, clientIp);
-    }
-
-    public void SendToClient(byte[] data, int id, IPEndPoint ep)
-    {
-        IPEndPoint clientIp = ep;
-
-        foreach (var client in clients)
-        {
-            if (client.Value.id == id)
-            {
-                clientIp = client.Value.ipEndPoint;
-                break;
-            }
-        }
-
-        connection.Send(data, clientIp);
-    }
-
-    public void Broadcast(byte[] data)
-    {
-        using (var iterator = clients.GetEnumerator())
-        {
-            while (iterator.MoveNext())
-            {
-                connection.Send(data, iterator.Current.Value.ipEndPoint);
-            }
-        }
     }
 
     void Update()
     {
-        // Flush the data in main thread
         if (connection != null)
             connection.FlushReceiveData();
+        CheckTimeOut(Time.deltaTime);
+    }
+
+    protected virtual void CheckTimeOut(float delta)
+    {
     }
 
     public Player GetPlayer(int id)
@@ -426,4 +92,6 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
         return new Player(-999, "Not Found");
     }
+
+    protected abstract void OnTextAdded(string text);
 }

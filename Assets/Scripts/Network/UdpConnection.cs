@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using UnityEngine;
 
 public class UdpConnection
 {
@@ -25,7 +26,6 @@ public class UdpConnection
         connection = new UdpClient(port);
         connection.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
         this.receiver = receiver;
-
         connection.BeginReceive(OnReceive, null);
     }
 
@@ -34,7 +34,7 @@ public class UdpConnection
         connection = new UdpClient();
         connection.Connect(ip, port);
         this.receiver = receiver;
-
+        
         connection.BeginReceive(OnReceive, null);
 
         NetHandShake handShake = new NetHandShake(tag);
@@ -57,7 +57,7 @@ public class UdpConnection
             {
                 DataReceived dataReceived = dataReceivedQueue.Dequeue();
                 if (receiver != null)
-                    receiver.OnReceiveData(dataReceived.data, dataReceived.ipEndPoint, playerId, nameTag);
+                    receiver.OnReceiveData(dataReceived.data, dataReceived.ipEndPoint);
             }
         }
     }

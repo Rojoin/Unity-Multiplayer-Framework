@@ -236,7 +236,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 180350410}
-  - component: {fileID: 180350409}
+  - component: {fileID: 180350412}
+  - component: {fileID: 180350411}
   m_Layer: 0
   m_Name: NetworkManager
   m_TagString: Untagged
@@ -244,25 +245,44 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &180350409
+--- !u!4 &180350410
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 180350408}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 648.8062, y: 449.30316, z: -80}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &180350411
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 180350408}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0f30c9f44b7174d45b74c4ae777e3447, type: 3}
+  m_Script: {fileID: 11500000, guid: edbaca3e21e74979b0b56995d3d190d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  timeOut: 5
+  timeOut: 30
+  players: []
   tagName: 
   clientId: 0
   OnPlayerDisconnect:
     m_PersistentCalls:
       m_Calls: []
   OnServerDisconnect:
+    m_PersistentCalls:
+      m_Calls: []
+  OnNewPlayer:
     m_PersistentCalls:
       m_Calls: []
   OnChatMessage:
@@ -280,21 +300,55 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
---- !u!4 &180350410
-Transform:
+  OnMessageCreatedChannel: {fileID: 11400000, guid: e1a90e195c8ed7a45806d0ad2bedbe2f,
+    type: 2}
+  OnCloseNetworkChannel: {fileID: 11400000, guid: ad82cbf0d0a497c49879e682d0570fbf,
+    type: 2}
+--- !u!114 &180350412
+MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 180350408}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 648.8062, y: 449.30316, z: -80}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d79dc5cad72c4f66933556af1e1e491f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  timeOut: 30
+  players: []
+  tagName: 
+  clientId: 0
+  OnPlayerDisconnect:
+    m_PersistentCalls:
+      m_Calls: []
+  OnServerDisconnect:
+    m_PersistentCalls:
+      m_Calls: []
+  OnNewPlayer:
+    m_PersistentCalls:
+      m_Calls: []
+  OnChatMessage:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 1130635392}
+        m_TargetAssemblyTypeName: ChatScreen, Assembly-CSharp
+        m_MethodName: AddText
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+  OnMessageCreatedChannel: {fileID: 11400000, guid: e1a90e195c8ed7a45806d0ad2bedbe2f,
+    type: 2}
+  OnCloseNetworkChannel: {fileID: 11400000, guid: ad82cbf0d0a497c49879e682d0570fbf,
+    type: 2}
+  isConnected: 0
 --- !u!1 &194703369
 GameObject:
   m_ObjectHideFlags: 0
@@ -551,6 +605,8 @@ MonoBehaviour:
   portInputField: {fileID: 1558557928}
   addressInputField: {fileID: 2123302590}
   nameTagInputField: {fileID: 1828601337}
+  client: {fileID: 180350412}
+  server: {fileID: 180350411}
 --- !u!1 &304126657
 GameObject:
   m_ObjectHideFlags: 0
@@ -1510,6 +1566,8 @@ MonoBehaviour:
   messages: {fileID: 2097084993}
   inputMessage: {fileID: 1132568522}
   exitNetwork: {fileID: 711720925}
+  onTextCreated: {fileID: 11400000, guid: e1a90e195c8ed7a45806d0ad2bedbe2f, type: 2}
+  closeChatScreen: {fileID: 11400000, guid: ad82cbf0d0a497c49879e682d0570fbf, type: 2}
 --- !u!1 &1132568520
 GameObject:
   m_ObjectHideFlags: 0
