@@ -14,7 +14,8 @@ public class ServerNetManager : NetworkManager
     protected override void OnConnect()
     {
         base.OnConnect();
-        connection = new UdpConnection(port, this);
+        
+        connection = new UdpConnection(port,CouldntCreateUDPConnection ,this);
         NetConsole.PlayerID = -10;
         NetExit.PlayerID = -10;
         NetPosition.PlayerID = -10;
@@ -32,7 +33,12 @@ public class ServerNetManager : NetworkManager
         connection?.Close();
     }
 
-
+    protected override void CouldntCreateUDPConnection(string errorMessage)
+    {
+        Debug.Log("Called");
+        ChatScreen.Instance.SwitchToNetworkScreen();
+        OnErrorMessage.RaiseEvent(errorMessage);
+    }
     public IEnumerator StartTimeOutServer(Client client)
     {
         while (client.timer < timeOut)

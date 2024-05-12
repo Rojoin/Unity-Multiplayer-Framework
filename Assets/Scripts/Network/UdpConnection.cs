@@ -11,42 +11,61 @@ public class UdpConnection
         public byte[] data;
         public IPEndPoint ipEndPoint;
     }
+
     public int playerId = -1;
 
     private UdpClient connection;
     private IReceiveData receiver = null;
     private Queue<DataReceived> dataReceivedQueue = new Queue<DataReceived>();
+    public event Action<string> OnSocketError; 
 
     object handler = new object();
     public string nameTag;
 
-    public UdpConnection(int port, IReceiveData receiver = null)
+    public UdpConnection(int port,in Action<string> handler,IReceiveData receiver = null)
     {
-        connection = new UdpClient(port);
-        connection.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-        this.receiver = receiver;
-        connection.BeginReceive(OnReceive, null);
+        OnSocketError += handler;
+        try
+        {
+            connection = new UdpClient(port);
+            connection.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            this.receiver = receiver;
+            connection.BeginReceive(OnReceive, null);
+        }
+        catch (Exception e)
+        {
+            OnSocketError?.Invoke($"Error: The port {port} is already use as a Server.");
+        }
     }
 
-    public UdpConnection(IPAddress ip, int port, string tag, IReceiveData receiver = null)
+    public UdpConnection(IPAddress ip, int port, string tag,in Action<string> handler, IReceiveData receiver = null)
     {
+        OnSocketError += handler;
+        try
+        {
         connection = new UdpClient();
         connection.Connect(ip, port);
         this.receiver = receiver;
-        
+
         connection.BeginReceive(OnReceive, null);
 
         NetHandShake handShake = new NetHandShake(tag);
         Send(handShake.Serialize());
+        }
+        catch(Exception e)
+        {
+            OnSocketError?.Invoke($"Error: The port {port} doesnt have a server initialized.");
+        }
     }
 
     public void Close()
     {
+        OnSocketError = null;
         dataReceivedQueue.Clear();
-        connection.Dispose();
-        connection.Close();
+        connection?.Dispose();
+        connection?.Close();
     }
-    
+
 
     public void FlushReceiveData()
     {
@@ -76,7 +95,7 @@ public class UdpConnection
         catch (SocketException e)
         {
             // This happens when a client disconnects, as we fail to send to that port.
-            UnityEngine.Debug.LogError("[UdpConnection] " + e.Message);
+            OnSocketError?.Invoke("[UdpConnection] " + e.Message);
         }
 
         connection.BeginReceive(OnReceive, null);

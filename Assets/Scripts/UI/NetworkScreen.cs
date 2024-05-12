@@ -18,13 +18,19 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
     public ServerNetManager server;
     public CanvasGroup loadingScreen;
     public CanvasGroup loginScreen;
+    public Text errorDisplayText;
+
+    [SerializeField] private float errorTime = 5.0f;
+    [SerializeField] private StringChannelSO errorChannel;
 
     private bool isLoginCanvasActive = false;
-    
+    private Coroutine isErrorShowing;
+
     protected override void Initialize()
     {
         connectBtn.onClick.AddListener(OnConnectBtnClick);
         startServerBtn.onClick.AddListener(OnStartServerBtnClick);
+        errorChannel.Subscribe(StartErrorShowing);
         ToggleLoadScreen();
     }
 
@@ -32,6 +38,7 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
     {
         connectBtn.onClick.RemoveListener(OnConnectBtnClick);
         startServerBtn.onClick.RemoveListener(OnStartServerBtnClick);
+        errorChannel.Unsubscribe(StartErrorShowing);
     }
 
     void OnConnectBtnClick()
@@ -54,12 +61,19 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
         loginScreen.SetCanvasActive(isLoginCanvasActive);
     }
 
+    public void SetLoginScreen(bool state = true)
+    {
+        isLoginCanvasActive = state;
+        loadingScreen.SetCanvasActive(!isLoginCanvasActive);
+        loginScreen.SetCanvasActive(isLoginCanvasActive);
+    }
+
     void OnStartServerBtnClick()
     {
+        SwitchToChatScreen();
         int port = System.Convert.ToInt32(portInputField.text);
         server.port = port;
         server.enabled = true;
-        SwitchToChatScreen();
     }
 
     public void SwitchToChatScreen()
@@ -67,5 +81,22 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
         ChatScreen.Instance.gameObject.SetActive(true);
         ToggleLoadScreen();
         this.gameObject.SetActive(false);
+    }
+
+    private void StartErrorShowing(string errorMessage)
+    {
+        if (isErrorShowing != null)
+        {
+            StopCoroutine(isErrorShowing);
+        }
+
+        isErrorShowing = StartCoroutine(ErrorMessageDisplay(errorMessage));
+    }
+
+    IEnumerator ErrorMessageDisplay(string errorMessage)
+    {
+        errorDisplayText.text = errorMessage;
+        yield return new WaitForSeconds(errorTime);
+        errorDisplayText.text = "";
     }
 }

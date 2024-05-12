@@ -1,5 +1,6 @@
 ﻿using System;
 using ScriptableObjects;
+using UnityEngine;
 using UnityEngine.UI;
 
 public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
@@ -23,6 +24,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
     private void OnDestroy()
     {
         inputMessage.onEndEdit.RemoveAllListeners();
+        exitNetwork.onClick.RemoveListener(SwitchToNetworkScreen);
     }
 
     public void AddText(string textString)
@@ -44,12 +46,14 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
     public void SwitchToNetworkScreen()
     {
+        NetworkScreen.Instance.gameObject.SetActive(true);
         messages.text = "";
         closeChatScreen.RaiseEvent();
-        NetworkScreen.Instance.gameObject.SetActive(true);
-        NetworkScreen.Instance.ToggleLoadScreen();
+        Debug.Log("Switched");
+        NetworkScreen.Instance.SetLoginScreen(true);
         this.gameObject.SetActive(false);
     }
+  
     public void UpdateMsWithServer(double value)
     {
         msUpdate.text = $"{value}ms";

@@ -17,14 +17,14 @@ public class ClientNetManager : NetworkManager
     private UnityEvent OnCouldntConnectToServer;
     public UnityEvent<double> OnMsUpdated;
 
-    public StringChannelSO OnErrorMessage;
 
     protected Dictionary<MessageType, ulong> lastReceiveMessage = new();
+
     protected override void OnConnect()
     {
         base.OnConnect();
         isConnected = false;
-        connection = new UdpConnection(ipAddress, port, tagName, this);
+        connection = new UdpConnection(ipAddress, port, tagName, CouldntCreateUDPConnection, this);
         OnServerDisconnect.AddListener(CloseConnection);
         TimeOutTimer = 0;
     }
@@ -47,6 +47,11 @@ public class ClientNetManager : NetworkManager
         }
     }
 
+    protected override void CouldntCreateUDPConnection(string errorMessage)
+    {
+        OnErrorMessage.RaiseEvent(errorMessage);
+        ChatScreen.Instance.SwitchToNetworkScreen();
+    }
 
     protected override void CheckTimeOut(float delta)
     {
@@ -74,7 +79,7 @@ public class ClientNetManager : NetworkManager
         bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
         bool isImportant = flags.HasFlag(MessageFlags.Important);
         bool isOrdenable = flags.HasFlag(MessageFlags.Important);
-        ulong mesaggeID =0 ;
+        ulong mesaggeID = 0;
         if (shouldCheckSum)
         {
             if (!BaseMessage<int>.IsMessageCorrectS(data.ToList()))
@@ -88,14 +93,15 @@ public class ClientNetManager : NetworkManager
         {
             mesaggeID = NetByteTranslator.GetMesaggeID(data);
         }
+
         switch (type)
         {
             case MessageType.HandShake:
                 NetHandShake errorMessage = new NetHandShake();
-                
-                //TODO: Show name already used
-                Debug.Log(errorMessage.Deserialize(data));
+
+                OnErrorMessage.RaiseEvent(errorMessage.Deserialize(data));
                 ChatScreen.Instance.SwitchToNetworkScreen();
+                OnServerDisconnect.Invoke();
                 break;
             case MessageType.Console:
                 break;
@@ -104,15 +110,15 @@ public class ClientNetManager : NetworkManager
             case MessageType.String:
                 NetConsole message = new();
 
-                if (IsTheLastMesagge(MessageType.String,mesaggeID))
+                if (IsTheLastMesagge(MessageType.String, mesaggeID))
                 {
                     string idName = playerID != -10 ? GetPlayer(playerID).nameTag + ":" : "Server:";
                     OnChatMessage.Invoke(idName + message.Deserialize(data));
                 }
-     
+
                 break;
             case MessageType.HandShakeOk:
-                
+
                 NetHandShakeOK handOk = new();
                 List<Player> newPlayersList = handOk.Deserialize(data);
                 SetPlayer(newPlayersList);
@@ -174,7 +180,7 @@ public class ClientNetManager : NetworkManager
     {
         connection.Send(data);
     }
-    
+
     public bool IsTheLastMesagge(MessageType messageType, ulong value)
     {
         if (lastReceiveMessage.TryAdd(messageType, value))

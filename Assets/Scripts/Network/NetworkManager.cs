@@ -33,7 +33,7 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
 
     private List<MessageCache> lastImportantMessages;
     private List<GameObject> entities;
-
+    public StringChannelSO OnErrorMessage;
     protected virtual void OnEnable()
     {
         OnConnect();
@@ -109,4 +109,5 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
     }
 
     protected abstract void OnTextAdded(string text);
+    protected abstract void CouldntCreateUDPConnection(string errorMessage);
 }
