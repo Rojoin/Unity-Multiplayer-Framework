@@ -30,6 +30,8 @@ public class ServerNetManager : NetworkManager
     protected override void OnDisconect()
     {
         base.OnDisconect();
+        NetExit closeServer = new NetExit();
+        Broadcast(closeServer.Serialize());
         connection?.Close();
     }
 
@@ -277,7 +279,7 @@ public class ServerNetManager : NetworkManager
                 }
                 else
                 {
-                    NetHandShake errorHandshake = new NetHandShake("Tagname already exist");
+                    NetHandShake errorHandshake = new NetHandShake("Error: Tagname already exist.");
                     SendToClient(errorHandshake.Serialize(), ep);
                 }
 

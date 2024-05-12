@@ -99,8 +99,8 @@ public class ClientNetManager : NetworkManager
             case MessageType.HandShake:
                 NetHandShake errorMessage = new NetHandShake();
 
-                OnErrorMessage.RaiseEvent(errorMessage.Deserialize(data));
                 ChatScreen.Instance.SwitchToNetworkScreen();
+                OnErrorMessage.RaiseEvent(errorMessage.Deserialize(data));
                 OnServerDisconnect.Invoke();
                 break;
             case MessageType.Console:
@@ -137,6 +137,10 @@ public class ClientNetManager : NetworkManager
 
                 break;
             case MessageType.Exit:
+                
+                ChatScreen.Instance.SwitchToNetworkScreen();
+                OnErrorMessage.RaiseEvent("The server has been closed.");
+                OnServerDisconnect.Invoke();
                 break;
             case MessageType.Ping:
 

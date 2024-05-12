@@ -25,12 +25,10 @@ public enum MessageFlags
     Important = 4
 }
 
-//TODO: Add message flags to all messages types.
+
 //TODO: Add Ordenable messages logic
-//TODO: Check if PlayerID has to be passed EveryTime.
-//TODO: Maybe check if server can be a flag?
 //TODO: Make a Confirmation message
-//TODO: Change to a different file
+
 public abstract class BaseMessage<PayloadType>
 {
     protected MessageType Type;
