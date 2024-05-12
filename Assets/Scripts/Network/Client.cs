@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using UnityEngine;
 
 [Serializable]
-public class Client
+public class Client : IMessageChecker
 {
     public bool isActive = false;
     public DateTime timeStamp;
@@ -12,8 +13,8 @@ public class Client
     public string tag;
     public float timer;
     protected Dictionary<MessageType, ulong> lastReceiveMessage = new();
-    public Dictionary<MessageType, List<object>> pendingMesagges= new();
-
+    public Dictionary<MessageType, List<object>> pendingMessages= new();
+    public List<MessageCache> lastImportantMessages = new();
     public Client(IPEndPoint ipEndPoint, int id, DateTime timeStamp, string tag)
     {
         this.timeStamp = timeStamp;
@@ -66,11 +67,23 @@ public class Client
         }
         else
         {
-            pendingMesagges[messageType].Add(baseMessage);
+            pendingMessages.TryAdd(messageType, new List<object>());
+           pendingMessages[messageType].Add(baseMessage);
             return lastReceiveMessage[messageType] + 1;
         }
     }
-    
 
- 
+
+    public void CheckImportantMessageConfirmation((MessageType, ulong) data)
+    {
+        foreach (var cached in lastImportantMessages)
+        {
+            if (cached.messageId == data.Item2 && cached.type == data.Item1)
+            {
+                Debug.Log($"Confirmation from client {id} of {cached.type} with id {cached.messageId}");
+                lastImportantMessages?.Remove(cached);
+                break;
+            }
+        }
+    }
 }

@@ -14,12 +14,18 @@ public class ServerNetManager : NetworkManager
     protected override void OnConnect()
     {
         base.OnConnect();
-        
-        connection = new UdpConnection(port,CouldntCreateUDPConnection ,this);
+
+        connection = new UdpConnection(port, CouldntCreateUDPConnection, this);
         NetConsole.PlayerID = -10;
         NetExit.PlayerID = -10;
         NetPosition.PlayerID = -10;
         NetPing.PlayerID = -10;
+        NetConfirmation.PlayerID = -10;
+    }
+
+    protected override void ReSendMessage(MessageCache arg0)
+    {
+        //Todo:Check for every message to have a way back for every client
     }
 
     public override void CloseConnection()
@@ -41,6 +47,7 @@ public class ServerNetManager : NetworkManager
         ChatScreen.Instance.SwitchToNetworkScreen();
         OnErrorMessage.RaiseEvent(errorMessage);
     }
+
     public IEnumerator StartTimeOutServer(Client client)
     {
         while (client.timer < timeOut)
@@ -50,6 +57,28 @@ public class ServerNetManager : NetworkManager
         }
 
         DisconnectPlayer(client);
+    }
+
+    protected override void OnUpdate(float deltaTime)
+    {
+        if (clients.Count > 0)
+        {
+            foreach (var client in clients)
+            {
+                if (client.Value.lastImportantMessages.Count > 0)
+                {
+                    foreach (var importantMessage in client.Value.lastImportantMessages)
+                    {
+                        importantMessage.timerForResend += deltaTime;
+                        if (importantMessage.timerForResend > timeUntilResend)
+                        {
+                            importantMessage.timerForResend = 0;
+                            SendToClient(importantMessage.data.ToArray(), client.Value.ipEndPoint);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     protected override void CheckTimeOut(float delta)
@@ -238,13 +267,13 @@ public class ServerNetManager : NetworkManager
 
     public override void OnReceiveDataEvent(byte[] data, IPEndPoint ep)
     {
-        MessageType type = NetByteTranslator.getNetworkType(data);
+        MessageType type = NetByteTranslator.GetNetworkType(data);
         int playerID = NetByteTranslator.GetPlayerID(data);
         MessageFlags flags = NetByteTranslator.GetFlags(data);
         bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
         bool isImportant = flags.HasFlag(MessageFlags.Important);
-        bool isOrdenable = flags.HasFlag(MessageFlags.Important);
-        ulong mesaggeID = 0;
+        bool isOrdenable = flags.HasFlag(MessageFlags.Ordenable);
+        ulong getMesaggeID = 0;
         if (shouldCheckSum)
         {
             if (!BaseMessage<int>.IsMessageCorrectS(new List<byte>(data)))
@@ -256,7 +285,7 @@ public class ServerNetManager : NetworkManager
 
         if (isOrdenable)
         {
-            mesaggeID = NetByteTranslator.GetMesaggeID(data);
+            getMesaggeID = NetByteTranslator.GetMesaggeID(data);
         }
 
         switch (type)
@@ -272,7 +301,9 @@ public class ServerNetManager : NetworkManager
                 {
                     NetHandShakeOK handOK = new(players);
                     Broadcast(handOK.Serialize());
-                    NetConsole netConsole = new NetConsole($"The player {gameTag} has joined the game.");
+                    string welcomeMessage = $"The player {gameTag} has joined the game.";
+                    OnChatMessage.Invoke(welcomeMessage);
+                    NetConsole netConsole = new NetConsole(welcomeMessage);
                     Broadcast(netConsole.Serialize());
                     NetPing ping = new();
                     SendToClient(ping.Serialize(), gameTag, ep);
@@ -283,16 +314,13 @@ public class ServerNetManager : NetworkManager
                     SendToClient(errorHandshake.Serialize(), ep);
                 }
 
-
-                break;
-            case MessageType.Console:
                 break;
             case MessageType.Position:
 
                 if (flags.HasFlag(MessageFlags.Ordenable))
                 {
-                    mesaggeID = NetByteTranslator.GetMesaggeID(data);
-                    if (clients[playerID].IsTheLastMesagge(MessageType.Position, mesaggeID))
+                    getMesaggeID = NetByteTranslator.GetMesaggeID(data);
+                    if (clients[playerID].IsTheLastMesagge(MessageType.Position, getMesaggeID))
                     {
                         //TODO:Add logic for distintive gameobject
                         NetPosition netPosition = new NetPosition(Vector3.one, 1);
@@ -306,17 +334,24 @@ public class ServerNetManager : NetworkManager
             case MessageType.String:
                 NetConsole message = new();
 
-                if (clients[playerID].IsTheLastMesagge(type, mesaggeID))
-                {
-                    if (clients[playerID].IsTheNextMessage(type, mesaggeID,message) == 0)
-                    {
-                        string textToWrite =
-                            $"{GetPlayer(NetByteTranslator.GetPlayerID(data)).nameTag}:{message.Deserialize(data)}";
 
-                        OnChatMessage.Invoke(textToWrite);
-                        Broadcast(data);
-                       
-                    }
+                if (clients[playerID].IsTheNextMessage(type, getMesaggeID, message) == 0)
+                {
+                    string deserializeMessage = message.Deserialize(data);
+                    string textToWrite =
+                        $"{GetPlayer(NetByteTranslator.GetPlayerID(data)).nameTag}:{deserializeMessage}";
+
+                    OnChatMessage.Invoke(textToWrite);
+                    message = new NetConsole(deserializeMessage);
+                    Broadcast(message.Serialize(playerID));
+                    AddImportantMessageToClients(data, type, getMesaggeID);
+                }
+
+                if (isImportant)
+                {
+                    Debug.Log("Llegue");
+                    NetConfirmation netConfirmation = new NetConfirmation((type, getMesaggeID));
+                    SendToClient(netConfirmation.Serialize(), ep);
                 }
 
                 break;
@@ -332,11 +367,24 @@ public class ServerNetManager : NetworkManager
                 SendToClient(pingMessage.Serialize(), currentClientId, ep);
                 DateTime currentTime = DateTime.UtcNow;
                 Debug.Log(
-                    $"Pong with {pongMessage.Deserialize(data)} in {clients[currentClientId].GetCurrentMS(currentTime).TotalMilliseconds} ms");
+                    $"Pong with {pongMessage.Deserialize(data)} in {clients[currentClientId].GetCurrentMS(currentTime).Milliseconds} ms");
                 clients[currentClientId].ResetTimer(currentTime);
                 break;
+            case MessageType.HandShakeOk:
+                break;
+            case MessageType.Confirmation:
+                NetConfirmation confirmation = new NetConfirmation();
+                clients[playerID].CheckImportantMessageConfirmation(confirmation.Deserialize(data));
+                //TODO: add to check if should send the messages again
+                break;
         }
-        
-        
+    }
+
+    private void AddImportantMessageToClients(byte[] data, MessageType type, ulong getMesaggeID)
+    {
+        foreach (var client in clients)
+        {
+            client.Value.lastImportantMessages.Add(new MessageCache(type, data.ToList(), getMesaggeID));
+        }
     }
 }

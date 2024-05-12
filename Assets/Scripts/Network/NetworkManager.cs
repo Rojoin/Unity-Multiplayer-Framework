@@ -22,7 +22,7 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
     public List<Player> players = new List<Player>();
     public string tagName = "";
 
-    public int clientId = 0; 
+    public int clientId = 0;
 
     public UnityEvent<Client> OnPlayerDisconnect;
     public UnityEvent OnServerDisconnect;
@@ -31,9 +31,12 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
     public StringChannelSO OnMessageCreatedChannel;
     public VoidChannelSO OnCloseNetworkChannel;
 
-    private List<MessageCache> lastImportantMessages;
+    protected List<MessageCache> lastImportantMessages = new();
     private List<GameObject> entities;
     public StringChannelSO OnErrorMessage;
+
+    public UnityEvent<MessageCache> OnResendMessage = new();
+
     protected virtual void OnEnable()
     {
         OnConnect();
@@ -43,7 +46,11 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
     {
         OnMessageCreatedChannel.Subscribe(OnTextAdded);
         OnCloseNetworkChannel.Subscribe(Deactivate);
+        OnResendMessage.AddListener(ReSendMessage);
     }
+
+    protected abstract void ReSendMessage(MessageCache arg0);
+
 
     protected void OnDisable()
     {
@@ -59,6 +66,7 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
         OnCloseNetworkChannel.Unsubscribe(Deactivate);
         OnPlayerDisconnect.RemoveAllListeners();
         OnServerDisconnect.RemoveAllListeners();
+        OnResendMessage.RemoveAllListeners();
     }
 
 
@@ -73,27 +81,36 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
     {
         if (connection != null)
             connection.FlushReceiveData();
-        CheckTimeOut(Time.deltaTime);
+        float deltaTime = Time.deltaTime;
+        CheckTimeOut(deltaTime);
+        CheckLastImportantMessages(deltaTime);
+        OnUpdate(deltaTime);
     }
+
+    protected abstract void OnUpdate(float deltaTime);
 
     protected abstract void CheckTimeOut(float delta);
 
     protected virtual void CheckLastImportantMessages(float deltaTime)
     {
-        if (lastImportantMessages.Count >0)
+        if (lastImportantMessages.Count > 0)
         {
-            foreach (MessageCache VARIABLE in lastImportantMessages.ToList())
+            foreach (MessageCache cached in lastImportantMessages.ToList())
             {
-                VARIABLE.timer += deltaTime;
-                if (VARIABLE.timer >= messageTimer)
+                if (cached.startTimer)
                 {
-                    lastImportantMessages.Remove(VARIABLE);
+                    cached.timerForDelete += deltaTime;
+                    if (cached.timerForDelete >= timeUntilResend)
+                    {
+                        lastImportantMessages.Remove(cached);
+                    }
                 }
             }
         }
     }
 
-    public float messageTimer = 15;
+
+    [FormerlySerializedAs("messageTimer")] public float timeUntilResend = 15;
 
     public Player GetPlayer(int id)
     {

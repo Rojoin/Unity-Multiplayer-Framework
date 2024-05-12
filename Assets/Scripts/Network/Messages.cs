@@ -7,7 +7,6 @@ public enum MessageType
 {
     HandShake = -2,
     HandShakeOk = -1,
-    Console = 0,
     Position = 1,
     String = 2,
     Ping,
@@ -70,7 +69,8 @@ public abstract class BaseMessage<PayloadType>
         return PlayerID;
     }
 
-    public abstract byte[] Serialize();
+    public abstract byte[] Serialize(int playerId = -999);
+   
     public abstract PayloadType Deserialize(byte[] message);
 
     public PayloadType GetData()
@@ -78,14 +78,20 @@ public abstract class BaseMessage<PayloadType>
         return Data;
     }
 
-    protected virtual void BasicSerialize(List<byte> outData, MessageType type)
+    protected virtual void BasicSerialize(List<byte> outData, MessageType type, int newPlayerID)
     {
+        int idToSend = PlayerID;
+        if (newPlayerID != -999)
+        {
+            idToSend = newPlayerID;
+        }
         outData.AddRange(BitConverter.GetBytes((int)type));
-        outData.AddRange(BitConverter.GetBytes(PlayerID));
+        outData.AddRange(BitConverter.GetBytes(idToSend));
         outData.AddRange(BitConverter.GetBytes((int)Flags));
         offsetSize = sizeof(int) * 3;
     }
 
+ 
     protected virtual void SetOffset()
     {
         offsetSize = sizeof(int) * 3;
@@ -122,15 +128,22 @@ public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
 {
     protected static ulong messageID = 0;
 
-    protected override void BasicSerialize(List<byte> outData, MessageType type)
+    protected override void BasicSerialize(List<byte> outData, MessageType type, int newPlayerID)
     {
+        int idToSend = PlayerID;
+        if (newPlayerID != -999)
+        {
+            idToSend = newPlayerID;
+        }
+        
         outData.AddRange(BitConverter.GetBytes((int)type));
-        outData.AddRange(BitConverter.GetBytes(PlayerID));
+        outData.AddRange(BitConverter.GetBytes(idToSend));
         outData.AddRange(BitConverter.GetBytes((int)Flags));
         outData.AddRange(BitConverter.GetBytes(messageID++));
+        Debug.Log(messageID);
         SetOffset();
     }
-
+ 
     protected override void SetOffset()
     {
         offsetSize = sizeof(int) * 3 + sizeof(ulong);
@@ -153,12 +166,12 @@ public class NetHandShakeOK : BaseMessage<List<Player>>
         Type = MessageType.HandShakeOk;
     }
 
-    public override byte[] Serialize()
+    public override byte[] Serialize(int newPlayerId = -999)
     {
         List<byte> outData = new List<byte>();
 
         int listSize = Data.Count;
-        BasicSerialize(outData, Type);
+        BasicSerialize(outData, Type,newPlayerId);
         outData.AddRange(BitConverter.GetBytes(Data.Count));
 
         for (int i = 0; i < listSize; i++)
@@ -231,11 +244,11 @@ public class NetHandShake : BaseMessage<string>
         return outData;
     }
 
-    public override byte[] Serialize()
+    public override byte[] Serialize(int newPlayerId = -999)
     {
         List<byte> outData = new List<byte>();
 
-        BasicSerialize(outData, Type);
+        BasicSerialize(outData, Type,newPlayerId);
 
         outData.AddRange(BitConverter.GetBytes(Data.Length));
         for (int i = 0; i < Data.Length; i++)
@@ -255,10 +268,10 @@ public class NetExit : BaseMessage<int>
         Type = MessageType.Exit;
     }
 
-    public override byte[] Serialize()
+    public override byte[] Serialize(int newPlayerId = -999)
     {
         List<byte> outData = new List<byte>();
-        BasicSerialize(outData, Type);
+        BasicSerialize(outData, Type,newPlayerId);
         DataCheckSumEncryption(outData);
         return outData.ToArray();
     }
@@ -280,15 +293,15 @@ public class NetPosition : OrderableMessage<(Vector3, int)>
         Type = MessageType.Position;
         SetOffset();
     }
+
     public NetPosition() : base()
     {
-        
     }
 
     public override (Vector3, int) Deserialize(byte[] message)
     {
         (Vector3, int) outData;
-        
+
         outData.Item1.x = BitConverter.ToSingle(message, offsetSize);
         outData.Item1.y = BitConverter.ToSingle(message, offsetSize + 4);
         outData.Item1.z = BitConverter.ToSingle(message, offsetSize + 8);
@@ -296,11 +309,11 @@ public class NetPosition : OrderableMessage<(Vector3, int)>
         return outData;
     }
 
-    public override byte[] Serialize()
+    public override byte[] Serialize(int newPlayerId = -999)
     {
         List<byte> outData = new List<byte>();
 
-        BasicSerialize(outData, Type);
+        BasicSerialize(outData, Type,newPlayerId);
         outData.AddRange(BitConverter.GetBytes(Data.Item1.x));
         outData.AddRange(BitConverter.GetBytes(Data.Item1.y));
         outData.AddRange(BitConverter.GetBytes(Data.Item1.z));
@@ -317,12 +330,15 @@ public class NetConsole : OrderableMessage<string>
 
     public NetConsole() : base()
     {
+        Type = MessageType.String;
+        Flags = MessageFlags.CheckSum | MessageFlags.Ordenable | MessageFlags.Important;
     }
 
     public NetConsole(string data) : base()
     {
         this.data = data;
         Type = MessageType.String;
+        Flags = MessageFlags.CheckSum | MessageFlags.Ordenable | MessageFlags.Important;
     }
 
 
@@ -340,10 +356,10 @@ public class NetConsole : OrderableMessage<string>
     }
 
 
-    public override byte[] Serialize()
+    public override byte[] Serialize(int newPlayerId = -999)
     {
         List<byte> outData = new List<byte>();
-        BasicSerialize(outData, Type);
+        BasicSerialize(outData, Type,newPlayerId);
         outData.AddRange(BitConverter.GetBytes(data.Length));
         for (int i = 0; i < data.Length; i++)
         {
@@ -362,10 +378,10 @@ public class NetPing : BaseMessage<int>
         Type = MessageType.Ping;
     }
 
-    public override byte[] Serialize()
+    public override byte[] Serialize(int newPlayerId = -999)
     {
         List<byte> outData = new List<byte>();
-        BasicSerialize(outData, Type);
+        BasicSerialize(outData, Type,newPlayerId);
         DataCheckSumEncryption(outData);
         return outData.ToArray();
     }
@@ -373,5 +389,36 @@ public class NetPing : BaseMessage<int>
     public override int Deserialize(byte[] message)
     {
         return BitConverter.ToInt32(message, 4);
+    }
+}
+
+public class NetConfirmation : BaseMessage<(MessageType, ulong)>
+{
+    public NetConfirmation() : base()
+    {
+        Type = MessageType.Confirmation;
+    }
+
+    public NetConfirmation((MessageType, ulong) data) : base(data)
+    {
+        Type = MessageType.Confirmation;
+    }
+    
+    public override byte[] Serialize(int newPlayerId = -999)
+    {
+        List<byte> outData = new List<byte>();
+        BasicSerialize(outData, Type,newPlayerId);
+        outData.AddRange(BitConverter.GetBytes((int)Data.Item1));
+        outData.AddRange(BitConverter.GetBytes(Data.Item2));
+        DataCheckSumEncryption(outData);
+        return outData.ToArray();
+    }
+
+    public override (MessageType, ulong) Deserialize(byte[] message)
+    {
+        var type = (MessageType)BitConverter.ToInt32(message, offsetSize);
+        var messageId = BitConverter.ToUInt64(message, offsetSize + 4);
+
+        return (type, messageId);
     }
 }

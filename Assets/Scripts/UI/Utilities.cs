@@ -22,7 +22,7 @@ public enum BitOperations
 
 public static class NetByteTranslator
 {
-    public static MessageType getNetworkType(byte[] data)
+    public static MessageType GetNetworkType(byte[] data)
     {
         int dataOut = BitConverter.ToInt32(data, 0);
         return (MessageType)dataOut;

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -29,6 +30,11 @@ public class ClientNetManager : NetworkManager
         TimeOutTimer = 0;
     }
 
+    protected override void ReSendMessage(MessageCache arg0)
+    {
+        SendToServer(arg0.data.ToArray());
+    }
+
     protected override void OnDisconect()
     {
         base.OnDisconect();
@@ -53,6 +59,19 @@ public class ClientNetManager : NetworkManager
         ChatScreen.Instance.SwitchToNetworkScreen();
     }
 
+    protected override void OnUpdate(float deltaTime)
+    {
+        foreach (MessageCache cached in lastImportantMessages)
+        {
+            cached.timerForResend += deltaTime;
+            if (cached.timerForResend >= timeUntilResend)
+            {
+                OnResendMessage.Invoke(cached);
+                cached.timerForResend = 0.0f;
+            }
+        }
+    }
+
     protected override void CheckTimeOut(float delta)
     {
         if (isConnected)
@@ -68,18 +87,26 @@ public class ClientNetManager : NetworkManager
     protected override void OnTextAdded(string text)
     {
         NetConsole message = new(text);
-        SendToServer(message.Serialize());
+        byte[] serialize = message.Serialize();
+        SendToServer(serialize);
+        lastImportantMessages.Add(new MessageCache(MessageType.String, serialize.ToList(),
+            NetByteTranslator.GetMesaggeID(serialize)));
     }
 
     public override void OnReceiveDataEvent(byte[] data, IPEndPoint ep)
     {
-        MessageType type = NetByteTranslator.getNetworkType(data);
+        MessageType type = NetByteTranslator.GetNetworkType(data);
         int playerID = NetByteTranslator.GetPlayerID(data);
         MessageFlags flags = NetByteTranslator.GetFlags(data);
+        if (type != MessageType.Ping)
+        {
+            Debug.Log(type);
+        }
+
         bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
         bool isImportant = flags.HasFlag(MessageFlags.Important);
         bool isOrdenable = flags.HasFlag(MessageFlags.Important);
-        ulong mesaggeID = 0;
+        ulong getMessageID = 0;
         if (shouldCheckSum)
         {
             if (!BaseMessage<int>.IsMessageCorrectS(data.ToList()))
@@ -91,7 +118,7 @@ public class ClientNetManager : NetworkManager
 
         if (isOrdenable)
         {
-            mesaggeID = NetByteTranslator.GetMesaggeID(data);
+            getMessageID = NetByteTranslator.GetMesaggeID(data);
         }
 
         switch (type)
@@ -103,17 +130,22 @@ public class ClientNetManager : NetworkManager
                 OnErrorMessage.RaiseEvent(errorMessage.Deserialize(data));
                 OnServerDisconnect.Invoke();
                 break;
-            case MessageType.Console:
-                break;
             case MessageType.Position:
                 break;
             case MessageType.String:
                 NetConsole message = new();
 
-                if (IsTheLastMesagge(MessageType.String, mesaggeID))
+                if (IsTheLastMesagge(MessageType.String, getMessageID))
                 {
                     string idName = playerID != -10 ? GetPlayer(playerID).nameTag + ":" : "Server:";
                     OnChatMessage.Invoke(idName + message.Deserialize(data));
+                    lastImportantMessages.Add(new MessageCache(MessageType.String, data.ToList(), getMessageID));
+                    NetConfirmation confirmation = new NetConfirmation((type, getMessageID));
+                    SendToServer(confirmation.Serialize());
+                }
+                else
+                {
+                    Debug.Log("Message wasnt the last");
                 }
 
                 break;
@@ -137,7 +169,7 @@ public class ClientNetManager : NetworkManager
 
                 break;
             case MessageType.Exit:
-                
+
                 ChatScreen.Instance.SwitchToNetworkScreen();
                 OnErrorMessage.RaiseEvent("The server has been closed.");
                 OnServerDisconnect.Invoke();
@@ -153,6 +185,12 @@ public class ClientNetManager : NetworkManager
                 TimeOutTimer = 0;
                 break;
 
+            case MessageType.Confirmation:
+                //TODO:Check Why confirmation doesnt work, probably the message cache is bad
+                Debug.Log("Confirmation Message Appears");
+                NetConfirmation netConfirmation = new NetConfirmation();
+                CheckImportantMessageConfirmation(netConfirmation.Deserialize(data));
+                break;
             default:
                 Debug.Log("MessageType not found");
                 break;
@@ -161,6 +199,20 @@ public class ClientNetManager : NetworkManager
         if (flags.HasFlag(MessageFlags.Important))
         {
             //TODO:Send Confirmation
+        }
+    }
+
+    private void CheckImportantMessageConfirmation((MessageType, ulong) data)
+    {
+        foreach (var VARIABLE in lastImportantMessages)
+        {
+       
+            if (VARIABLE.messageId == data.Item2 && VARIABLE.type == data.Item1)
+            {
+                VARIABLE.startTimer = true;
+                Debug.Log("LLego");
+                break;
+            }
         }
     }
 
@@ -178,6 +230,7 @@ public class ClientNetManager : NetworkManager
         NetExit.PlayerID = clientId;
         NetPosition.PlayerID = clientId;
         NetPing.PlayerID = clientId;
+        NetConfirmation.PlayerID = clientId;
     }
 
     public void SendToServer(byte[] data)
@@ -191,8 +244,9 @@ public class ClientNetManager : NetworkManager
         {
             return true;
         }
-
-        if (lastReceiveMessage[messageType] < value)
+Debug.Log($"The message id is {value}");
+Debug.Log($"The last id is {lastReceiveMessage[messageType]}");
+        if (lastReceiveMessage[messageType] > value)
         {
             return false;
         }
