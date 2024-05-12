@@ -11,7 +11,6 @@ public class UdpConnection
         public byte[] data;
         public IPEndPoint ipEndPoint;
     }
-//Todo: Check close connection
     public int playerId = -1;
 
     private UdpClient connection;

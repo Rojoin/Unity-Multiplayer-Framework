@@ -5,6 +5,7 @@ using UnityEngine.UI;
 public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 {
     public Text messages;
+    public Text msUpdate;
     public InputField inputMessage;
     public Button exitNetwork;
     public StringChannelSO onTextCreated;
@@ -16,6 +17,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
         this.gameObject.SetActive(false);
         exitNetwork.onClick.AddListener(SwitchToNetworkScreen);
+        
     }
 
     private void OnDestroy()
@@ -42,9 +44,14 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
     public void SwitchToNetworkScreen()
     {
-        // Todo: Add Server Disconnect
+        messages.text = "";
         closeChatScreen.RaiseEvent();
         NetworkScreen.Instance.gameObject.SetActive(true);
+        NetworkScreen.Instance.ToggleLoadScreen();
         this.gameObject.SetActive(false);
+    }
+    public void UpdateMsWithServer(double value)
+    {
+        msUpdate.text = $"{value}ms";
     }
 }

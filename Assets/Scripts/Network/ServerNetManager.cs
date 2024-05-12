@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using UnityEngine;
 
 public class ServerNetManager : NetworkManager
 {
-  //Todo: Make logic for already existing message
     public readonly Dictionary<int, Client> clients = new Dictionary<int, Client>();
     protected readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
+
 
     protected override void OnConnect()
     {
@@ -16,7 +17,7 @@ public class ServerNetManager : NetworkManager
         connection = new UdpConnection(port, this);
         NetConsole.PlayerID = -10;
         NetExit.PlayerID = -10;
-        NetVector3.PlayerID = -10;
+        NetPosition.PlayerID = -10;
         NetPing.PlayerID = -10;
     }
 
@@ -58,6 +59,20 @@ public class ServerNetManager : NetworkManager
                     }
                 }
             }
+
+            ClearInactiveClients();
+        }
+    }
+
+    private void ClearInactiveClients()
+    {
+        for (int i = 0; i < clients.Count; i++)
+        {
+            if (clients.ContainsKey(i) && !clients[i].isActive)
+            {
+                ipToId.Remove(clients[i].ipEndPoint);
+                clients.Remove(i);
+            }
         }
     }
 
@@ -91,26 +106,40 @@ public class ServerNetManager : NetworkManager
         {
             Debug.Log("Removing client: " + ip.Address);
             clients[ipToId[ip]].isActive = false;
-            //clients.Remove(ipToId[ip]);
         }
     }
 
-    public void AddClient(IPEndPoint ip, out int id, string nameTag)
+    public bool TryAddClient(IPEndPoint ip, out int id, string nameTag)
     {
-        if (!ipToId.ContainsKey(ip))
+        if (!ipToId.ContainsKey(ip) && !IsNameTagAClient(nameTag))
         {
             Debug.Log("Adding client: " + ip.Address);
 
             id = clientId;
             ipToId[ip] = clientId;
-            clients.Add(clientId, new Client(ip, id, DateTime.UtcNow, tag));
+            clients.Add(clientId, new Client(ip, id, DateTime.UtcNow, nameTag));
             players.Add(new Player(clientId, nameTag));
             clientId++;
+            return true;
         }
         else
         {
-            id = ipToId[ip];
+            id = -7;
+            return false;
         }
+    }
+
+    private bool IsNameTagAClient(string nametag)
+    {
+        foreach (var player in players)
+        {
+            if (player.nameTag == nametag)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void SendToClient(byte[] data, string nameTag, IPEndPoint ep)
@@ -127,6 +156,11 @@ public class ServerNetManager : NetworkManager
         }
 
         connection.Send(data, clientIp);
+    }
+
+    public void SendToClient(byte[] data, IPEndPoint ep)
+    {
+        connection.Send(data, ep);
     }
 
     public void SendToEveryoneExceptClient(byte[] data, int id)
@@ -196,48 +230,90 @@ public class ServerNetManager : NetworkManager
 
     public override void OnReceiveDataEvent(byte[] data, IPEndPoint ep)
     {
-        var type = NetByteTranslator.getNetworkType(data);
-        var playerID = NetByteTranslator.GetPlayerID(data);
+        MessageType type = NetByteTranslator.getNetworkType(data);
+        int playerID = NetByteTranslator.GetPlayerID(data);
+        MessageFlags flags = NetByteTranslator.GetFlags(data);
+        bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
+        bool isImportant = flags.HasFlag(MessageFlags.Important);
+        bool isOrdenable = flags.HasFlag(MessageFlags.Important);
+        ulong mesaggeID = 0;
+        if (shouldCheckSum)
+        {
+            if (!BaseMessage<int>.IsMessageCorrectS(new List<byte>(data)))
+            {
+                Debug.Log("The packet was corrupted.");
+                return;
+            }
+        }
+
+        if (isOrdenable)
+        {
+            mesaggeID = NetByteTranslator.GetMesaggeID(data);
+        }
 
         switch (type)
         {
             case MessageType.HandShake:
                 NetHandShake handShake = new NetHandShake();
                 // data[0] = 243;
-                if (handShake.IsMessageCorrect(new List<byte>(data)))
-                {
-                    string gameTag = handShake.Deserialize(data);
-                    Debug.Log($"La ip de el cliente es: {ep.Address} y el nameTag es: {gameTag}");
 
-                    AddClient(ep, out var id, gameTag);
+                string gameTag = handShake.Deserialize(data);
+                Debug.Log($"La ip de el cliente es: {ep.Address} y el nameTag es: {gameTag}");
+
+                if (TryAddClient(ep, out var id, gameTag))
+                {
                     NetHandShakeOK handOK = new(players);
                     Broadcast(handOK.Serialize());
-
+                    NetConsole netConsole = new NetConsole($"The player {gameTag} has joined the game.");
+                    Broadcast(netConsole.Serialize());
                     NetPing ping = new();
                     SendToClient(ping.Serialize(), gameTag, ep);
                 }
                 else
                 {
-                    Debug.Log("The message is corrupted");
+                    NetHandShake errorHandshake = new NetHandShake("Tagname already exist");
+                    SendToClient(errorHandshake.Serialize(), ep);
                 }
+
 
                 break;
             case MessageType.Console:
                 break;
             case MessageType.Position:
+
+                if (flags.HasFlag(MessageFlags.Ordenable))
+                {
+                    mesaggeID = NetByteTranslator.GetMesaggeID(data);
+                    if (clients[playerID].IsTheLastMesagge(MessageType.Position, mesaggeID))
+                    {
+                        //TODO:Add logic for distintive gameobject
+                        NetPosition netPosition = new NetPosition(Vector3.one, 1);
+                        SendToEveryoneExceptClient(netPosition.Serialize(), playerID);
+                    }
+                }
+
                 break;
             case MessageType.String when !clients.ContainsKey(playerID):
                 break;
             case MessageType.String:
                 NetConsole message = new();
-                string textToWrite =
-                    $"{GetPlayer(NetByteTranslator.GetPlayerID(data)).nameTag}:{message.Deserialize(data)}";
-                OnChatMessage.Invoke(textToWrite);
-                Broadcast(data);
+
+                if (clients[playerID].IsTheLastMesagge(type, mesaggeID))
+                {
+                    if (clients[playerID].IsTheNextMessage(type, mesaggeID,message) == 0)
+                    {
+                        string textToWrite =
+                            $"{GetPlayer(NetByteTranslator.GetPlayerID(data)).nameTag}:{message.Deserialize(data)}";
+
+                        OnChatMessage.Invoke(textToWrite);
+                        Broadcast(data);
+                       
+                    }
+                }
 
                 break;
             case MessageType.Exit:
-                RemoveClient(ep);
+                DisconnectPlayer(clients[playerID]);
                 break;
             case MessageType.Ping when !clients.ContainsKey(playerID):
                 break;
@@ -252,5 +328,7 @@ public class ServerNetManager : NetworkManager
                 clients[currentClientId].ResetTimer(currentTime);
                 break;
         }
+        
+        
     }
 }

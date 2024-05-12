@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using UnityEngine;
 using UnityEngine.Events;
@@ -8,8 +9,9 @@ using UnityEngine.Serialization;
 
 public abstract class NetworkManager : MonoBehaviour, IReceiveData
 {
-    //Todo: Make logic for obligatory messages
-    //Todo: Make Basic shooter to test.
+    //TODO: Make logic for obligatory messages
+    //TODO: Make Basic shooter to test.
+    //TODO: Everytime an object is created it needs to wait for his id
     public IPAddress ipAddress { get; set; }
     public int port { get; set; }
 
@@ -29,6 +31,8 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
     public StringChannelSO OnMessageCreatedChannel;
     public VoidChannelSO OnCloseNetworkChannel;
 
+    private List<MessageCache> lastImportantMessages;
+    private List<GameObject> entities;
 
     protected virtual void OnEnable()
     {
@@ -63,11 +67,7 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
         OnReceiveDataEvent(data, ip);
     }
 
-    public virtual void OnReceiveDataEvent(byte[] data, IPEndPoint ep)
-    {
-        var type = NetByteTranslator.getNetworkType(data);
-        var playerID = NetByteTranslator.GetPlayerID(data);
-    }
+    public abstract void OnReceiveDataEvent(byte[] data, IPEndPoint ep);
 
     void Update()
     {
@@ -76,9 +76,24 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
         CheckTimeOut(Time.deltaTime);
     }
 
-    protected virtual void CheckTimeOut(float delta)
+    protected abstract void CheckTimeOut(float delta);
+
+    protected virtual void CheckLastImportantMessages(float deltaTime)
     {
+        if (lastImportantMessages.Count >0)
+        {
+            foreach (MessageCache VARIABLE in lastImportantMessages.ToList())
+            {
+                VARIABLE.timer += deltaTime;
+                if (VARIABLE.timer >= messageTimer)
+                {
+                    lastImportantMessages.Remove(VARIABLE);
+                }
+            }
+        }
     }
+
+    public float messageTimer = 15;
 
     public Player GetPlayer(int id)
     {

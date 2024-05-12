@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using UnityEngine;
 using UnityEngine.Events;
@@ -13,7 +14,12 @@ public class ClientNetManager : NetworkManager
     [SerializeField] private bool isConnected;
 
     private UnityEvent OnServerCloseEvent;
+    private UnityEvent OnCouldntConnectToServer;
+    public UnityEvent<double> OnMsUpdated;
 
+    public StringChannelSO OnErrorMessage;
+
+    protected Dictionary<MessageType, ulong> lastReceiveMessage = new();
     protected override void OnConnect()
     {
         base.OnConnect();
@@ -28,6 +34,7 @@ public class ClientNetManager : NetworkManager
         base.OnDisconect();
         CloseConnection();
     }
+
     public override void CloseConnection()
     {
         if (isConnected)
@@ -61,11 +68,34 @@ public class ClientNetManager : NetworkManager
 
     public override void OnReceiveDataEvent(byte[] data, IPEndPoint ep)
     {
-        var type = NetByteTranslator.getNetworkType(data);
-        var playerID = NetByteTranslator.GetPlayerID(data);
+        MessageType type = NetByteTranslator.getNetworkType(data);
+        int playerID = NetByteTranslator.GetPlayerID(data);
+        MessageFlags flags = NetByteTranslator.GetFlags(data);
+        bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
+        bool isImportant = flags.HasFlag(MessageFlags.Important);
+        bool isOrdenable = flags.HasFlag(MessageFlags.Important);
+        ulong mesaggeID =0 ;
+        if (shouldCheckSum)
+        {
+            if (!BaseMessage<int>.IsMessageCorrectS(data.ToList()))
+            {
+                Debug.Log("The packet was corrupted.");
+                return;
+            }
+        }
+
+        if (isOrdenable)
+        {
+            mesaggeID = NetByteTranslator.GetMesaggeID(data);
+        }
         switch (type)
         {
             case MessageType.HandShake:
+                NetHandShake errorMessage = new NetHandShake();
+                
+                //TODO: Show name already used
+                Debug.Log(errorMessage.Deserialize(data));
+                ChatScreen.Instance.SwitchToNetworkScreen();
                 break;
             case MessageType.Console:
                 break;
@@ -73,13 +103,24 @@ public class ClientNetManager : NetworkManager
                 break;
             case MessageType.String:
                 NetConsole message = new();
-                string idName = playerID != -10 ? GetPlayer(playerID).nameTag + ":" : "Server:";
-                OnChatMessage.Invoke(idName + message.Deserialize(data));
+
+                if (IsTheLastMesagge(MessageType.String,mesaggeID))
+                {
+                    string idName = playerID != -10 ? GetPlayer(playerID).nameTag + ":" : "Server:";
+                    OnChatMessage.Invoke(idName + message.Deserialize(data));
+                }
+     
                 break;
             case MessageType.HandShakeOk:
+                
                 NetHandShakeOK handOk = new();
                 List<Player> newPlayersList = handOk.Deserialize(data);
                 SetPlayer(newPlayersList);
+                if (!isConnected)
+                {
+                    NetworkScreen.Instance.SwitchToChatScreen();
+                }
+
                 isConnected = true;
                 foreach (Player pl in newPlayersList)
                 {
@@ -92,18 +133,24 @@ public class ClientNetManager : NetworkManager
             case MessageType.Exit:
                 break;
             case MessageType.Ping:
-                //Empezar la corrutina del timeout del servidor
+
                 NetPing netPong = new NetPing();
                 SendToServer(netPong.Serialize());
                 currentTimePing = DateTime.UtcNow;
                 var a = currentTimePing - lastTimeConnection;
                 lastTimeConnection = currentTimePing;
+                OnMsUpdated.Invoke(a.TotalMilliseconds);
                 TimeOutTimer = 0;
                 break;
 
             default:
                 Debug.Log("MessageType not found");
                 break;
+        }
+
+        if (flags.HasFlag(MessageFlags.Important))
+        {
+            //TODO:Send Confirmation
         }
     }
 
@@ -119,12 +166,28 @@ public class ClientNetManager : NetworkManager
         players = newPlayersList;
         NetConsole.PlayerID = clientId;
         NetExit.PlayerID = clientId;
-        NetVector3.PlayerID = clientId;
+        NetPosition.PlayerID = clientId;
         NetPing.PlayerID = clientId;
     }
 
     public void SendToServer(byte[] data)
     {
         connection.Send(data);
+    }
+    
+    public bool IsTheLastMesagge(MessageType messageType, ulong value)
+    {
+        if (lastReceiveMessage.TryAdd(messageType, value))
+        {
+            return true;
+        }
+
+        if (lastReceiveMessage[messageType] < value)
+        {
+            return false;
+        }
+
+        lastReceiveMessage[messageType] = value;
+        return true;
     }
 }
