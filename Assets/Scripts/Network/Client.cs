@@ -13,8 +13,9 @@ public class Client : IMessageChecker
     public string tag;
     public float timer;
     protected Dictionary<MessageType, ulong> lastReceiveMessage = new();
-    public Dictionary<MessageType, List<object>> pendingMessages= new();
+    public Dictionary<MessageType, List<object>> pendingMessages = new();
     public List<MessageCache> lastImportantMessages = new();
+
     public Client(IPEndPoint ipEndPoint, int id, DateTime timeStamp, string tag)
     {
         this.timeStamp = timeStamp;
@@ -67,8 +68,9 @@ public class Client : IMessageChecker
         }
         else
         {
+            //TODO: Ask for the message that is left
             pendingMessages.TryAdd(messageType, new List<object>());
-           pendingMessages[messageType].Add(baseMessage);
+            pendingMessages[messageType].Add(baseMessage);
             return lastReceiveMessage[messageType] + 1;
         }
     }

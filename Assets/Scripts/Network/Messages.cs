@@ -25,9 +25,6 @@ public enum MessageFlags
 }
 
 
-//TODO: Add Ordenable messages logic
-//TODO: Make a Confirmation message
-
 public abstract class BaseMessage<PayloadType>
 {
     protected MessageType Type;
@@ -123,7 +120,9 @@ public abstract class BaseMessage<PayloadType>
         return checkSum1 == u1 && checkSum2 == u2;
     }
 }
-
+//Todo: Add message when spawning entity
+//Todo: Add message for timer.
+//Todo: Add message for winning.
 public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
 {
     protected static ulong messageID = 0;

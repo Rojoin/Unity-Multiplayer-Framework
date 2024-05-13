@@ -186,7 +186,6 @@ public class ClientNetManager : NetworkManager
                 break;
 
             case MessageType.Confirmation:
-                //TODO:Check Why confirmation doesnt work, probably the message cache is bad
                 Debug.Log("Confirmation Message Appears");
                 NetConfirmation netConfirmation = new NetConfirmation();
                 CheckImportantMessageConfirmation(netConfirmation.Deserialize(data));
