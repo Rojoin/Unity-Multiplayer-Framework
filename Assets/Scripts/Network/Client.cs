@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
@@ -13,8 +14,9 @@ public class Client : IMessageChecker
     public string tag;
     public float timer;
     protected Dictionary<MessageType, ulong> lastReceiveMessage = new();
-    public Dictionary<MessageType, List<object>> pendingMessages = new();
+    public Dictionary<MessageType, List<MessageCache>> pendingMessages = new();
     public List<MessageCache> lastImportantMessages = new();
+
 
     public Client(IPEndPoint ipEndPoint, int id, DateTime timeStamp, string tag)
     {
@@ -53,7 +55,7 @@ public class Client : IMessageChecker
         return true;
     }
 
-    public ulong IsTheNextMessage<T>(MessageType messageType, ulong value, OrderableMessage<T> baseMessage)
+    public ulong IsTheNextMessage(MessageType messageType, ulong value, BaseMessage baseMessage)
     {
         if (lastReceiveMessage.TryAdd(messageType, value))
         {
@@ -64,14 +66,33 @@ public class Client : IMessageChecker
         if (lastReceiveMessage[messageType] + 1 == value)
         {
             lastReceiveMessage[messageType] = value;
+            if (pendingMessages[messageType].Count > 0)
+            {
+                //Todo: Check if the message is the next.
+            }
+
             return 0;
         }
         else
         {
             //TODO: Ask for the message that is left
-            pendingMessages.TryAdd(messageType, new List<object>());
-            pendingMessages[messageType].Add(baseMessage);
+            pendingMessages.TryAdd(messageType, new List<MessageCache>());
+            pendingMessages[messageType].Add(new MessageCache(messageType, value));
+            //Todo: Hacer más lindo
+            pendingMessages[messageType].Sort(Sorter);
             return lastReceiveMessage[messageType] + 1;
+        }
+    }
+
+    private int Sorter(MessageCache cache1,MessageCache  cache2)
+    {
+        return cache1.messageId > cache2.messageId ? (int)cache1.messageId :  (int)cache2.messageId;
+    }
+    private void CheckPendingMessages(MessageType messageType, int value)
+    {
+        foreach (var messages in pendingMessages[messageType])
+        {
+            
         }
     }
 
@@ -88,4 +109,49 @@ public class Client : IMessageChecker
             }
         }
     }
+}
+
+public class NewList<T> : ICollection<T>
+
+{
+    private ICollection<T> _collectionImplementation;
+
+    public IEnumerator<T> GetEnumerator()
+    {
+        return _collectionImplementation.GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return ((IEnumerable)_collectionImplementation).GetEnumerator();
+    }
+
+    public void Add(T item)
+    {
+        _collectionImplementation.Add(item);
+    }
+
+    public void Clear()
+    {
+        _collectionImplementation.Clear();
+    }
+
+    public bool Contains(T item)
+    {
+        return _collectionImplementation.Contains(item);
+    }
+
+    public void CopyTo(T[] array, int arrayIndex)
+    {
+        _collectionImplementation.CopyTo(array, arrayIndex);
+    }
+
+    public bool Remove(T item)
+    {
+        return _collectionImplementation.Remove(item);
+    }
+
+    public int Count => _collectionImplementation.Count;
+
+    public bool IsReadOnly => _collectionImplementation.IsReadOnly;
 }

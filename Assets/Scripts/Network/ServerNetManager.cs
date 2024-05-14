@@ -115,6 +115,9 @@ public class ServerNetManager : NetworkManager
 
     private void DisconnectPlayer(Client client)
     {
+        string leftMessage = $"The player {client.tag} has left the game.";
+        OnTextAdded(leftMessage);
+
         RemoveClient(client.ipEndPoint);
         Player playerToRemove = new();
         foreach (Player player in players)

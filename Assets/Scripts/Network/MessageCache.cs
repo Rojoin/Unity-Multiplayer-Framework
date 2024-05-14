@@ -18,5 +18,12 @@ public class MessageCache
         timerForDelete = 0.0f;
         timerForResend = 0.0f;
         startTimer = false;
+    }   public MessageCache(MessageType newtype,  ulong newmessageId)
+    {
+        type = newtype;
+        messageId = newmessageId;
+        timerForDelete = 0.0f;
+        timerForResend = 0.0f;
+        startTimer = false;
     }
 }

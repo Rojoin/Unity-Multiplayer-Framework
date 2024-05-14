@@ -24,15 +24,28 @@ public enum MessageFlags
     Important = 4
 }
 
-
-public abstract class BaseMessage<PayloadType>
+public abstract class BaseMessage
 {
     protected MessageType Type;
-    protected PayloadType Data;
     protected MessageFlags Flags;
     public static int PlayerID;
-
+    protected byte[] ByteData;
     protected int offsetSize = 0;
+    public abstract byte[] Serialize(int playerId);
+    public byte[] Serialize()
+    {
+        return Serialize(PlayerID);
+    }
+
+    public void SetByteData(byte[] newByteData) => this.ByteData = newByteData;
+
+}
+public abstract class BaseMessage<PayloadType> : BaseMessage
+{
+
+    protected PayloadType Data;
+ 
+ 
 
     private static BitOperations[] _operationsArray1 = new[]
     {
@@ -65,9 +78,7 @@ public abstract class BaseMessage<PayloadType>
     {
         return PlayerID;
     }
-
-    public abstract byte[] Serialize(int playerId = -999);
-   
+    
     public abstract PayloadType Deserialize(byte[] message);
 
     public PayloadType GetData()
@@ -77,13 +88,8 @@ public abstract class BaseMessage<PayloadType>
 
     protected virtual void BasicSerialize(List<byte> outData, MessageType type, int newPlayerID)
     {
-        int idToSend = PlayerID;
-        if (newPlayerID != -999)
-        {
-            idToSend = newPlayerID;
-        }
         outData.AddRange(BitConverter.GetBytes((int)type));
-        outData.AddRange(BitConverter.GetBytes(idToSend));
+        outData.AddRange(BitConverter.GetBytes(newPlayerID));
         outData.AddRange(BitConverter.GetBytes((int)Flags));
         offsetSize = sizeof(int) * 3;
     }
@@ -129,14 +135,10 @@ public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
 
     protected override void BasicSerialize(List<byte> outData, MessageType type, int newPlayerID)
     {
-        int idToSend = PlayerID;
-        if (newPlayerID != -999)
-        {
-            idToSend = newPlayerID;
-        }
+      
         
         outData.AddRange(BitConverter.GetBytes((int)type));
-        outData.AddRange(BitConverter.GetBytes(idToSend));
+        outData.AddRange(BitConverter.GetBytes(newPlayerID));
         outData.AddRange(BitConverter.GetBytes((int)Flags));
         outData.AddRange(BitConverter.GetBytes(messageID++));
         Debug.Log(messageID);
@@ -165,7 +167,7 @@ public class NetHandShakeOK : BaseMessage<List<Player>>
         Type = MessageType.HandShakeOk;
     }
 
-    public override byte[] Serialize(int newPlayerId = -999)
+    public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
 
@@ -243,7 +245,7 @@ public class NetHandShake : BaseMessage<string>
         return outData;
     }
 
-    public override byte[] Serialize(int newPlayerId = -999)
+    public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
 
@@ -267,7 +269,7 @@ public class NetExit : BaseMessage<int>
         Type = MessageType.Exit;
     }
 
-    public override byte[] Serialize(int newPlayerId = -999)
+    public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
         BasicSerialize(outData, Type,newPlayerId);
@@ -308,7 +310,7 @@ public class NetPosition : OrderableMessage<(Vector3, int)>
         return outData;
     }
 
-    public override byte[] Serialize(int newPlayerId = -999)
+    public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
 
@@ -355,7 +357,7 @@ public class NetConsole : OrderableMessage<string>
     }
 
 
-    public override byte[] Serialize(int newPlayerId = -999)
+    public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
         BasicSerialize(outData, Type,newPlayerId);
@@ -377,7 +379,7 @@ public class NetPing : BaseMessage<int>
         Type = MessageType.Ping;
     }
 
-    public override byte[] Serialize(int newPlayerId = -999)
+    public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
         BasicSerialize(outData, Type,newPlayerId);
@@ -403,7 +405,7 @@ public class NetConfirmation : BaseMessage<(MessageType, ulong)>
         Type = MessageType.Confirmation;
     }
     
-    public override byte[] Serialize(int newPlayerId = -999)
+    public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
         BasicSerialize(outData, Type,newPlayerId);

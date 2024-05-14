@@ -76,38 +76,38 @@ public static class NetByteTranslator
         return checkSum;
     }
 
-    private static uint SelectOperations(BitOperations[] operationsToDo, uint chekSum, byte currentByte)
+    private static uint SelectOperations(BitOperations[] operationsToDo, uint checkSum, byte currentByte)
     {
         int index = currentByte % operationsToDo.Length;
-        chekSum = operationsToDo[index] switch
+        checkSum = operationsToDo[index] switch
         {
-            BitOperations.sum => BitSum(chekSum, currentByte),
-            BitOperations.substract => BitSus(chekSum, currentByte),
-            BitOperations.moveLeft => BitLeft(chekSum, currentByte),
-            BitOperations.moveRight => BitRight(chekSum, currentByte),
-            _ => chekSum
+            BitOperations.sum => BitSum(checkSum, currentByte),
+            BitOperations.substract => BitSus(checkSum, currentByte),
+            BitOperations.moveLeft => BitLeft(checkSum, currentByte),
+            BitOperations.moveRight => BitRight(checkSum, currentByte),
+            _ => checkSum
         };
 
-        return chekSum;
+        return checkSum;
     }
 
-    private static uint BitSum(uint chekSum, byte currentByte)
+    private static uint BitSum(uint checkSum, byte currentByte)
     {
-        return chekSum + currentByte;
+        return checkSum + currentByte;
     }
 
-    private static uint BitSus(uint chekSum, byte currentByte)
+    private static uint BitSus(uint checkSum, byte currentByte)
     {
-        return chekSum - currentByte;
+        return checkSum - currentByte;
     }
 
-    private static uint BitLeft(uint chekSum, byte currentByte)
+    private static uint BitLeft(uint checkSum, byte currentByte)
     {
-        return chekSum <<= 3;
+        return checkSum <<= 3;
     }
 
-    private static uint BitRight(uint chekSum, byte currentByte)
+    private static uint BitRight(uint checkSum, byte currentByte)
     {
-        return chekSum >>= 3;
+        return checkSum >>= 3;
     }
 }
