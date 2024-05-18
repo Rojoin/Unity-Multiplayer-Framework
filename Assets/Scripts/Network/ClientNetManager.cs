@@ -282,15 +282,14 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
             if (!playerAlreadyExists)
             {
+                if (player.nameTag == tagName)
+                {
+                    clientId = player.id;
+                }
+
                 OnPlayerCreated.RaiseEvent(player.id);
             }
-
-            if (playerAlreadyExists && player.nameTag == tagName)
-            {
-                clientId = player.id;
-                Debug.Log($"My id is {clientId}");
-                break;
-            }
+            
         }
 
         players = newPlayersList;
