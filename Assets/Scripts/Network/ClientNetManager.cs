@@ -288,6 +288,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
             if (playerAlreadyExists && player.nameTag == tagName)
             {
                 clientId = player.id;
+                Debug.Log($"My id is {clientId}");
                 break;
             }
         }
