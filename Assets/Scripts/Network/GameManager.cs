@@ -16,6 +16,7 @@ public class GameManager : MonoBehaviour
     public IntChannelSO OnPlayerCreated;
     public MovePlayerChannelSO OnPlayerMoved;
     public IntChannelSO OnPlayerDestroyed;
+    public VoidChannelSO OnExitChannel;
 
 
     private void OnEnable()
@@ -23,6 +24,7 @@ public class GameManager : MonoBehaviour
         OnPlayerCreated.Subscribe(CreateNewPlayer);
         OnPlayerMoved.Subscribe(SetPlayerPos);
         OnPlayerDestroyed.Subscribe(DisconnectPlayer);
+        OnExitChannel.Subscribe(ResetConfig);
     }
 
     private void OnDisable()
@@ -30,6 +32,16 @@ public class GameManager : MonoBehaviour
         OnPlayerCreated.Unsubscribe(CreateNewPlayer);
         OnPlayerMoved.Unsubscribe(SetPlayerPos);
         OnPlayerDestroyed.Unsubscribe(DisconnectPlayer);
+        OnExitChannel.Unsubscribe(ResetConfig);
+    }
+    private void ResetConfig()
+    {
+        currentPlayersConnected = 0;
+        foreach (PlayerController player in players)
+        {
+            Destroy(player.gameObject);
+        }
+        players.Clear();
     }
 
     public void CreateNewPlayer(int id)

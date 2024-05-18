@@ -299,6 +299,7 @@ MonoBehaviour:
   OnPlayerCreated: {fileID: 11400000, guid: af51d6844782f1c4bb8832a9aaafe6a6, type: 2}
   OnPlayerMoved: {fileID: 11400000, guid: 4bd1501dcbb042441bf045428db9cbc0, type: 2}
   OnPlayerDestroyed: {fileID: 11400000, guid: 6153af112f5632544b308a355f162cbe, type: 2}
+  OnExitChannel: {fileID: 11400000, guid: ad82cbf0d0a497c49879e682d0570fbf, type: 2}
 --- !u!4 &137595969
 Transform:
   m_ObjectHideFlags: 0
