@@ -108,11 +108,14 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     public override void OnReceiveDataEvent(byte[] data, IPEndPoint ep = null)
     {
+        
+    
         MessageType type = NetByteTranslator.GetNetworkType(data);
         int playerID = NetByteTranslator.GetPlayerID(data);
         MessageFlags flags = NetByteTranslator.GetFlags(data);
         if (type != MessageType.Ping)
         {
+            Debug.Log(type);
         }
 
         bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);

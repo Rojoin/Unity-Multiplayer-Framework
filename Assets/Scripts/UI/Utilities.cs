@@ -29,26 +29,46 @@ public static class NetByteTranslator
 {
     public static MessageType GetNetworkType(byte[] data)
     {
-        int dataOut = BitConverter.ToInt32(data, 0);
-        return (MessageType)dataOut;
+        if (data != null && data.Length > 0)
+        {
+            int dataOut = BitConverter.ToInt32(data, 0);
+            return (MessageType)dataOut;
+        }
+
+        return MessageType.Error;
     }
 
     public static int GetPlayerID(byte[] data)
     {
-        int dataOut = BitConverter.ToInt32(data, 4);
-        return dataOut;
+        if (data != null && data.Length > 4)
+        {
+            int dataOut = BitConverter.ToInt32(data, 4);
+            return dataOut;
+        }
+
+        return -15;
     }
 
     public static MessageFlags GetFlags(byte[] data)
     {
-        MessageFlags dataOut = (MessageFlags)BitConverter.ToInt32(data, 8);
-        return dataOut;
+        if (data != null && data.Length > 8)
+        {
+            MessageFlags dataOut = (MessageFlags)BitConverter.ToInt32(data, 8);
+            return dataOut;
+        }
+
+        return MessageFlags.None;
     }
 
     public static ulong GetMesaggeID(byte[] data)
     {
-        ulong dataOut = BitConverter.ToUInt64(data, 12);
-        return dataOut;
+        if (data != null && data.Length > 12)
+        {
+            ulong dataOut = BitConverter.ToUInt64(data, 12);
+            return dataOut;
+        }
+
+        return 0;
     }
 
     public static ulong GetObjectID(byte[] data)

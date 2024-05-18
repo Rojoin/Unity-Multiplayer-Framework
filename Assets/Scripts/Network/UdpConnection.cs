@@ -15,7 +15,7 @@ public class UdpConnection
 
     public int playerId = -1;
 
-    private UdpClient connection;
+    public UdpClient connection;
     private IReceiveData receiver = null;
     private Queue<DataReceived> dataReceivedQueue = new Queue<DataReceived>();
     public event Action<string> OnSocketError;
@@ -56,6 +56,7 @@ public class UdpConnection
         catch (Exception e)
         {
             OnSocketError?.Invoke($"Error: The port {port} doesnt have a server initialized.");
+            Debug.Log($"Error: The port {port} doesnt have a server initialized.");
         }
     }
 
@@ -83,25 +84,24 @@ public class UdpConnection
 
     void OnReceive(IAsyncResult ar)
     {
+        DataReceived dataReceived = new DataReceived();
         try
         {
-            DataReceived dataReceived = new DataReceived();
-
-
             if (connection.Client.Connected)
             {
                 dataReceived.data = connection.EndReceive(ar, ref dataReceived.ipEndPoint);
-
-                lock (handler)
-                {
-                    dataReceivedQueue?.Enqueue(dataReceived);
-                }
             }
         }
         catch (SocketException e)
         {
             // This happens when a client disconnects, as we fail to send to that port.
-            OnSocketError?.Invoke("[UdpConnection] " + e.Message);
+            //OnSocketError?.Invoke("[UdpConnection] " + e.Message);
+            Debug.Log("[UdpConnection] " + e.Message);
+        }
+
+        lock (handler)
+        {
+            dataReceivedQueue?.Enqueue(dataReceived);
         }
 
         if (connection.Client.Connected)

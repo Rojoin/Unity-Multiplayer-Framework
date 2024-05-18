@@ -50,16 +50,7 @@ public class ServerNetManager : NetworkManager
         OnErrorMessage.RaiseEvent(errorMessage);
     }
 
-    public IEnumerator StartTimeOutServer(Client client)
-    {
-        while (client.timer < timeOut)
-        {
-            client.timer += Time.deltaTime;
-            yield return null;
-        }
 
-        DisconnectPlayer(client);
-    }
 
     protected override void OnUpdate(float deltaTime)
     {
@@ -79,9 +70,7 @@ public class ServerNetManager : NetworkManager
                         }
                     }
                 }
-                
             }
-            
         }
     }
 
@@ -94,6 +83,7 @@ public class ServerNetManager : NetworkManager
                 while (iterator.MoveNext())
                 {
                     iterator.Current.Value.timer += delta;
+                    Debug.Log($"Client {iterator.Current.Value.id}:{iterator.Current.Value.timer}");
                     if (iterator.Current.Value.timer >= timeOut && iterator.Current.Value.isActive)
                     {
                         DisconnectPlayer(iterator.Current.Value);
@@ -136,7 +126,6 @@ public class ServerNetManager : NetworkManager
         }
 
         players.Remove(playerToRemove);
-
         NetHandShakeOK newPlayerList = new NetHandShakeOK(players, MessageFlags.None);
         Broadcast(newPlayerList.Serialize());
         Debug.Log("New Player list:");
@@ -150,6 +139,7 @@ public class ServerNetManager : NetworkManager
     {
         if (ipToId.ContainsKey(ip))
         {
+            Debug.Log($"Removing {ipToId[ip]}");
             Debug.Log("Removing client: " + ip.Address);
             clients[ipToId[ip]].isActive = false;
         }
@@ -237,6 +227,7 @@ public class ServerNetManager : NetworkManager
             }
         }
     }
+
 //Todo: preguntar sobre desconeccion
     public void Broadcast(byte[] data)
     {
@@ -280,6 +271,11 @@ public class ServerNetManager : NetworkManager
         MessageType type = NetByteTranslator.GetNetworkType(data);
         int playerID = NetByteTranslator.GetPlayerID(data);
         MessageFlags flags = NetByteTranslator.GetFlags(data);
+        if (type != MessageType.Ping)
+        {
+            Debug.Log($"{type} and ID {playerID}");
+        }
+
         bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
         bool isImportant = flags.HasFlag(MessageFlags.Important);
         bool isOrdenable = flags.HasFlag(MessageFlags.Ordenable);
@@ -354,8 +350,8 @@ public class ServerNetManager : NetworkManager
                     message = new NetConsole(deserializeMessage);
                     byte[] messageDataToSend = message.Serialize(playerID);
                     Broadcast(messageDataToSend);
-                    AddImportantMessageToClients(data, type, NetByteTranslator.GetMesaggeID(messageDataToSend),true);
-                    
+                    AddImportantMessageToClients(data, type, NetByteTranslator.GetMesaggeID(messageDataToSend), true);
+
                     if (isImportant)
                     {
                         //BUG: Check if the id is correct
@@ -366,7 +362,7 @@ public class ServerNetManager : NetworkManager
                 }
 
                 break;
-            case MessageType.Exit when clients.ContainsKey(playerID):
+            case MessageType.Exit :
                 DisconnectPlayer(clients[playerID]);
                 break;
             case MessageType.Ping when !clients.ContainsKey(playerID):
@@ -396,7 +392,8 @@ public class ServerNetManager : NetworkManager
         }
     }
 
-    private void AddImportantMessageToClients(byte[] data, MessageType type, ulong getMesaggeID, bool shouldBeResend = false)
+    private void AddImportantMessageToClients(byte[] data, MessageType type, ulong getMesaggeID,
+        bool shouldBeResend = false)
     {
         Debug.Log($"Adding message of {type} with ID {getMesaggeID} to the clients.");
         foreach (var client in clients)
@@ -404,7 +401,7 @@ public class ServerNetManager : NetworkManager
             MessageCache messageCache = new MessageCache(type, data.ToList(), getMesaggeID)
             {
                 canBeResend = shouldBeResend,
-                startTimer =  !shouldBeResend
+                startTimer = !shouldBeResend
             };
             client.Value.lastImportantMessages.Add(messageCache);
         }

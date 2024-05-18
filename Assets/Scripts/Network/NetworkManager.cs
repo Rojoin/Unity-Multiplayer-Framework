@@ -81,12 +81,14 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
 
     void Update()
     {
-        if (connection != null)
-            connection.FlushReceiveData();
         float deltaTime = Time.deltaTime;
         CheckTimeOut(deltaTime);
         CheckLastImportantMessages(deltaTime);
         OnUpdate(deltaTime);
+        
+        
+        if (connection != null)
+            connection.FlushReceiveData();
     }
 
     protected abstract void OnUpdate(float deltaTime);

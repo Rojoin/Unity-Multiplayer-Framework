@@ -5,6 +5,7 @@ using UnityEngine;
 
 public enum MessageType
 {
+    Error =-3,
     HandShake = -2,
     HandShakeOk = -1,
     Position = 1,
