@@ -107,7 +107,6 @@ public class Client : IMessageChecker
     {
         foreach (var cached in lastImportantMessages)
         {
-            //Todo: Check comparison
             Debug.Log($"Id Comparison {cached.messageId} & {data.Item2}");
             if (cached.messageId == data.Item2 && cached.type == data.Item1)
             {

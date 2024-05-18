@@ -51,7 +51,6 @@ public class ServerNetManager : NetworkManager
     }
 
 
-
     protected override void OnUpdate(float deltaTime)
     {
         if (clients.Count > 0)
@@ -90,7 +89,8 @@ public class ServerNetManager : NetworkManager
                     }
                 }
             }
-Debug.Log("Llego");
+
+            Debug.Log("Llego");
             ClearInactiveClients();
         }
     }
@@ -98,7 +98,7 @@ Debug.Log("Llego");
     private void ClearInactiveClients()
     {
         Dictionary<int, Client> aux = new(clients);
-        foreach (KeyValuePair<int,Client> i1 in aux)
+        foreach (KeyValuePair<int, Client> i1 in aux)
         {
             if (!i1.Value.isActive)
             {
@@ -114,16 +114,18 @@ Debug.Log("Llego");
         string leftMessage = $"The player {client.tag} has left the game.";
         OnTextAdded(leftMessage);
 
-       // RemoveClient(client.ipEndPoint);
+        // RemoveClient(client.ipEndPoint);
         Player playerToRemove = new();
         foreach (Player player in players)
         {
             if (client.id == player.id)
             {
                 playerToRemove = player;
+                OnPlayerDestroyed.RaiseEvent(player.id);
                 break;
             }
         }
+
         Debug.Log($"{client.id}");
         client.isActive = false;
         players.Remove(playerToRemove);
@@ -158,6 +160,8 @@ Debug.Log("Llego");
 
             players.Add(new Player(clientId, nameTag));
             clientId++;
+            //Todo: Send Player logic
+            OnPlayerCreated.RaiseEvent(id);
             return true;
         }
         else
@@ -229,7 +233,7 @@ Debug.Log("Llego");
         }
     }
 
-//Todo: preguntar sobre desconeccion
+
     public void Broadcast(byte[] data)
     {
         using (var iterator = clients.GetEnumerator())
@@ -299,8 +303,6 @@ Debug.Log("Llego");
         {
             case MessageType.HandShake:
                 NetHandShake handShake = new NetHandShake();
-                // data[0] = 243;
-
                 string gameTag = handShake.Deserialize(data);
                 Debug.Log($"La ip de el cliente es: {ep.Address} y el nameTag es: {gameTag}");
 
@@ -324,72 +326,93 @@ Debug.Log("Llego");
                 break;
             case MessageType.Position when clients.ContainsKey(playerID):
 
-                if (flags.HasFlag(MessageFlags.Ordenable))
-                {
-                    getMessageID = NetByteTranslator.GetMesaggeID(data);
-                    if (clients[playerID].IsTheLastMesagge(MessageType.Position, getMessageID))
-                    {
-                        //TODO:Add logic for distintive gameobject
-                        NetPosition netPosition = new NetPosition(Vector3.one, 1);
-                        SendToEveryoneExceptClient(netPosition.Serialize(), playerID);
-                    }
-                }
+                Position(data, flags, playerID);
 
                 break;
             case MessageType.String when !clients.ContainsKey(playerID):
                 break;
             case MessageType.String:
-                NetConsole message = new();
-
-                if (clients[playerID].IsTheNextMessage(type, getMessageID, message))
-                {
-                    string deserializeMessage = message.Deserialize(data);
-                    string textToWrite =
-                        $"{GetPlayer(NetByteTranslator.GetPlayerID(data)).nameTag}:{deserializeMessage}";
-
-                    OnChatMessage.Invoke(textToWrite);
-                    message = new NetConsole(deserializeMessage);
-                    byte[] messageDataToSend = message.Serialize(playerID);
-                    Broadcast(messageDataToSend);
-                    AddImportantMessageToClients(data, type, NetByteTranslator.GetMesaggeID(messageDataToSend), true);
-
-                    if (isImportant)
-                    {
-                        //BUG: Check if the id is correct
-                        Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
-                        NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
-                        SendToClient(netConfirmation.Serialize(), ep);
-                    }
-                }
-
+                ChatMessage(data, ep, playerID, type, getMessageID, isImportant);
                 break;
-            case MessageType.Exit :
+            case MessageType.Exit:
                 DisconnectPlayer(clients[playerID]);
                 break;
             case MessageType.Ping when !clients.ContainsKey(playerID):
                 break;
             case MessageType.Ping:
-                NetPing pingMessage = new();
-                NetPing pongMessage = new();
-                int currentClientId = pingMessage.Deserialize(data);
-                SendToClient(pingMessage.Serialize(), currentClientId, ep);
-                DateTime currentTime = DateTime.UtcNow;
-                if (showPing)
-                {
-                    Debug.Log(
-                        $"Pong with {pongMessage.Deserialize(data)} in {clients[currentClientId].GetCurrentMS(currentTime).Milliseconds} ms");
-                }
-
-                clients[currentClientId].ResetTimer(currentTime);
+                Ping(data, ep);
                 break;
             case MessageType.HandShakeOk:
                 break;
             case MessageType.Confirmation when clients.ContainsKey(playerID):
-                NetConfirmation confirmation = new NetConfirmation();
-                Debug.Log($"Checking Confirmation fomr player {playerID}.");
-                clients[playerID].CheckImportantMessageConfirmation(confirmation.Deserialize(data));
-                //TODO: add to check if should send the messages again
+                Confirmation(data, playerID);
                 break;
+        }
+    }
+
+    private void Position(byte[] data, MessageFlags flags, int playerID)
+    {
+        ulong getMessageID;
+        if (flags.HasFlag(MessageFlags.Ordenable))
+        {
+            NetPosition netPosition = new NetPosition();
+            getMessageID = NetByteTranslator.GetMesaggeID(data);
+            if (clients[playerID].IsTheLastMesagge(MessageType.Position, getMessageID))
+            {
+                (Vector3,int) dataReceived;
+                dataReceived = netPosition.Deserialize(data);
+                OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1);
+                SendToEveryoneExceptClient(netPosition.Serialize(), playerID);
+            }
+        }
+    }
+
+    private void Confirmation(byte[] data, int playerID)
+    {
+        NetConfirmation confirmation = new NetConfirmation();
+        Debug.Log($"Checking Confirmation fomr player {playerID}.");
+        clients[playerID].CheckImportantMessageConfirmation(confirmation.Deserialize(data));
+    }
+
+    private void Ping(byte[] data, IPEndPoint ep)
+    {
+        NetPing pingMessage = new();
+        NetPing pongMessage = new();
+        int currentClientId = pingMessage.Deserialize(data);
+        SendToClient(pingMessage.Serialize(), currentClientId, ep);
+        DateTime currentTime = DateTime.UtcNow;
+        if (showPing)
+        {
+            Debug.Log(
+                $"Pong with {pongMessage.Deserialize(data)} in {clients[currentClientId].GetCurrentMS(currentTime).Milliseconds} ms");
+        }
+
+        clients[currentClientId].ResetTimer(currentTime);
+    }
+
+    private void ChatMessage(byte[] data, IPEndPoint ep, int playerID, MessageType type, ulong getMessageID,
+        bool isImportant)
+    {
+        NetConsole message = new();
+
+        if (clients[playerID].IsTheNextMessage(type, getMessageID, message))
+        {
+            string deserializeMessage = message.Deserialize(data);
+            string textToWrite =
+                $"{GetPlayer(NetByteTranslator.GetPlayerID(data)).nameTag}:{deserializeMessage}";
+
+            OnChatMessage.Invoke(textToWrite);
+            message = new NetConsole(deserializeMessage);
+            byte[] messageDataToSend = message.Serialize(playerID);
+            Broadcast(messageDataToSend);
+            AddImportantMessageToClients(data, type, NetByteTranslator.GetMesaggeID(messageDataToSend), true);
+
+            if (isImportant)
+            {
+                Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
+                NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
+                SendToClient(netConfirmation.Serialize(), ep);
+            }
         }
     }
 

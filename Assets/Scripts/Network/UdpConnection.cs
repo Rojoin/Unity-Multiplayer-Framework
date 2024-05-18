@@ -93,7 +93,6 @@ public class UdpConnection
             }
             else
             {
-           
             }
         }
         catch (SocketException e)
@@ -108,9 +107,7 @@ public class UdpConnection
         {
             dataReceivedQueue?.Enqueue(dataReceived);
         }
-
-     
-            connection.BeginReceive(OnReceive, null);
+        connection.BeginReceive(OnReceive, null);
     }
 
     public void Send(byte[] data)

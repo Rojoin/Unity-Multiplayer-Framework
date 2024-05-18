@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using ScriptableObjects;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Serialization;
@@ -29,6 +30,9 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
     public UnityEvent<string> OnChatMessage;
     public StringChannelSO OnMessageCreatedChannel;
     public VoidChannelSO OnCloseNetworkChannel;
+    public IntChannelSO OnPlayerCreated;
+    public MovePlayerChannelSO OnPlayerMoved;
+    public IntChannelSO OnPlayerDestroyed;
 
     protected List<MessageCache> lastImportantMessages = new();
     private List<GameObject> entities;

@@ -108,8 +108,6 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     public override void OnReceiveDataEvent(byte[] data, IPEndPoint ep = null)
     {
-        
-    
         MessageType type = NetByteTranslator.GetNetworkType(data);
         int playerID = NetByteTranslator.GetPlayerID(data);
         MessageFlags flags = NetByteTranslator.GetFlags(data);
@@ -213,11 +211,6 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 Debug.Log("MessageType not found");
                 break;
         }
-
-        if (flags.HasFlag(MessageFlags.Important))
-        {
-            //TODO:Send Confirmation
-        }
     }
 
 
@@ -275,11 +268,28 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     public void SetPlayer(List<Player> newPlayersList)
     {
+        Dictionary<string, Player> playerTags = players.ToDictionary(p => p.nameTag, p => p);
+
         foreach (Player player in newPlayersList)
         {
-            if (tagName != player.nameTag) continue;
-            clientId = player.id;
-            break;
+            bool playerAlreadyExists = playerTags.ContainsKey(player.nameTag);
+            bool playerExistsInNewPlayersList = newPlayersList.Any(np => np.nameTag == player.nameTag);
+
+            if (!playerExistsInNewPlayersList)
+            {
+                OnPlayerDestroyed.RaiseEvent(player.id);
+            }
+
+            if (!playerAlreadyExists)
+            {
+                OnPlayerCreated.RaiseEvent(player.id);
+            }
+
+            if (playerAlreadyExists && player.nameTag == tagName)
+            {
+                clientId = player.id;
+                break;
+            }
         }
 
         players = newPlayersList;

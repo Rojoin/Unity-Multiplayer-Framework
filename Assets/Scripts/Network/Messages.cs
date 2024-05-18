@@ -137,8 +137,6 @@ public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
 
     protected override void BasicSerialize(List<byte> outData, MessageType type, int newPlayerID)
     {
-      
-        
         outData.AddRange(BitConverter.GetBytes((int)type));
         outData.AddRange(BitConverter.GetBytes(newPlayerID));
         outData.AddRange(BitConverter.GetBytes((int)Flags));
