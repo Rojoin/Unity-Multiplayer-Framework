@@ -90,21 +90,21 @@ public class ServerNetManager : NetworkManager
                     }
                 }
             }
-
+Debug.Log("Llego");
             ClearInactiveClients();
         }
     }
 
     private void ClearInactiveClients()
     {
-        for (int i = 0; i < clients.Count; i++)
+        Dictionary<int, Client> aux = new(clients);
+        foreach (KeyValuePair<int,Client> i1 in aux)
         {
-            if (clients.ContainsKey(i) && !clients[i].isActive)
+            if (!i1.Value.isActive)
             {
-                ipToId.Remove(clients[i].ipEndPoint);
-                clients[i].OnDestroy();
-                clients.Remove(i);
-                GC.Collect();
+                ipToId.Remove(i1.Value.ipEndPoint);
+                i1.Value.OnDestroy();
+                clients.Remove(i1.Key);
             }
         }
     }
@@ -114,7 +114,7 @@ public class ServerNetManager : NetworkManager
         string leftMessage = $"The player {client.tag} has left the game.";
         OnTextAdded(leftMessage);
 
-        RemoveClient(client.ipEndPoint);
+       // RemoveClient(client.ipEndPoint);
         Player playerToRemove = new();
         foreach (Player player in players)
         {
@@ -124,7 +124,8 @@ public class ServerNetManager : NetworkManager
                 break;
             }
         }
-
+        Debug.Log($"{client.id}");
+        client.isActive = false;
         players.Remove(playerToRemove);
         NetHandShakeOK newPlayerList = new NetHandShakeOK(players, MessageFlags.None);
         Broadcast(newPlayerList.Serialize());
