@@ -49,6 +49,7 @@ public class GameManager : MonoBehaviour
             {
                 players.Remove(player);
                 Destroy(player.gameObject);
+                currentPlayersConnected--;
             }
         }
     }

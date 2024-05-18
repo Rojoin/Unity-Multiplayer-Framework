@@ -273,11 +273,15 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         foreach (Player player in newPlayersList)
         {
             bool playerAlreadyExists = playerTags.ContainsKey(player.nameTag);
-            bool playerExistsInNewPlayersList = newPlayersList.Any(np => np.nameTag == player.nameTag);
-
-            if (!playerExistsInNewPlayersList)
+            foreach (Player currentPlayer in players)
             {
-                OnPlayerDestroyed.RaiseEvent(player.id);
+                bool playerExistsInNewPlayersList = newPlayersList.Any(np => np.nameTag == currentPlayer.nameTag);
+
+                if (!playerExistsInNewPlayersList)
+                {
+                    Debug.LogWarning($"Destroy Player{player.id}");
+                    OnPlayerDestroyed.RaiseEvent(player.id);
+                }
             }
 
             if (!playerAlreadyExists)
@@ -289,7 +293,6 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
                 OnPlayerCreated.RaiseEvent(player.id);
             }
-            
         }
 
         players = newPlayersList;
