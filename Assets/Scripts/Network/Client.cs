@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
+using UnityEngine.Events;
 
 [Serializable]
 public class Client : IMessageChecker
@@ -16,8 +17,8 @@ public class Client : IMessageChecker
     protected Dictionary<MessageType, ulong> lastReceiveMessage = new();
     public Dictionary<MessageType, List<MessageCache>> pendingMessages = new();
     public List<MessageCache> lastImportantMessages = new();
-
-
+    private IMessageChecker _messageCheckerImplementation;
+    UnityEvent<byte[], IPEndPoint> IMessageChecker.OnPreviousData { get; set;}= new();
     public Client(IPEndPoint ipEndPoint, int id, DateTime timeStamp, string tag)
     {
         this.timeStamp = timeStamp;
@@ -26,6 +27,12 @@ public class Client : IMessageChecker
         this.tag = tag;
         timer = 0.0f;
         isActive = true;
+    }
+    public void OnDestroy()
+    {
+        lastImportantMessages.Clear();
+        pendingMessages.Clear();
+        lastReceiveMessage.Clear();
     }
 
     public TimeSpan GetCurrentMS(DateTime currentTimeStamp)
@@ -48,62 +55,65 @@ public class Client : IMessageChecker
 
         if (lastReceiveMessage[messageType] < value)
         {
-            return false;
+            lastReceiveMessage[messageType] = value;
+            return true;
         }
 
-        lastReceiveMessage[messageType] = value;
         return true;
     }
 
-    public ulong IsTheNextMessage(MessageType messageType, ulong value, BaseMessage baseMessage)
+    public bool IsTheNextMessage(MessageType messageType, ulong value, BaseMessage baseMessage)
     {
         if (lastReceiveMessage.TryAdd(messageType, value))
         {
-            return 0;
+            return true;
         }
-
-
+        
         if (lastReceiveMessage[messageType] + 1 == value)
         {
             lastReceiveMessage[messageType] = value;
-            if (pendingMessages[messageType].Count > 0)
-            {
-                //Todo: Check if the message is the next.
-            }
+            CheckPendingMessages(messageType, value);
 
-            return 0;
+            return true;
         }
         else
         {
-            //TODO: Ask for the message that is left
             pendingMessages.TryAdd(messageType, new List<MessageCache>());
             pendingMessages[messageType].Add(new MessageCache(messageType, value));
-            //Todo: Hacer más lindo
-            pendingMessages[messageType].Sort(Sorter);
-            return lastReceiveMessage[messageType] + 1;
+            pendingMessages[messageType].Sort(Utilities.Sorter);
+            return false;
         }
     }
 
-    private int Sorter(MessageCache cache1,MessageCache  cache2)
+  
+
+    public void CheckPendingMessages(MessageType messageType, ulong value)
     {
-        return cache1.messageId > cache2.messageId ? (int)cache1.messageId :  (int)cache2.messageId;
-    }
-    private void CheckPendingMessages(MessageType messageType, int value)
-    {
-        foreach (var messages in pendingMessages[messageType])
+        if (pendingMessages.ContainsKey(messageType) && pendingMessages[messageType].Count > 0)
         {
-            
+            pendingMessages[messageType].Sort(Utilities.Sorter);
+            if (value - pendingMessages[messageType][0].messageId + 1 == 0)
+            {
+                ((IMessageChecker)this).OnPreviousData.Invoke(pendingMessages[messageType][0].data.ToArray(), ipEndPoint);
+                pendingMessages[messageType].RemoveAt(0);
+            }
         }
     }
+
+
 
 
     public void CheckImportantMessageConfirmation((MessageType, ulong) data)
     {
         foreach (var cached in lastImportantMessages)
         {
+            //Todo: Check comparison
+            Debug.Log($"Id Comparison {cached.messageId} & {data.Item2}");
             if (cached.messageId == data.Item2 && cached.type == data.Item1)
             {
-                Debug.Log($"Confirmation from client {id} of {cached.type} with id {cached.messageId}");
+                cached.startTimer = true;
+                cached.canBeResend = false;
+                Debug.Log($"Confirmation from client {id} of {cached.type} with id {cached.messageId} was received.");
                 lastImportantMessages?.Remove(cached);
                 break;
             }
@@ -111,47 +121,3 @@ public class Client : IMessageChecker
     }
 }
 
-public class NewList<T> : ICollection<T>
-
-{
-    private ICollection<T> _collectionImplementation;
-
-    public IEnumerator<T> GetEnumerator()
-    {
-        return _collectionImplementation.GetEnumerator();
-    }
-
-    IEnumerator IEnumerable.GetEnumerator()
-    {
-        return ((IEnumerable)_collectionImplementation).GetEnumerator();
-    }
-
-    public void Add(T item)
-    {
-        _collectionImplementation.Add(item);
-    }
-
-    public void Clear()
-    {
-        _collectionImplementation.Clear();
-    }
-
-    public bool Contains(T item)
-    {
-        return _collectionImplementation.Contains(item);
-    }
-
-    public void CopyTo(T[] array, int arrayIndex)
-    {
-        _collectionImplementation.CopyTo(array, arrayIndex);
-    }
-
-    public bool Remove(T item)
-    {
-        return _collectionImplementation.Remove(item);
-    }
-
-    public int Count => _collectionImplementation.Count;
-
-    public bool IsReadOnly => _collectionImplementation.IsReadOnly;
-}

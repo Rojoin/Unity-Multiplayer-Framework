@@ -9,7 +9,6 @@ using UnityEngine.Serialization;
 
 public abstract class NetworkManager : MonoBehaviour, IReceiveData
 {
-    //TODO: Make logic for obligatory messages
     //TODO: Make Basic shooter to test.
     //TODO: Everytime an object is created it needs to wait for his id
     public IPAddress ipAddress { get; set; }
@@ -47,6 +46,9 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
         OnMessageCreatedChannel.Subscribe(OnTextAdded);
         OnCloseNetworkChannel.Subscribe(Deactivate);
         OnResendMessage.AddListener(ReSendMessage);
+        lastImportantMessages.Clear();
+        players.Clear();
+        clientId = 0;
     }
 
     protected abstract void ReSendMessage(MessageCache arg0);

@@ -9,12 +9,14 @@ public class ServerNetManager : NetworkManager
 {
     public readonly Dictionary<int, Client> clients = new Dictionary<int, Client>();
     protected readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
+    [SerializeField] private bool showPing = false;
 
 
     protected override void OnConnect()
     {
         base.OnConnect();
-
+        clients.Clear();
+        ipToId.Clear();
         connection = new UdpConnection(port, CouldntCreateUDPConnection, this);
         NetConsole.PlayerID = -10;
         NetExit.PlayerID = -10;
@@ -43,7 +45,7 @@ public class ServerNetManager : NetworkManager
 
     protected override void CouldntCreateUDPConnection(string errorMessage)
     {
-        Debug.Log("Called");
+        Debug.Log(errorMessage);
         ChatScreen.Instance.SwitchToNetworkScreen();
         OnErrorMessage.RaiseEvent(errorMessage);
     }
@@ -77,7 +79,9 @@ public class ServerNetManager : NetworkManager
                         }
                     }
                 }
+                
             }
+            
         }
     }
 
@@ -108,7 +112,9 @@ public class ServerNetManager : NetworkManager
             if (clients.ContainsKey(i) && !clients[i].isActive)
             {
                 ipToId.Remove(clients[i].ipEndPoint);
+                clients[i].OnDestroy();
                 clients.Remove(i);
+                GC.Collect();
             }
         }
     }
@@ -158,6 +164,7 @@ public class ServerNetManager : NetworkManager
             id = clientId;
             ipToId[ip] = clientId;
             clients.Add(clientId, new Client(ip, id, DateTime.UtcNow, nameTag));
+
             players.Add(new Player(clientId, nameTag));
             clientId++;
             return true;
@@ -230,7 +237,7 @@ public class ServerNetManager : NetworkManager
             }
         }
     }
-
+//Todo: preguntar sobre desconeccion
     public void Broadcast(byte[] data)
     {
         using (var iterator = clients.GetEnumerator())
@@ -276,7 +283,7 @@ public class ServerNetManager : NetworkManager
         bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
         bool isImportant = flags.HasFlag(MessageFlags.Important);
         bool isOrdenable = flags.HasFlag(MessageFlags.Ordenable);
-        ulong getMesaggeID = 0;
+        ulong getMessageID = 0;
         if (shouldCheckSum)
         {
             if (!BaseMessage<int>.IsMessageCorrectS(new List<byte>(data)))
@@ -288,7 +295,7 @@ public class ServerNetManager : NetworkManager
 
         if (isOrdenable)
         {
-            getMesaggeID = NetByteTranslator.GetMesaggeID(data);
+            getMessageID = NetByteTranslator.GetMesaggeID(data);
         }
 
         switch (type)
@@ -318,12 +325,12 @@ public class ServerNetManager : NetworkManager
                 }
 
                 break;
-            case MessageType.Position:
+            case MessageType.Position when clients.ContainsKey(playerID):
 
                 if (flags.HasFlag(MessageFlags.Ordenable))
                 {
-                    getMesaggeID = NetByteTranslator.GetMesaggeID(data);
-                    if (clients[playerID].IsTheLastMesagge(MessageType.Position, getMesaggeID))
+                    getMessageID = NetByteTranslator.GetMesaggeID(data);
+                    if (clients[playerID].IsTheLastMesagge(MessageType.Position, getMessageID))
                     {
                         //TODO:Add logic for distintive gameobject
                         NetPosition netPosition = new NetPosition(Vector3.one, 1);
@@ -337,8 +344,7 @@ public class ServerNetManager : NetworkManager
             case MessageType.String:
                 NetConsole message = new();
 
-
-                if (clients[playerID].IsTheNextMessage(type, getMesaggeID, message) == 0)
+                if (clients[playerID].IsTheNextMessage(type, getMessageID, message))
                 {
                     string deserializeMessage = message.Deserialize(data);
                     string textToWrite =
@@ -346,19 +352,21 @@ public class ServerNetManager : NetworkManager
 
                     OnChatMessage.Invoke(textToWrite);
                     message = new NetConsole(deserializeMessage);
-                    Broadcast(message.Serialize(playerID));
-                    AddImportantMessageToClients(data, type, getMesaggeID);
-                }
-
-                if (isImportant)
-                {
-                    Debug.Log("Llegue");
-                    NetConfirmation netConfirmation = new NetConfirmation((type, getMesaggeID));
-                    SendToClient(netConfirmation.Serialize(), ep);
+                    byte[] messageDataToSend = message.Serialize(playerID);
+                    Broadcast(messageDataToSend);
+                    AddImportantMessageToClients(data, type, NetByteTranslator.GetMesaggeID(messageDataToSend),true);
+                    
+                    if (isImportant)
+                    {
+                        //BUG: Check if the id is correct
+                        Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
+                        NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
+                        SendToClient(netConfirmation.Serialize(), ep);
+                    }
                 }
 
                 break;
-            case MessageType.Exit:
+            case MessageType.Exit when clients.ContainsKey(playerID):
                 DisconnectPlayer(clients[playerID]);
                 break;
             case MessageType.Ping when !clients.ContainsKey(playerID):
@@ -369,25 +377,36 @@ public class ServerNetManager : NetworkManager
                 int currentClientId = pingMessage.Deserialize(data);
                 SendToClient(pingMessage.Serialize(), currentClientId, ep);
                 DateTime currentTime = DateTime.UtcNow;
-                Debug.Log(
-                    $"Pong with {pongMessage.Deserialize(data)} in {clients[currentClientId].GetCurrentMS(currentTime).Milliseconds} ms");
+                if (showPing)
+                {
+                    Debug.Log(
+                        $"Pong with {pongMessage.Deserialize(data)} in {clients[currentClientId].GetCurrentMS(currentTime).Milliseconds} ms");
+                }
+
                 clients[currentClientId].ResetTimer(currentTime);
                 break;
             case MessageType.HandShakeOk:
                 break;
-            case MessageType.Confirmation:
+            case MessageType.Confirmation when clients.ContainsKey(playerID):
                 NetConfirmation confirmation = new NetConfirmation();
+                Debug.Log($"Checking Confirmation fomr player {playerID}.");
                 clients[playerID].CheckImportantMessageConfirmation(confirmation.Deserialize(data));
                 //TODO: add to check if should send the messages again
                 break;
         }
     }
 
-    private void AddImportantMessageToClients(byte[] data, MessageType type, ulong getMesaggeID)
+    private void AddImportantMessageToClients(byte[] data, MessageType type, ulong getMesaggeID, bool shouldBeResend = false)
     {
+        Debug.Log($"Adding message of {type} with ID {getMesaggeID} to the clients.");
         foreach (var client in clients)
         {
-            client.Value.lastImportantMessages.Add(new MessageCache(type, data.ToList(), getMesaggeID));
+            MessageCache messageCache = new MessageCache(type, data.ToList(), getMesaggeID)
+            {
+                canBeResend = shouldBeResend,
+                startTimer =  !shouldBeResend
+            };
+            client.Value.lastImportantMessages.Add(messageCache);
         }
     }
 }

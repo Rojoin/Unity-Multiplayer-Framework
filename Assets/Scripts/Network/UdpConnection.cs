@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
+using UnityEngine.Scripting;
 
 public class UdpConnection
 {
@@ -17,12 +18,12 @@ public class UdpConnection
     private UdpClient connection;
     private IReceiveData receiver = null;
     private Queue<DataReceived> dataReceivedQueue = new Queue<DataReceived>();
-    public event Action<string> OnSocketError; 
+    public event Action<string> OnSocketError;
 
     object handler = new object();
     public string nameTag;
 
-    public UdpConnection(int port,in Action<string> handler,IReceiveData receiver = null)
+    public UdpConnection(int port, in Action<string> handler, IReceiveData receiver = null)
     {
         OnSocketError += handler;
         try
@@ -38,21 +39,21 @@ public class UdpConnection
         }
     }
 
-    public UdpConnection(IPAddress ip, int port, string tag,in Action<string> handler, IReceiveData receiver = null)
+    public UdpConnection(IPAddress ip, int port, string tag, in Action<string> handler, IReceiveData receiver = null)
     {
         OnSocketError += handler;
         try
         {
-        connection = new UdpClient();
-        connection.Connect(ip, port);
-        this.receiver = receiver;
+            connection = new UdpClient();
+            connection.Connect(ip, port);
+            this.receiver = receiver;
 
-        connection.BeginReceive(OnReceive, null);
+            connection.BeginReceive(OnReceive, null);
 
-        NetHandShake handShake = new NetHandShake(tag);
-        Send(handShake.Serialize());
+            NetHandShake handShake = new NetHandShake(tag);
+            Send(handShake.Serialize());
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             OnSocketError?.Invoke($"Error: The port {port} doesnt have a server initialized.");
         }
@@ -85,11 +86,16 @@ public class UdpConnection
         try
         {
             DataReceived dataReceived = new DataReceived();
-            dataReceived.data = connection.EndReceive(ar, ref dataReceived.ipEndPoint);
 
-            lock (handler)
+
+            if (connection.Client.Connected)
             {
-                dataReceivedQueue.Enqueue(dataReceived);
+                dataReceived.data = connection.EndReceive(ar, ref dataReceived.ipEndPoint);
+
+                lock (handler)
+                {
+                    dataReceivedQueue?.Enqueue(dataReceived);
+                }
             }
         }
         catch (SocketException e)
@@ -98,7 +104,10 @@ public class UdpConnection
             OnSocketError?.Invoke("[UdpConnection] " + e.Message);
         }
 
-        connection.BeginReceive(OnReceive, null);
+        if (connection.Client.Connected)
+        {
+            connection.BeginReceive(OnReceive, null);
+        }
     }
 
     public void Send(byte[] data)

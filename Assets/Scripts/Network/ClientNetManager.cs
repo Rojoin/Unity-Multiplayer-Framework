@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Events;
 
-public class ClientNetManager : NetworkManager
+public class ClientNetManager : NetworkManager, IMessageChecker
 {
     private DateTime currentTimePing;
     private DateTime lastTimeConnection;
@@ -18,8 +18,10 @@ public class ClientNetManager : NetworkManager
     private UnityEvent OnCouldntConnectToServer;
     public UnityEvent<double> OnMsUpdated;
 
+    public Dictionary<MessageType, List<MessageCache>> pendingMessages = new();
 
     protected Dictionary<MessageType, ulong> lastReceiveMessage = new();
+    UnityEvent<byte[], IPEndPoint> IMessageChecker.OnPreviousData { get; set; } = new();
 
     protected override void OnConnect()
     {
@@ -28,17 +30,22 @@ public class ClientNetManager : NetworkManager
         connection = new UdpConnection(ipAddress, port, tagName, CouldntCreateUDPConnection, this);
         OnServerDisconnect.AddListener(CloseConnection);
         TimeOutTimer = 0;
+        lastReceiveMessage.Clear();
+        pendingMessages.Clear();
+        ((IMessageChecker)this).OnPreviousData.AddListener(OnReceiveDataEvent);
     }
 
-    protected override void ReSendMessage(MessageCache arg0)
-    {
-        SendToServer(arg0.data.ToArray());
-    }
 
     protected override void OnDisconect()
     {
         base.OnDisconect();
         CloseConnection();
+        ((IMessageChecker)this).OnPreviousData.RemoveListener(OnReceiveDataEvent);
+    }
+
+    protected override void ReSendMessage(MessageCache arg0)
+    {
+        SendToServer(arg0.data.ToArray());
     }
 
     public override void CloseConnection()
@@ -50,12 +57,15 @@ public class ClientNetManager : NetworkManager
             connection.Close();
             isConnected = false;
             TimeOutTimer = 0;
+            //Todo: Look a way more clean to do it
+            ChatScreen.Instance.SwitchToNetworkScreen();
         }
     }
 
     protected override void CouldntCreateUDPConnection(string errorMessage)
     {
         OnErrorMessage.RaiseEvent(errorMessage);
+        Debug.Log(errorMessage);
         ChatScreen.Instance.SwitchToNetworkScreen();
     }
 
@@ -63,11 +73,15 @@ public class ClientNetManager : NetworkManager
     {
         foreach (MessageCache cached in lastImportantMessages)
         {
-            cached.timerForResend += deltaTime;
-            if (cached.timerForResend >= timeUntilResend)
+            if (cached.canBeResend)
             {
-                OnResendMessage.Invoke(cached);
-                cached.timerForResend = 0.0f;
+                cached.timerForResend += deltaTime;
+                if (cached.timerForResend >= timeUntilResend)
+                {
+                    Debug.Log($"The Message {cached.type} with ID {cached.messageId} has been resend.");
+                    OnResendMessage.Invoke(cached);
+                    cached.timerForResend = 0.0f;
+                }
             }
         }
     }
@@ -89,18 +103,16 @@ public class ClientNetManager : NetworkManager
         NetConsole message = new(text);
         byte[] serialize = message.Serialize();
         SendToServer(serialize);
-        lastImportantMessages.Add(new MessageCache(MessageType.String, serialize.ToList(),
-            NetByteTranslator.GetMesaggeID(serialize)));
+        AddMessageToCacheList(MessageType.String, serialize.ToList(), NetByteTranslator.GetMesaggeID(serialize), true);
     }
 
-    public override void OnReceiveDataEvent(byte[] data, IPEndPoint ep)
+    public override void OnReceiveDataEvent(byte[] data, IPEndPoint ep = null)
     {
         MessageType type = NetByteTranslator.GetNetworkType(data);
         int playerID = NetByteTranslator.GetPlayerID(data);
         MessageFlags flags = NetByteTranslator.GetFlags(data);
         if (type != MessageType.Ping)
         {
-            Debug.Log(type);
         }
 
         bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
@@ -134,14 +146,18 @@ public class ClientNetManager : NetworkManager
                 break;
             case MessageType.String:
                 NetConsole message = new();
-
-                if (IsTheLastMesagge(MessageType.String, getMessageID))
+                Debug.Log(getMessageID);
+                if (IsTheNextMessage(type, getMessageID, message))
                 {
                     string idName = playerID != -10 ? GetPlayer(playerID).nameTag + ":" : "Server:";
                     OnChatMessage.Invoke(idName + message.Deserialize(data));
-                    lastImportantMessages.Add(new MessageCache(MessageType.String, data.ToList(), getMessageID));
-                    NetConfirmation confirmation = new NetConfirmation((type, getMessageID));
-                    SendToServer(confirmation.Serialize());
+                    AddMessageToCacheList(MessageType.String, data.ToList(), getMessageID, false);
+                    if (isImportant)
+                    {
+                        Debug.Log("Confirmation Message" + getMessageID);
+                        NetConfirmation confirmation = new NetConfirmation((type, getMessageID));
+                        SendToServer(confirmation.Serialize());
+                    }
                 }
                 else
                 {
@@ -201,16 +217,55 @@ public class ClientNetManager : NetworkManager
         }
     }
 
+
     private void CheckImportantMessageConfirmation((MessageType, ulong) data)
     {
+        Debug.Log($"The message that appeared was {data.Item1} with ID {data.Item2}.");
         foreach (var VARIABLE in lastImportantMessages)
         {
-       
-            if (VARIABLE.messageId == data.Item2 && VARIABLE.type == data.Item1)
+            if (VARIABLE.messageId == data.Item2 && VARIABLE.type == data.Item1 && !VARIABLE.startTimer)
             {
                 VARIABLE.startTimer = true;
-                Debug.Log("LLego");
+                VARIABLE.canBeResend = false;
+                Debug.Log($"Message from Server was confirmed {VARIABLE.type} with ID {VARIABLE.messageId}.");
                 break;
+            }
+        }
+    }
+
+    public bool IsTheNextMessage(MessageType messageType, ulong value, BaseMessage baseMessage)
+    {
+        if (lastReceiveMessage.TryAdd(messageType, value))
+        {
+            return true;
+        }
+
+        if (lastReceiveMessage[messageType] + 1 == value)
+        {
+            lastReceiveMessage[messageType] = value;
+            CheckPendingMessages(messageType, value);
+
+            return true;
+        }
+        else
+        {
+            pendingMessages.TryAdd(messageType, new List<MessageCache>());
+            pendingMessages[messageType].Add(new MessageCache(messageType, value));
+            pendingMessages[messageType].Sort(Utilities.Sorter);
+            return false;
+        }
+    }
+
+    public void CheckPendingMessages(MessageType messageType, ulong value)
+    {
+        if (pendingMessages.ContainsKey(messageType) && pendingMessages[messageType].Count > 0)
+        {
+            pendingMessages[messageType].Sort(Utilities.Sorter);
+            if (value - pendingMessages[messageType][0].messageId + 1 == 0)
+            {
+                Debug.Log($"Sending message that was pending of type {messageType}.");
+                ((IMessageChecker)this).OnPreviousData.Invoke(pendingMessages[messageType][0].data.ToArray(), null);
+                pendingMessages[messageType].RemoveAt(0);
             }
         }
     }
@@ -243,8 +298,9 @@ public class ClientNetManager : NetworkManager
         {
             return true;
         }
-Debug.Log($"The message id is {value}");
-Debug.Log($"The last id is {lastReceiveMessage[messageType]}");
+
+        Debug.Log($"The message id is {value}");
+        Debug.Log($"The last id is {lastReceiveMessage[messageType]}");
         if (lastReceiveMessage[messageType] > value)
         {
             return false;
@@ -252,5 +308,20 @@ Debug.Log($"The last id is {lastReceiveMessage[messageType]}");
 
         lastReceiveMessage[messageType] = value;
         return true;
+    }
+
+    void IMessageChecker.CheckImportantMessageConfirmation((MessageType, ulong) data)
+    {
+        CheckImportantMessageConfirmation(data);
+    }
+
+    private void AddMessageToCacheList(MessageType type, List<byte> data, ulong messageId, bool shouldBeResend = false)
+    {
+        MessageCache messageToCache = new(type, data, messageId)
+        {
+            canBeResend = shouldBeResend,
+            startTimer = !shouldBeResend
+        };
+        lastImportantMessages.Add(messageToCache);
     }
 }

@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
+[Serializable]
 public class MessageCache
 {
     public MessageType type;
@@ -9,6 +11,7 @@ public class MessageCache
     public float timerForDelete = 0.0f;
     public float timerForResend = 0.0f;
     public bool startTimer = false;
+    public bool canBeResend = false;
 
     public MessageCache(MessageType newtype, List<byte> newdata, ulong newmessageId)
     {

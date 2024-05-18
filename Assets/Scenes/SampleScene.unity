@@ -272,7 +272,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: edbaca3e21e74979b0b56995d3d190d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  timeOut: 30
+  timeOut: 10
   players: []
   tagName: 
   clientId: 0
@@ -305,7 +305,11 @@ MonoBehaviour:
   OnCloseNetworkChannel: {fileID: 11400000, guid: ad82cbf0d0a497c49879e682d0570fbf,
     type: 2}
   OnErrorMessage: {fileID: 11400000, guid: 223e10691f67ae24094e284a20f386b4, type: 2}
-  messageTimer: 15
+  OnResendMessage:
+    m_PersistentCalls:
+      m_Calls: []
+  timeUntilResend: 15
+  showPing: 0
 --- !u!114 &180350412
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -318,7 +322,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d79dc5cad72c4f66933556af1e1e491f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  timeOut: 30
+  timeOut: 10
   players: []
   tagName: 
   clientId: 0
@@ -351,7 +355,10 @@ MonoBehaviour:
   OnCloseNetworkChannel: {fileID: 11400000, guid: ad82cbf0d0a497c49879e682d0570fbf,
     type: 2}
   OnErrorMessage: {fileID: 11400000, guid: 223e10691f67ae24094e284a20f386b4, type: 2}
-  messageTimer: 15
+  OnResendMessage:
+    m_PersistentCalls:
+      m_Calls: []
+  timeUntilResend: 15
   isConnected: 0
   OnMsUpdated:
     m_PersistentCalls:

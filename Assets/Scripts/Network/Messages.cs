@@ -21,7 +21,8 @@ public enum MessageFlags
     None = 0,
     CheckSum = 1,
     Ordenable = 2,
-    Important = 4
+    Important = 4,
+    Resend = 8
 }
 
 public abstract class BaseMessage
@@ -141,7 +142,6 @@ public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
         outData.AddRange(BitConverter.GetBytes(newPlayerID));
         outData.AddRange(BitConverter.GetBytes((int)Flags));
         outData.AddRange(BitConverter.GetBytes(messageID++));
-        Debug.Log(messageID);
         SetOffset();
     }
  
