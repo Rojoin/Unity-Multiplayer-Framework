@@ -276,10 +276,7 @@ public class ServerNetManager : NetworkManager
         MessageType type = NetByteTranslator.GetNetworkType(data);
         int playerID = NetByteTranslator.GetPlayerID(data);
         MessageFlags flags = NetByteTranslator.GetFlags(data);
-        if (type != MessageType.Ping)
-        {
-            Debug.Log($"{type} and ID {playerID}");
-        }
+    
 
         bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
         bool isImportant = flags.HasFlag(MessageFlags.Important);

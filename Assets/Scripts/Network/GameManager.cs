@@ -12,7 +12,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private List<PlayerController> players;
     [SerializeField] private GameObject playerPrefab;
     public int maxPlayers = 4;
-    private int myPlayerID = -1;
+    private PlayerController myPlayer;
     private int currentPlayersConnected = 0;
     public Vector3ChannelSO OnMyPlayerMovement;
     public IntChannelSO OnPlayerCreated;
@@ -73,7 +73,7 @@ public class GameManager : MonoBehaviour
         GameObject newObject = Instantiate(playerPrefab);
         PlayerController newPlayer = newObject.GetComponent<PlayerController>();
         newPlayer.id = id;
-        myPlayerID = id;
+        myPlayer = newPlayer;
         newObject.transform.position = spawnPosition[currentPlayersConnected].position;
         inputs.OnMoveChannel.AddListener(newPlayer.Move);
         newPlayer.GetComponent<PlayerShooting>().OnBulletShoot.AddListener(AskForBullet);
@@ -85,9 +85,7 @@ public class GameManager : MonoBehaviour
 
     private void AskForBullet()
     {
-        Transform myPlayer = players[myPlayerID].transform;
-        Debug.Log(myPlayer.forward);
-        askforBulletChannelSo.RaiseEvent(1, myPlayer.position, myPlayer.forward);
+        askforBulletChannelSo.RaiseEvent(1, myPlayer.transform.position, myPlayer.transform.forward);
     }
 
     public void DisconnectPlayer(int id)
@@ -105,7 +103,6 @@ public class GameManager : MonoBehaviour
 
     public void SetPlayerPos(int id, Vector3 newPos)
     {
-        Debug.Log("Set player");
         foreach (PlayerController playerController in players)
         {
             if (playerController.id == id)

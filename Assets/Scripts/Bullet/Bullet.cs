@@ -28,7 +28,6 @@ public class Bullet : MonoBehaviour
         direction = transform.forward;
         while (gameObject.activeSelf)
         {
-            Debug.Log("Im Here");
             timer += Time.deltaTime;
             //TODO:CHANGE for current player direction
             transform.position += Time.deltaTime * Velocity * direction;
