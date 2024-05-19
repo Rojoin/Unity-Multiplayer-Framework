@@ -6,6 +6,7 @@ using System.Net;
 using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
 public class ClientNetManager : NetworkManager, IMessageChecker
 {
@@ -17,6 +18,8 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     private UnityEvent OnServerCloseEvent;
     private UnityEvent OnCouldntConnectToServer;
     public UnityEvent<double> OnMsUpdated;
+    public IntChannelSO OnMyPlayerCreated;
+    public Vector3ChannelSO OnMyPlayerMoved;
 
     public Dictionary<MessageType, List<MessageCache>> pendingMessages = new();
 
@@ -29,6 +32,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         isConnected = false;
         connection = new UdpConnection(ipAddress, port, tagName, CouldntCreateUDPConnection, this);
         OnServerDisconnect.AddListener(CloseConnection);
+        OnMyPlayerMoved.Subscribe(SendPosition);
         TimeOutTimer = 0;
         lastReceiveMessage.Clear();
         pendingMessages.Clear();
@@ -289,9 +293,12 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 if (player.nameTag == tagName)
                 {
                     clientId = player.id;
+                    OnMyPlayerCreated.RaiseEvent(player.id);
                 }
-
-                OnPlayerCreated.RaiseEvent(player.id);
+                else
+                {
+                    OnPlayerCreated.RaiseEvent(player.id);
+                }
             }
         }
 
@@ -299,6 +306,8 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         NetConsole.PlayerID = clientId;
         NetExit.PlayerID = clientId;
         NetPosition.PlayerID = clientId;
+        NetPositionAndRotation.PlayerID = clientId;
+        NetSpawnObject.PlayerID = clientId;
         NetPing.PlayerID = clientId;
         NetConfirmation.PlayerID = clientId;
     }
@@ -339,5 +348,10 @@ public class ClientNetManager : NetworkManager, IMessageChecker
             startTimer = !shouldBeResend
         };
         lastImportantMessages.Add(messageToCache);
+    }
+    private void SendPosition(Vector3 newPos)
+    {
+        NetPosition netPosition = new NetPosition(newPos,clientId);
+        SendToServer(netPosition.Serialize());
     }
 }

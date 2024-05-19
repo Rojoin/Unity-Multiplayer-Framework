@@ -364,6 +364,10 @@ public class ServerNetManager : NetworkManager
                 OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1);
                 SendToEveryoneExceptClient(netPosition.Serialize(), playerID);
             }
+            else
+            {
+                Debug.Log("Wassnt the last");
+            }
         }
     }
 

@@ -7,21 +7,25 @@ using UnityEngine.Events;
 
 public class GameManager : MonoBehaviour
 {
-    
     [SerializeField] private List<Transform> spawnPosition;
-    [SerializeField] private  List<PlayerController> players;
+    [SerializeField] private List<PlayerController> players;
     [SerializeField] private GameObject playerPrefab;
     public int maxPlayers = 4;
     private int currentPlayersConnected = 0;
+    public Vector3ChannelSO OnMyPlayerMovement;
     public IntChannelSO OnPlayerCreated;
+    public IntChannelSO OnMyPlayerCreated;
     public MovePlayerChannelSO OnPlayerMoved;
     public IntChannelSO OnPlayerDestroyed;
     public VoidChannelSO OnExitChannel;
+    [Header("GameInputs")]
+    public InputController inputs;
 
 
     private void OnEnable()
     {
         OnPlayerCreated.Subscribe(CreateNewPlayer);
+        OnMyPlayerCreated.Subscribe(CreateMyNewPlayer);
         OnPlayerMoved.Subscribe(SetPlayerPos);
         OnPlayerDestroyed.Subscribe(DisconnectPlayer);
         OnExitChannel.Subscribe(ResetConfig);
@@ -30,10 +34,13 @@ public class GameManager : MonoBehaviour
     private void OnDisable()
     {
         OnPlayerCreated.Unsubscribe(CreateNewPlayer);
+        OnMyPlayerCreated.Unsubscribe(CreateMyNewPlayer);
         OnPlayerMoved.Unsubscribe(SetPlayerPos);
         OnPlayerDestroyed.Unsubscribe(DisconnectPlayer);
         OnExitChannel.Unsubscribe(ResetConfig);
+        inputs.OnMoveChannel.RemoveAllListeners();
     }
+
     private void ResetConfig()
     {
         currentPlayersConnected = 0;
@@ -41,6 +48,7 @@ public class GameManager : MonoBehaviour
         {
             Destroy(player.gameObject);
         }
+
         players.Clear();
     }
 
@@ -50,9 +58,23 @@ public class GameManager : MonoBehaviour
         PlayerController newPlayer = newObject.GetComponent<PlayerController>();
         newPlayer.id = id;
         newObject.transform.position = spawnPosition[currentPlayersConnected].position;
+
         players.Add(newPlayer);
         currentPlayersConnected++;
     }
+
+    public void CreateMyNewPlayer(int id)
+    {
+        GameObject newObject = Instantiate(playerPrefab);
+        PlayerController newPlayer = newObject.GetComponent<PlayerController>();
+        newPlayer.id = id;
+        newObject.transform.position = spawnPosition[currentPlayersConnected].position;
+        inputs.OnMoveChannel.AddListener(newPlayer.Move);
+        newPlayer.OnMovement.AddListener(MovePlayerPos);
+        players.Add(newPlayer);
+        currentPlayersConnected++;
+    }
+
     public void DisconnectPlayer(int id)
     {
         foreach (PlayerController player in players.ToList())
@@ -65,16 +87,21 @@ public class GameManager : MonoBehaviour
             }
         }
     }
+
     public void SetPlayerPos(int id, Vector3 newPos)
     {
+        Debug.Log("Set player");
         foreach (PlayerController playerController in players)
         {
             if (playerController.id == id)
             {
-                playerController.transform.position = newPos;
+                playerController.SetPosition(newPos);
             }
         }
     }
-    
-    
+
+    private void MovePlayerPos(Vector3 arg0)
+    {
+        OnMyPlayerMovement.RaiseEvent(arg0);
+    }
 }

@@ -5,13 +5,14 @@ using UnityEngine;
 
 public enum MessageType
 {
-    Error =-3,
+    Error = -3,
     HandShake = -2,
     HandShakeOk = -1,
     Position = 1,
     String = 2,
     Ping,
     Confirmation,
+    PositionAndRotation,
     Exit
 }
 
@@ -34,20 +35,19 @@ public abstract class BaseMessage
     protected byte[] ByteData;
     protected int offsetSize = 0;
     public abstract byte[] Serialize(int playerId);
+
     public byte[] Serialize()
     {
         return Serialize(PlayerID);
     }
 
     public void SetByteData(byte[] newByteData) => this.ByteData = newByteData;
-
 }
+
 public abstract class BaseMessage<PayloadType> : BaseMessage
 {
-
     protected PayloadType Data;
- 
- 
+
 
     private static BitOperations[] _operationsArray1 = new[]
     {
@@ -80,7 +80,7 @@ public abstract class BaseMessage<PayloadType> : BaseMessage
     {
         return PlayerID;
     }
-    
+
     public abstract PayloadType Deserialize(byte[] message);
 
     public PayloadType GetData()
@@ -96,7 +96,7 @@ public abstract class BaseMessage<PayloadType> : BaseMessage
         offsetSize = sizeof(int) * 3;
     }
 
- 
+
     protected virtual void SetOffset()
     {
         offsetSize = sizeof(int) * 3;
@@ -128,6 +128,7 @@ public abstract class BaseMessage<PayloadType> : BaseMessage
         return checkSum1 == u1 && checkSum2 == u2;
     }
 }
+
 //Todo: Add message when spawning entity
 //Todo: Add message for timer.
 //Todo: Add message for winning.
@@ -143,7 +144,7 @@ public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
         outData.AddRange(BitConverter.GetBytes(messageID++));
         SetOffset();
     }
- 
+
     protected override void SetOffset()
     {
         offsetSize = sizeof(int) * 3 + sizeof(ulong);
@@ -171,7 +172,7 @@ public class NetHandShakeOK : BaseMessage<List<Player>>
         List<byte> outData = new List<byte>();
 
         int listSize = Data.Count;
-        BasicSerialize(outData, Type,newPlayerId);
+        BasicSerialize(outData, Type, newPlayerId);
         outData.AddRange(BitConverter.GetBytes(Data.Count));
 
         for (int i = 0; i < listSize; i++)
@@ -248,7 +249,7 @@ public class NetHandShake : BaseMessage<string>
     {
         List<byte> outData = new List<byte>();
 
-        BasicSerialize(outData, Type,newPlayerId);
+        BasicSerialize(outData, Type, newPlayerId);
 
         outData.AddRange(BitConverter.GetBytes(Data.Length));
         for (int i = 0; i < Data.Length; i++)
@@ -271,7 +272,7 @@ public class NetExit : BaseMessage<int>
     public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
-        BasicSerialize(outData, Type,newPlayerId);
+        BasicSerialize(outData, Type, newPlayerId);
         DataCheckSumEncryption(outData);
         return outData.ToArray();
     }
@@ -291,6 +292,7 @@ public class NetPosition : OrderableMessage<(Vector3, int)>
         this.Data.Item1 = data;
         this.Data.Item2 = id;
         Type = MessageType.Position;
+        Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
         SetOffset();
     }
 
@@ -313,7 +315,7 @@ public class NetPosition : OrderableMessage<(Vector3, int)>
     {
         List<byte> outData = new List<byte>();
 
-        BasicSerialize(outData, Type,newPlayerId);
+        BasicSerialize(outData, Type, newPlayerId);
         outData.AddRange(BitConverter.GetBytes(Data.Item1.x));
         outData.AddRange(BitConverter.GetBytes(Data.Item1.y));
         outData.AddRange(BitConverter.GetBytes(Data.Item1.z));
@@ -321,6 +323,78 @@ public class NetPosition : OrderableMessage<(Vector3, int)>
 
         DataCheckSumEncryption(outData);
         return outData.ToArray();
+    }
+}
+
+//Todo: Mandar y chequear Quien la dispara para punto de origen, el indice de la lista de posibles objetos, posicion y forward
+public class NetSpawnObject : OrderableMessage<(int, Vector3, Vector3)>
+{
+    public override byte[] Serialize(int playerId)
+    {
+        List<byte> outData = new List<byte>();
+
+        BasicSerialize(outData, Type, playerId);
+        outData.AddRange(BitConverter.GetBytes(Data.Item1));
+        outData.AddRange(BitConverter.GetBytes(Data.Item2.x));
+        outData.AddRange(BitConverter.GetBytes(Data.Item2.y));
+        outData.AddRange(BitConverter.GetBytes(Data.Item2.z));
+        outData.AddRange(BitConverter.GetBytes(Data.Item3.x));
+        outData.AddRange(BitConverter.GetBytes(Data.Item3.y));
+        outData.AddRange(BitConverter.GetBytes(Data.Item3.z));
+
+        DataCheckSumEncryption(outData);
+        return outData.ToArray();
+    }
+
+    public override (int, Vector3, Vector3) Deserialize(byte[] message)
+    {
+        (int index, Vector3 pos, Vector3 forw) outData;
+
+        outData.index = BitConverter.ToInt32(message, offsetSize);
+        outData.pos.x = BitConverter.ToSingle(message, offsetSize + 4);
+        outData.pos.y = BitConverter.ToSingle(message, offsetSize + 8);
+        outData.pos.z = BitConverter.ToSingle(message, offsetSize + 12);
+        outData.forw.x = BitConverter.ToSingle(message, offsetSize + 16);
+        outData.forw.y = BitConverter.ToSingle(message, offsetSize + 20);
+        outData.forw.z = BitConverter.ToSingle(message, offsetSize + 24);
+        return outData;
+    }
+}
+
+//Todo: Send int of position, int of type of object, position and forward
+public class NetPositionAndRotation : OrderableMessage<(int, int, Vector3, Vector3)>
+{
+    public override byte[] Serialize(int playerId)
+    {
+        List<byte> outData = new List<byte>();
+
+        BasicSerialize(outData, Type, playerId);
+        outData.AddRange(BitConverter.GetBytes(Data.Item1));
+        outData.AddRange(BitConverter.GetBytes(Data.Item2));
+        outData.AddRange(BitConverter.GetBytes(Data.Item3.x));
+        outData.AddRange(BitConverter.GetBytes(Data.Item3.y));
+        outData.AddRange(BitConverter.GetBytes(Data.Item3.z));
+        outData.AddRange(BitConverter.GetBytes(Data.Item4.x));
+        outData.AddRange(BitConverter.GetBytes(Data.Item4.y));
+        outData.AddRange(BitConverter.GetBytes(Data.Item4.z));
+        DataCheckSumEncryption(outData);
+        return outData.ToArray();
+    }
+
+    public override (int, int, Vector3, Vector3) Deserialize(byte[] message)
+    {
+        (int id, int index, Vector3 pos, Vector3 forw) outData;
+
+        int size = 0;
+        outData.id = BitConverter.ToInt32(message, offsetSize);
+        outData.index = BitConverter.ToInt32(message, offsetSize + 4);
+        outData.pos.x = BitConverter.ToSingle(message, offsetSize + 8);
+        outData.pos.y = BitConverter.ToSingle(message, offsetSize + 12);
+        outData.pos.z = BitConverter.ToSingle(message, offsetSize + 16);
+        outData.forw.x = BitConverter.ToSingle(message, offsetSize + 20);
+        outData.forw.y = BitConverter.ToSingle(message, offsetSize + 24);
+        outData.forw.z = BitConverter.ToSingle(message, offsetSize + 28);
+        return outData;
     }
 }
 
@@ -359,7 +433,7 @@ public class NetConsole : OrderableMessage<string>
     public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
-        BasicSerialize(outData, Type,newPlayerId);
+        BasicSerialize(outData, Type, newPlayerId);
         outData.AddRange(BitConverter.GetBytes(data.Length));
         for (int i = 0; i < data.Length; i++)
         {
@@ -381,7 +455,7 @@ public class NetPing : BaseMessage<int>
     public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
-        BasicSerialize(outData, Type,newPlayerId);
+        BasicSerialize(outData, Type, newPlayerId);
         DataCheckSumEncryption(outData);
         return outData.ToArray();
     }
@@ -403,11 +477,11 @@ public class NetConfirmation : BaseMessage<(MessageType, ulong)>
     {
         Type = MessageType.Confirmation;
     }
-    
+
     public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
-        BasicSerialize(outData, Type,newPlayerId);
+        BasicSerialize(outData, Type, newPlayerId);
         outData.AddRange(BitConverter.GetBytes((int)Data.Item1));
         outData.AddRange(BitConverter.GetBytes(Data.Item2));
         DataCheckSumEncryption(outData);

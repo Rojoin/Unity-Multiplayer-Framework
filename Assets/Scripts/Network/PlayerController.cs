@@ -1,6 +1,69 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Collections;
+using UnityEngine;
+using UnityEngine.Events;
 
 public class PlayerController : MonoBehaviour
 {
     public int id;
+
+    [SerializeField] public UnityEvent<Vector3> OnMovement = new();
+    [SerializeField] private float speed = 20;
+    private Coroutine movement;
+
+    private void OnEnable()
+    {
+    }
+
+    private void OnDisable()
+    {
+        if (movement != null)
+        {
+            StopCoroutine(movement);
+        }
+
+        OnMovement.RemoveAllListeners();
+    }
+
+    public void Move(Vector2 dir)
+    {
+        if (movement != null)
+        {
+            StopCoroutine(movement);
+        }
+
+        movement = StartCoroutine(Movement(dir));
+    }
+
+    /// <summary>
+    /// Movement Corroutine
+    /// </summary>
+    /// <param name="dir"></param>
+    /// <returns></returns>
+    private IEnumerator Movement(Vector2 dir)
+    {
+        while (dir != Vector2.zero)
+        {
+            Vector3 moveDir = new Vector3(dir.x, 0, dir.y);
+            float time = Time.deltaTime;
+            Rotation(moveDir);
+
+            transform.position += moveDir * (time * speed);
+
+
+            OnMovement.Invoke(transform.position);
+            yield return null;
+        }
+    }
+
+    private void Rotation(Vector3 moveDir)
+    {
+        transform.forward = moveDir;
+    }
+
+    public void SetPosition(Vector3 moveDir)
+    {
+        transform.forward = (moveDir - transform.position);
+        transform.position = moveDir;
+    }
 }
