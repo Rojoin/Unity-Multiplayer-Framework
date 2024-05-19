@@ -9,10 +9,13 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] public UnityEvent<Vector3> OnMovement = new();
     [SerializeField] private float speed = 20;
+    [SerializeField] private float height = 1;
+    [SerializeField] private float radius = 1;
     private Coroutine movement;
-
+    private BoxCollider box;
     private void OnEnable()
     {
+        box= GetComponent<BoxCollider>();
     }
 
     private void OnDisable()
@@ -46,14 +49,50 @@ public class PlayerController : MonoBehaviour
         {
             Vector3 moveDir = new Vector3(dir.x, 0, dir.y);
             float time = Time.deltaTime;
-            Rotation(moveDir);
+            
+            if (CanMove(dir, time, ref moveDir))
+            {
+                Rotation(moveDir);
+                transform.position += moveDir * (time * speed);
+                OnMovement.Invoke(transform.position);
+            }
 
-            transform.position += moveDir * (time * speed);
-
-
-            OnMovement.Invoke(transform.position);
             yield return null;
         }
+    }
+
+    private bool CanMove(Vector2 dir, float time, ref Vector3 moveDir)
+    {
+        moveDir = new Vector3(dir.x, 0, dir.y);
+        bool canMove = !IsColliding(moveDir, time);
+
+        if (!canMove)
+        {
+            Vector3 moveDirX = new Vector3(dir.x, 0, 0);
+            canMove = !IsColliding(moveDirX, time);
+            if (canMove)
+            {
+                moveDir = moveDirX;
+            }
+            else
+            {
+                Vector3 moveDirY = new Vector3(0, 0, dir.y);
+                canMove = !IsColliding(moveDirY, time);
+                if (canMove)
+                {
+                    moveDir = moveDirY;
+                }
+            }
+        }
+
+        return canMove;
+    }
+//Todo:Change To rigidbody or raycast
+    private bool IsColliding(Vector3 moveDir, float time)
+    {
+        var position = transform.position;
+        return Physics.BoxCast(box.center, box.size, transform.forward);
+      
     }
 
     private void Rotation(Vector3 moveDir)
