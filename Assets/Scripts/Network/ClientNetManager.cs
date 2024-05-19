@@ -81,7 +81,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     {
         if (isConnected)
         {
-            NetExit netExit = new NetExit();
+            NetExit netExit = new NetExit($"The player {tagName}");
             SendToServer(netExit.Serialize());
             connection.Close();
             isConnected = false;
@@ -194,6 +194,11 @@ public class ClientNetManager : NetworkManager, IMessageChecker
             case MessageType.Damage:
                 CheckPlayerDamage(data, playerID);
                 break;
+            case MessageType.Timer:
+                NetTime netTime = new NetTime();
+                OnTimerChanged.RaiseEvent(netTime.Deserialize(data));
+                break;
+
         }
     }
 

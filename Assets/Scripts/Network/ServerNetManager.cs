@@ -11,7 +11,9 @@ public class ServerNetManager : NetworkManager
     [SerializeField] private bool showPing = false;
 
     private bool hasGameStarted;
+    private float timerInGame = 120;
     public int playerLimit = 4;
+    [SerializeField] private VoidChannelSO OnGameEnding;
 
     protected override void OnConnect()
     {
@@ -20,6 +22,7 @@ public class ServerNetManager : NetworkManager
         ipToId.Clear();
         connection = new UdpConnection(port, CouldntCreateUDPConnection, this);
         BaseMessage.PlayerID = -10;
+        timerInGame = 120;
     }
 
     protected override void ReSendMessage(MessageCache arg0)
@@ -87,6 +90,26 @@ public class ServerNetManager : NetworkManager
             }
 
             ClearInactiveClients();
+            if (hasGameStarted)
+            {
+                if (clients.Count < 2)
+                {
+                    NetExit winnerMessage = new("You have won!");
+                    Broadcast(winnerMessage.Serialize());
+                    hasGameStarted = false;
+                    OnGameEnding.RaiseEvent();
+                }
+                else
+                {
+                    timerInGame -= delta;
+                    if (timerInGame > 0)
+                    {
+                        NetTime newTime = new NetTime(delta);
+                        Broadcast(newTime.Serialize());
+                        OnTimerChanged.RaiseEvent(delta);
+                    }
+                }
+            }
         }
     }
 
@@ -166,7 +189,9 @@ public class ServerNetManager : NetworkManager
                         if (clients.Count >= playerLimit)
                         {
                             //Todo: Initiated Game
+                            hasGameStarted = true;
                         }
+
                         return true;
                     }
                     else
@@ -186,7 +211,6 @@ public class ServerNetManager : NetworkManager
                 NetExit errorHandshake = new NetExit("Error: Game has Already Started.");
                 SendToClient(errorHandshake.Serialize(), ip);
             }
-          
         }
 
 

@@ -16,7 +16,8 @@ public enum MessageType
     PositionAndRotation,
     AskForObject,
     Exit,
-    Damage
+    Damage,
+    Timer
 }
 
 
@@ -131,8 +132,6 @@ public abstract class BaseMessage<PayloadType> : BaseMessage
         uint u2 = BitConverter.ToUInt32(outData.ToArray(), outData.Count - 4);
         return checkSum1 == u1 && checkSum2 == u2;
     }
-
-    
 }
 
 //Todo: Add message for timer.
@@ -362,6 +361,7 @@ public class NetPlayerPos : OrderableMessage<(Vector3, int)>
         DataCheckSumEncryption(outData);
         return outData.ToArray();
     }
+
     public static (Vector3, int) DeserializeStatic(byte[] message)
     {
         NetPlayerPos aux = new();
@@ -416,6 +416,7 @@ public class NetSpawnObject : OrderableMessage<(int type, Vector3 pos, Vector3 f
         outData.forw.z = BitConverter.ToSingle(message, offsetSize + 24);
         return outData;
     }
+
     public static (int, Vector3, Vector3) DeserializeStatic(byte[] message)
     {
         NetSpawnObject aux = new();
@@ -473,6 +474,7 @@ public class NetPositionAndRotation : OrderableMessage<(int id, int type, Vector
         outData.forw.z = BitConverter.ToSingle(message, offsetSize + 28);
         return outData;
     }
+
     public static (int, int, Vector3, Vector3) DeserializeStatic(byte[] message)
     {
         NetPositionAndRotation aux = new();
@@ -510,6 +512,7 @@ public class NetConsole : OrderableMessage<string>
 
         return outData;
     }
+
     public static string DeserializeStatic(byte[] message)
     {
         NetConsole aux = new();
@@ -550,10 +553,41 @@ public class NetPing : BaseMessage<int>
     {
         return BitConverter.ToInt32(message, 4);
     }
+
     public static int DeserializeStatic(byte[] message)
     {
         NetPing aux = new();
         return aux.Deserialize(message);
+    }
+}
+
+public class NetTime : OrderableMessage<float>
+{
+    public NetTime() : base()
+    {
+        MsgType = MessageType.Timer;
+        Flags = MessageFlags.CheckSum | MessageFlags.Important | MessageFlags.Ordenable;
+    }
+
+    public NetTime(float second) : base()
+    {
+        Data = second;
+        MsgType = MessageType.Timer;
+        Flags = MessageFlags.CheckSum | MessageFlags.Important | MessageFlags.Ordenable;
+    }
+
+    public override byte[] Serialize(int playerId)
+    {
+        List<byte> outData = new List<byte>();
+        BasicSerialize(outData, MsgType, playerId);
+        outData.AddRange(BitConverter.GetBytes(Data));
+        DataCheckSumEncryption(outData);
+        return outData.ToArray();
+    }
+
+    public override float Deserialize(byte[] message)
+    {
+        return BitConverter.ToSingle(message, offsetSize);
     }
 }
 
@@ -586,6 +620,7 @@ public class NetConfirmation : BaseMessage<(MessageType, ulong)>
 
         return (type, messageId);
     }
+
     public static (MessageType, ulong) DeserializeStatic(byte[] message)
     {
         NetConfirmation aux = new();

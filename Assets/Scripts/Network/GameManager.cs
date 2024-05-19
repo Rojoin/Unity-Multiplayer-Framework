@@ -5,13 +5,16 @@ using ScriptableObjects;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Serialization;
+using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
     [SerializeField] private List<Transform> spawnPosition;
     [SerializeField] private List<PlayerController> players;
     [SerializeField] private GameObject playerPrefab;
+   [SerializeField] private Text timerText;
     public int maxPlayers = 4;
+    public float timer = 120;
     private PlayerController myPlayer;
     private int currentPlayersConnected = 0;
     public Vector3ChannelSO OnMyPlayerMovement;
@@ -21,6 +24,7 @@ public class GameManager : MonoBehaviour
     public IntChannelSO OnPlayerDestroyed;
     public IntChannelSO OnHittedPlayer;
     public AskforBulletChannelSO askforBulletChannelSo;
+    public FloatChannelSO OnTimerChanged;
 
     public VoidChannelSO OnExitChannel;
     [Header("GameInputs")]
@@ -29,11 +33,21 @@ public class GameManager : MonoBehaviour
 
     private void OnEnable()
     {
+        timer = 120;
         OnPlayerCreated.Subscribe(CreateNewPlayer);
         OnMyPlayerCreated.Subscribe(CreateMyNewPlayer);
         OnPlayerMoved.Subscribe(SetPlayerPos);
         OnPlayerDestroyed.Subscribe(DisconnectPlayer);
         OnExitChannel.Subscribe(ResetConfig);
+        OnTimerChanged.Subscribe(ChangeTimer);
+    }
+
+    private void ChangeTimer(float obj)
+    {
+        timer -= obj;
+        TimeSpan time = TimeSpan.FromSeconds(timer);
+        string str = time.ToString(@"hh\:mm\:ss\:fff");
+        timerText.text = str;
     }
 
     private void OnDisable()

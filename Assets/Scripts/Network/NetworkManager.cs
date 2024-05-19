@@ -10,7 +10,7 @@ using UnityEngine.Serialization;
 
 public abstract class NetworkManager : MonoBehaviour, IReceiveData
 {
-    //TODO: Make Basic shooter to test.
+  
     public IPAddress ipAddress { get; set; }
     public int port { get; set; }
 
@@ -37,7 +37,7 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
     protected List<MessageCache> lastImportantMessages = new();
     private List<GameObject> entities;
     public StringChannelSO OnErrorMessage;
-
+    public FloatChannelSO OnTimerChanged;
     public UnityEvent<MessageCache> OnResendMessage = new();
 
     protected virtual void OnEnable()
