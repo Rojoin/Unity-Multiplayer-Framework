@@ -314,7 +314,7 @@ public class ServerNetManager : NetworkManager
             case MessageType.String:
                 CheckChatMessage(data, ep, playerID, type, getMessageID, isImportant);
                 break;
-            case MessageType.Exit:
+            case MessageType.Exit when clients.ContainsKey(playerID):
                 DisconnectPlayer(clients[playerID]);
                 break;
             case MessageType.Ping when !clients.ContainsKey(playerID):

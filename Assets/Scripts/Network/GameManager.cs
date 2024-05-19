@@ -63,7 +63,7 @@ public class GameManager : MonoBehaviour
         PlayerController newPlayer = newObject.GetComponent<PlayerController>();
         newPlayer.id = id;
         newObject.transform.position = spawnPosition[currentPlayersConnected].position;
-        myPlayerID = id;
+       
         players.Add(newPlayer);
         currentPlayersConnected++;
     }
@@ -73,7 +73,7 @@ public class GameManager : MonoBehaviour
         GameObject newObject = Instantiate(playerPrefab);
         PlayerController newPlayer = newObject.GetComponent<PlayerController>();
         newPlayer.id = id;
-        myPlayerID = currentPlayersConnected;
+        myPlayerID = id;
         newObject.transform.position = spawnPosition[currentPlayersConnected].position;
         inputs.OnMoveChannel.AddListener(newPlayer.Move);
         newPlayer.GetComponent<PlayerShooting>().OnBulletShoot.AddListener(AskForBullet);
