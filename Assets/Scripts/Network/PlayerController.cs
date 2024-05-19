@@ -78,7 +78,6 @@ public class PlayerController : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        //Todo: Avisar que me pegaron, bajarme la vida y seguir
         if (other.CompareTag("Bullet") && other.GetComponent<Bullet>().ID != id)
         {
             Debug.Log("I was hitted");

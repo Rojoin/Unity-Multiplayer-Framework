@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -11,20 +10,16 @@ public class ServerNetManager : NetworkManager
     protected readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
     [SerializeField] private bool showPing = false;
 
-//Todo: limit game to 4 players and have a disconnection error
+    private bool hasGameStarted;
+    public int playerLimit = 4;
+
     protected override void OnConnect()
     {
         base.OnConnect();
         clients.Clear();
         ipToId.Clear();
         connection = new UdpConnection(port, CouldntCreateUDPConnection, this);
-        NetConsole.PlayerID = -10;
-        NetExit.PlayerID = -10;
-        NetPlayerPos.PlayerID = -10;
-        NetPing.PlayerID = -10;
-        NetConfirmation.PlayerID = -10;
-        NetSpawnObject.PlayerID = -10;
-        NetPositionAndRotation.PlayerID = -10;
+        BaseMessage.PlayerID = -10;
     }
 
     protected override void ReSendMessage(MessageCache arg0)
@@ -40,7 +35,7 @@ public class ServerNetManager : NetworkManager
     protected override void OnDisconect()
     {
         base.OnDisconect();
-        NetExit closeServer = new NetExit();
+        NetExit closeServer = new NetExit("The Server has been closed.");
         Broadcast(closeServer.Serialize());
         connection?.Close();
     }
@@ -148,27 +143,54 @@ public class ServerNetManager : NetworkManager
         }
     }
 
-    public bool TryAddClient(IPEndPoint ip, out int id, string nameTag)
+    public bool TryAddClient(IPEndPoint ip, string nameTag)
     {
-        if (!ipToId.ContainsKey(ip) && !IsNameTagAClient(nameTag))
+        if (!ipToId.ContainsKey(ip))
         {
-            Debug.Log("Adding client: " + ip.Address);
+            if (!hasGameStarted)
+            {
+                if (clients.Count < playerLimit)
+                {
+                    if (!IsNameTagAClient(nameTag))
+                    {
+                        Debug.Log("Adding client: " + ip.Address);
 
-            id = clientId;
-            ipToId[ip] = clientId;
-            clients.Add(clientId, new Client(ip, id, DateTime.UtcNow, nameTag));
+                        int id = clientId;
+                        ipToId[ip] = clientId;
+                        clients.Add(clientId, new Client(ip, id, DateTime.UtcNow, nameTag));
 
-            players.Add(new Player(clientId, nameTag));
-            clientId++;
-            //Todo: Send Player logic
-            OnPlayerCreated.RaiseEvent(id);
-            return true;
+                        players.Add(new Player(clientId, nameTag));
+                        clientId++;
+                        //Todo: Send Player logic
+                        OnPlayerCreated.RaiseEvent(id);
+                        if (clients.Count >= playerLimit)
+                        {
+                            //Todo: Initiated Game
+                        }
+                        return true;
+                    }
+                    else
+                    {
+                        NetExit errorHandshake = new NetExit("Error: Tagname already exist.");
+                        SendToClient(errorHandshake.Serialize(), ip);
+                    }
+                }
+                else
+                {
+                    NetExit errorHandshake = new NetExit("Error: The Player limit has been reach.");
+                    SendToClient(errorHandshake.Serialize(), ip);
+                }
+            }
+            else
+            {
+                NetExit errorHandshake = new NetExit("Error: Game has Already Started.");
+                SendToClient(errorHandshake.Serialize(), ip);
+            }
+          
         }
-        else
-        {
-            id = -7;
-            return false;
-        }
+
+
+        return false;
     }
 
     private bool IsNameTagAClient(string nametag)
@@ -334,6 +356,7 @@ public class ServerNetManager : NetworkManager
                 break;
         }
     }
+
 //Todo: Add damage indicator
     private void CheckDamage(byte[] data, int playerID, IPEndPoint ip)
     {
@@ -344,7 +367,7 @@ public class ServerNetManager : NetworkManager
         Debug.Log($"Player {playerID} was hitted and has {aux.lives} remaining.");
         if (aux.lives <= 0)
         {
-            NetExit netExit = new NetExit();
+            NetExit netExit = new NetExit("You have been eliminated.");
             SendToClient(netExit.Serialize(), ip);
             DisconnectPlayer(clients[playerID]);
         }
@@ -388,7 +411,7 @@ public class ServerNetManager : NetworkManager
         string gameTag = handShake.Deserialize(data);
         Debug.Log($"La ip de el cliente es: {ep.Address} y el nameTag es: {gameTag}");
 
-        if (TryAddClient(ep, out var id, gameTag))
+        if (TryAddClient(ep, gameTag))
         {
             NetHandShakeOK handOK = new(players);
             Broadcast(handOK.Serialize());
@@ -401,8 +424,7 @@ public class ServerNetManager : NetworkManager
         }
         else
         {
-            NetHandShake errorHandshake = new NetHandShake("Error: Tagname already exist.");
-            SendToClient(errorHandshake.Serialize(), ep);
+            //Todo: Change to another place
         }
     }
 
@@ -431,7 +453,7 @@ public class ServerNetManager : NetworkManager
     private void CheckConfirmation(byte[] data, int playerID)
     {
         NetConfirmation confirmation = new NetConfirmation();
-        Debug.Log($"Checking Confirmation fomr player {playerID}.");
+        Debug.Log($"Checking Confirmation form player {playerID}.");
         clients[playerID].CheckImportantMessageConfirmation(confirmation.Deserialize(data));
     }
 

@@ -166,123 +166,158 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         switch (type)
         {
             case MessageType.HandShake:
-                NetHandShake errorMessage = new NetHandShake();
-
-                ChatScreen.Instance.SwitchToNetworkScreen();
-                OnErrorMessage.RaiseEvent(errorMessage.Deserialize(data));
-                OnServerDisconnect.Invoke();
+                //OnHandShakeMessage(data);
                 break;
             case MessageType.Position:
-                if (flags.HasFlag(MessageFlags.Ordenable))
-                {
-                    NetPlayerPos netPlayerPos = new NetPlayerPos();
-                    getMessageID = NetByteTranslator.GetMesaggeID(data);
-                    if (IsTheLastMesagge(MessageType.Position, getMessageID))
-                    {
-                        (Vector3, int) dataReceived;
-                        dataReceived = netPlayerPos.Deserialize(data);
-                        OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1);
-                    }
-                    else
-                    {
-                        Debug.Log("Wassnt the last");
-                    }
-                }
-
+                CheckPlayerPos(data, flags);
                 break;
             case MessageType.String:
-                NetConsole message = new();
-                Debug.Log(getMessageID);
-                if (IsTheNextMessage(type, getMessageID, message))
-                {
-                    string idName = playerID != -10 ? GetPlayer(playerID).nameTag + ":" : "Server:";
-                    OnChatMessage.Invoke(idName + message.Deserialize(data));
-                    AddMessageToCacheList(MessageType.String, data.ToList(), getMessageID, false);
-                    if (isImportant)
-                    {
-                        Debug.Log("Confirmation Message" + getMessageID);
-                        NetConfirmation confirmation = new NetConfirmation((type, getMessageID));
-                        SendToServer(confirmation.Serialize());
-                    }
-                }
-                else
-                {
-                    Debug.Log("Message wasnt the last");
-                }
-
+                CheckChatMessage(data, getMessageID, type, playerID, isImportant);
                 break;
             case MessageType.HandShakeOk:
-
-                NetHandShakeOK handOk = new();
-                List<Player> newPlayersList = handOk.Deserialize(data);
-                SetPlayer(newPlayersList);
-                if (!isConnected)
-                {
-                    NetworkScreen.Instance.SwitchToChatScreen();
-                }
-
-                isConnected = true;
-                foreach (Player pl in newPlayersList)
-                {
-                    Debug.Log("This is " + pl.nameTag + "with id:" + pl.id);
-                }
-
-                Debug.Log("My id is" + clientId);
-
+                CheckHandShakeOKMessage(data);
                 break;
             case MessageType.Exit:
-
-                ChatScreen.Instance.SwitchToNetworkScreen();
-                OnErrorMessage.RaiseEvent("The server has been closed.");
-                OnServerDisconnect.Invoke();
+                CheckExitMessage(data);
                 break;
             case MessageType.Ping:
-
-                NetPing netPong = new NetPing();
-                SendToServer(netPong.Serialize());
-                currentTimePing = DateTime.UtcNow;
-                var a = currentTimePing - lastTimeConnection;
-                lastTimeConnection = currentTimePing;
-                OnMsUpdated.Invoke(a.TotalMilliseconds);
-                TimeOutTimer = 0;
+                CheckPing();
                 break;
-
             case MessageType.Confirmation:
-                // Debug.Log("Confirmation Message Appears");
-                NetConfirmation netConfirmation = new NetConfirmation();
-                CheckImportantMessageConfirmation(netConfirmation.Deserialize(data));
+                CheckConfirmation(data);
                 break;
             case MessageType.Error:
                 break;
             case MessageType.PositionAndRotation:
-                NetPositionAndRotation newPosAndRot = new NetPositionAndRotation();
-                if (IsTheNextMessage(type, getMessageID, newPosAndRot))
-                {
-                    AddMessageToCacheList(MessageType.String, data.ToList(), getMessageID, false);
-                    var bullet = newPosAndRot.Deserialize(data);
-                    OnCreatedBullet.RaiseEvent(playerID, bullet.Item3, bullet.Item4);
-                    if (isImportant)
-                    {
-                        //    Debug.Log("Confirmation Message" + getMessageID);
-                        NetConfirmation confirmation = new NetConfirmation((type, getMessageID));
-                        SendToServer(confirmation.Serialize());
-                    }
-                }
-                else
-                {
-                    Debug.Log("Message wasnt the last");
-                }
-
-                break;
-            case MessageType.AskForObject:
+                CheckBulletPosition(data, type, getMessageID, playerID, isImportant);
                 break;
             case MessageType.Damage:
-                NetDamage damage = new NetDamage();
-                int damageData = damage.Deserialize(data);
-                Debug.Log($"Player id {playerID}");
-              
+                CheckPlayerDamage(data, playerID);
                 break;
         }
+    }
+
+    private void OnHandShakeMessage(byte[] data)
+    {
+        NetHandShake errorMessage = new NetHandShake();
+        ChatScreen.Instance.SwitchToNetworkScreen();
+        OnErrorMessage.RaiseEvent(errorMessage.Deserialize(data));
+        OnServerDisconnect.Invoke();
+    }
+
+    private void CheckExitMessage(byte[] data)
+    {
+        NetExit exitMessage = new NetExit();
+        ChatScreen.Instance.SwitchToNetworkScreen();
+        OnErrorMessage.RaiseEvent(exitMessage.Deserialize(data));
+        OnServerDisconnect.Invoke();
+    }
+
+    private void CheckPing()
+    {
+        NetPing netPong = new NetPing();
+        SendToServer(netPong.Serialize());
+        currentTimePing = DateTime.UtcNow;
+        var a = currentTimePing - lastTimeConnection;
+        lastTimeConnection = currentTimePing;
+        OnMsUpdated.Invoke(a.TotalMilliseconds);
+        TimeOutTimer = 0;
+    }
+
+    private static void CheckPlayerDamage(byte[] data, int playerID)
+    {
+        NetDamage damage = new NetDamage();
+        int damageData = damage.Deserialize(data);
+        Debug.Log($"Player id {playerID}");
+    }
+
+    private void CheckBulletPosition(byte[] data, MessageType type, ulong getMessageID, int playerID, bool isImportant)
+    {
+        NetPositionAndRotation newPosAndRot = new NetPositionAndRotation();
+        if (IsTheNextMessage(type, getMessageID, newPosAndRot))
+        {
+            AddMessageToCacheList(MessageType.String, data.ToList(), getMessageID, false);
+            var bullet = newPosAndRot.Deserialize(data);
+            OnCreatedBullet.RaiseEvent(playerID, bullet.Item3, bullet.Item4);
+            if (isImportant)
+            {
+                //    Debug.Log("Confirmation Message" + getMessageID);
+                NetConfirmation confirmation = new NetConfirmation((type, getMessageID));
+                SendToServer(confirmation.Serialize());
+            }
+        }
+        else
+        {
+            Debug.Log("Message wasnt the last");
+        }
+    }
+
+    private void CheckConfirmation(byte[] data)
+    {
+        // Debug.Log("Confirmation Message Appears");
+        NetConfirmation netConfirmation = new NetConfirmation();
+        CheckImportantMessageConfirmation(netConfirmation.Deserialize(data));
+    }
+
+    private void CheckPlayerPos(byte[] data, MessageFlags flags)
+    {
+        ulong getMessageID;
+        if (flags.HasFlag(MessageFlags.Ordenable))
+        {
+            NetPlayerPos netPlayerPos = new NetPlayerPos();
+            getMessageID = NetByteTranslator.GetMesaggeID(data);
+            if (IsTheLastMesagge(MessageType.Position, getMessageID))
+            {
+                (Vector3, int) dataReceived;
+                dataReceived = netPlayerPos.Deserialize(data);
+                OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1);
+            }
+            else
+            {
+                Debug.Log("Wassnt the last");
+            }
+        }
+    }
+
+    private void CheckChatMessage(byte[] data, ulong getMessageID, MessageType type, int playerID, bool isImportant)
+    {
+        NetConsole message = new();
+        Debug.Log(getMessageID);
+        if (IsTheNextMessage(type, getMessageID, message))
+        {
+            string idName = playerID != -10 ? GetPlayer(playerID).nameTag + ":" : "Server:";
+            OnChatMessage.Invoke(idName + message.Deserialize(data));
+            AddMessageToCacheList(MessageType.String, data.ToList(), getMessageID, false);
+            if (isImportant)
+            {
+                Debug.Log("Confirmation Message" + getMessageID);
+                NetConfirmation confirmation = new NetConfirmation((type, getMessageID));
+                SendToServer(confirmation.Serialize());
+            }
+        }
+        else
+        {
+            Debug.Log("Message wasnt the last");
+        }
+    }
+
+    private void CheckHandShakeOKMessage(byte[] data)
+    {
+        NetHandShakeOK handOk = new();
+        List<Player> newPlayersList = handOk.Deserialize(data);
+        SetPlayer(newPlayersList);
+        if (!isConnected)
+        {
+            NetworkScreen.Instance.SwitchToChatScreen();
+        }
+
+        isConnected = true;
+        foreach (Player pl in newPlayersList)
+        {
+            Debug.Log("This is " + pl.nameTag + "with id:" + pl.id);
+        }
+
+        Debug.Log("My id is" + clientId);
     }
 
 
@@ -372,16 +407,17 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         }
 
         players = newPlayersList;
-        NetConsole.PlayerID = clientId;
-        NetExit.PlayerID = clientId;
-        NetPlayerPos.PlayerID = clientId;
-        NetPositionAndRotation.PlayerID = clientId;
-        NetSpawnObject.PlayerID = clientId;
-        NetPing.PlayerID = clientId;
-        NetConfirmation.PlayerID = clientId;
-        NetSpawnObject.PlayerID = clientId;
-        NetPositionAndRotation.PlayerID = clientId;
-        NetDamage.PlayerID = clientId;
+        BaseMessage.PlayerID = clientId;
+       // NetConsole.PlayerID = clientId;
+       // NetExit.PlayerID = clientId;
+       // NetPlayerPos.PlayerID = clientId;
+       // NetPositionAndRotation.PlayerID = clientId;
+       // NetSpawnObject.PlayerID = clientId;
+       // NetPing.PlayerID = clientId;
+       // NetConfirmation.PlayerID = clientId;
+       // NetSpawnObject.PlayerID = clientId;
+       // NetPositionAndRotation.PlayerID = clientId;
+       // NetDamage.PlayerID = clientId;
     }
 
     private void SendToServer(byte[] data)

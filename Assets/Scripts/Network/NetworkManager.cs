@@ -11,7 +11,6 @@ using UnityEngine.Serialization;
 public abstract class NetworkManager : MonoBehaviour, IReceiveData
 {
     //TODO: Make Basic shooter to test.
-    //TODO: Everytime an object is created it needs to wait for his id
     public IPAddress ipAddress { get; set; }
     public int port { get; set; }
 

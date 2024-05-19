@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
+
 public enum MessageType
 {
     Error = -3,
@@ -85,6 +86,7 @@ public abstract class BaseMessage<PayloadType> : BaseMessage
 
     public abstract PayloadType Deserialize(byte[] message);
 
+
     public PayloadType GetData()
     {
         return Data;
@@ -129,6 +131,8 @@ public abstract class BaseMessage<PayloadType> : BaseMessage
         uint u2 = BitConverter.ToUInt32(outData.ToArray(), outData.Count - 4);
         return checkSum1 == u1 && checkSum2 == u2;
     }
+
+    
 }
 
 //Todo: Add message for timer.
@@ -216,6 +220,12 @@ public class NetHandShakeOK : BaseMessage<List<Player>>
 
         return clients;
     }
+
+    public static List<Player> DeserializeStatic(byte[] message)
+    {
+        NetHandShakeOK aux = new NetHandShakeOK();
+        return aux.Deserialize(message);
+    }
 }
 
 public class NetHandShake : BaseMessage<string>
@@ -260,26 +270,27 @@ public class NetHandShake : BaseMessage<string>
         DataCheckSumEncryption(outData);
         return outData.ToArray();
     }
+
+    public static string DeserializeStatic(byte[] message)
+    {
+        NetHandShake aux = new();
+        return aux.Deserialize(message);
+    }
 }
-//Todo:Change Type to String to send ExitError
-public class NetExit : BaseMessage<int>
+
+public class NetExit : NetConsole
 {
     public NetExit() : base()
     {
         MsgType = MessageType.Exit;
+        Flags = MessageFlags.CheckSum;
     }
 
-    public override byte[] Serialize(int newPlayerId)
+    public NetExit(string ExitMessage) : base(ExitMessage)
     {
-        List<byte> outData = new List<byte>();
-        BasicSerialize(outData, MsgType, newPlayerId);
-        DataCheckSumEncryption(outData);
-        return outData.ToArray();
-    }
-
-    public override int Deserialize(byte[] message)
-    {
-        return 0;
+        MsgType = MessageType.Exit;
+        Flags = MessageFlags.CheckSum;
+        Data = ExitMessage;
     }
 }
 
@@ -302,6 +313,12 @@ public class NetDamage : OrderableMessage<int>
     public override int Deserialize(byte[] message)
     {
         return 0;
+    }
+
+    public static int DeserializeStatic(byte[] message)
+    {
+        NetDamage aux = new();
+        return aux.Deserialize(message);
     }
 }
 
@@ -344,6 +361,11 @@ public class NetPlayerPos : OrderableMessage<(Vector3, int)>
 
         DataCheckSumEncryption(outData);
         return outData.ToArray();
+    }
+    public static (Vector3, int) DeserializeStatic(byte[] message)
+    {
+        NetPlayerPos aux = new();
+        return aux.Deserialize(message);
     }
 }
 
@@ -394,9 +416,14 @@ public class NetSpawnObject : OrderableMessage<(int type, Vector3 pos, Vector3 f
         outData.forw.z = BitConverter.ToSingle(message, offsetSize + 24);
         return outData;
     }
+    public static (int, Vector3, Vector3) DeserializeStatic(byte[] message)
+    {
+        NetSpawnObject aux = new();
+        return aux.Deserialize(message);
+    }
 }
 
-//Todo: Send int of position, int of type of object, position and forward
+//Send int of position, int of type of object, position and forward
 public class NetPositionAndRotation : OrderableMessage<(int id, int type, Vector3 pos, Vector3 forw)>
 {
     public NetPositionAndRotation() : base()
@@ -446,6 +473,11 @@ public class NetPositionAndRotation : OrderableMessage<(int id, int type, Vector
         outData.forw.z = BitConverter.ToSingle(message, offsetSize + 28);
         return outData;
     }
+    public static (int, int, Vector3, Vector3) DeserializeStatic(byte[] message)
+    {
+        NetPositionAndRotation aux = new();
+        return aux.Deserialize(message);
+    }
 }
 
 public class NetConsole : OrderableMessage<string>
@@ -478,7 +510,11 @@ public class NetConsole : OrderableMessage<string>
 
         return outData;
     }
-
+    public static string DeserializeStatic(byte[] message)
+    {
+        NetConsole aux = new();
+        return aux.Deserialize(message);
+    }
 
     public override byte[] Serialize(int newPlayerId)
     {
@@ -514,6 +550,11 @@ public class NetPing : BaseMessage<int>
     {
         return BitConverter.ToInt32(message, 4);
     }
+    public static int DeserializeStatic(byte[] message)
+    {
+        NetPing aux = new();
+        return aux.Deserialize(message);
+    }
 }
 
 public class NetConfirmation : BaseMessage<(MessageType, ulong)>
@@ -544,5 +585,10 @@ public class NetConfirmation : BaseMessage<(MessageType, ulong)>
         var messageId = BitConverter.ToUInt64(message, offsetSize + 4);
 
         return (type, messageId);
+    }
+    public static (MessageType, ulong) DeserializeStatic(byte[] message)
+    {
+        NetConfirmation aux = new();
+        return aux.Deserialize(message);
     }
 }
