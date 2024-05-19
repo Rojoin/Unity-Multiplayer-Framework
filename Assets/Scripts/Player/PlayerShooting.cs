@@ -16,7 +16,7 @@ public class PlayerShooting : MonoBehaviour
     [SerializeField] private Transform cannon;
 
     [Header("UnityEvents")]
-    public UnityEvent OnBulletShoot;
+    public UnityEvent<Transform> OnBulletShoot;
     public UnityEvent<int> OnNewScore;
     public UnityEvent OnLaserShoot;
     public UnityEvent OnPrepareLaser;
@@ -101,13 +101,13 @@ public class PlayerShooting : MonoBehaviour
     }
 
 
-
     private void ShootBullet()
     {
-        OnBulletShoot.Invoke();
+        foreach (Transform point in shootingPoints)
+        {
+            OnBulletShoot.Invoke(point);
+        }
+
         ResetTimers();
     }
-
-
-
 }

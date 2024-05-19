@@ -45,7 +45,7 @@ public class BulletManager : MonoBehaviour
     private void SpawnBullet(int id,Vector3 pos, Vector3 forw)
     {
         var newBullet = _pool.Get();
-        newBullet.ID = currentBulletId++;
+        newBullet.ID = id;
         factory.ConfigureBullet(ref newBullet, pos, forw, bulletParent);
         newBullet.Init(KillBullet);
         newBullet.StartBullet();

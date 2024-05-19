@@ -121,13 +121,13 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
 
     [FormerlySerializedAs("messageTimer")] public float timeUntilResend = 15;
 
-    public Player GetPlayer(int id)
+    protected Player GetPlayer(int id)
     {
-        foreach (Player player in players)
+        foreach (Player t in players)
         {
-            if (player.id == id)
+            if (t.id == id)
             {
-                return player;
+                return t;
             }
         }
 

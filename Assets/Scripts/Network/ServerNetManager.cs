@@ -11,7 +11,7 @@ public class ServerNetManager : NetworkManager
     protected readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
     [SerializeField] private bool showPing = false;
 
-
+//Todo: limit game to 4 players and have a disconnection error
     protected override void OnConnect()
     {
         base.OnConnect();
@@ -90,7 +90,7 @@ public class ServerNetManager : NetworkManager
                     }
                 }
             }
-            
+
             ClearInactiveClients();
         }
     }
@@ -276,7 +276,7 @@ public class ServerNetManager : NetworkManager
         MessageType type = NetByteTranslator.GetNetworkType(data);
         int playerID = NetByteTranslator.GetPlayerID(data);
         MessageFlags flags = NetByteTranslator.GetFlags(data);
-    
+
 
         bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
         bool isImportant = flags.HasFlag(MessageFlags.Important);
@@ -324,32 +324,61 @@ public class ServerNetManager : NetworkManager
             case MessageType.Confirmation when clients.ContainsKey(playerID):
                 CheckConfirmation(data, playerID);
                 break;
-            case MessageType.Error:
-                break;
-            case MessageType.PositionAndRotation:
-                break;
 
-            case MessageType.AskForObject:
-                NetSpawnObject objectToSpawn = new NetSpawnObject();
-                if (clients[playerID].IsTheNextMessage(type, getMessageID, objectToSpawn))
-                {
-                    (int, Vector3, Vector3) newData = objectToSpawn.Deserialize(data);
-                    NetPositionAndRotation netPositionAndRotation =
-                        new NetPositionAndRotation((int)getMessageID, newData.Item1, newData.Item2, newData.Item3);
-                    byte[] messageDataToSend = netPositionAndRotation.Serialize(playerID);
-                    Broadcast(messageDataToSend);
-                    OnCreatedBullet.RaiseEvent(newData.Item1,newData.Item2,newData.Item3);
-                    Debug.Log($"Forwards was:{newData.Item3}");
-                    AddImportantMessageToClients(data, MessageType.PositionAndRotation, NetByteTranslator.GetMesaggeID(messageDataToSend), true);
-                    if (isImportant)
-                    {
-                        Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
-                        NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
-                        SendToClient(netConfirmation.Serialize(), ep);
-                    }
-                }
+            case MessageType.AskForObject when clients.ContainsKey(playerID):
+                CheckAskForBullet(data, ep, playerID, type, getMessageID, isImportant);
 
                 break;
+            case MessageType.Damage:
+                CheckDamage(data, playerID, ep);
+                break;
+        }
+    }
+//Todo: Add damage indicator
+    private void CheckDamage(byte[] data, int playerID, IPEndPoint ip)
+    {
+        NetDamage netDamage = new NetDamage();
+        var damageData = netDamage.Deserialize(data);
+        Player aux = GetPlayer(playerID);
+        aux.lives--;
+        Debug.Log($"Player {playerID} was hitted and has {aux.lives} remaining.");
+        if (aux.lives <= 0)
+        {
+            NetExit netExit = new NetExit();
+            SendToClient(netExit.Serialize(), ip);
+            DisconnectPlayer(clients[playerID]);
+        }
+        else
+        {
+            Broadcast(netDamage.Serialize(playerID));
+        }
+    }
+
+    private void CheckAskForBullet(byte[] data, IPEndPoint ep, int playerID, MessageType type, ulong getMessageID,
+        bool isImportant)
+    {
+        NetSpawnObject objectToSpawn = new NetSpawnObject();
+        if (clients[playerID].IsTheNextMessage(type, getMessageID, objectToSpawn))
+        {
+            (int, Vector3, Vector3) newData = objectToSpawn.Deserialize(data);
+            NetPositionAndRotation netPositionAndRotation =
+                new NetPositionAndRotation((int)getMessageID, newData.Item1, newData.Item2, newData.Item3);
+            byte[] messageDataToSend = netPositionAndRotation.Serialize(playerID);
+
+
+            Broadcast(messageDataToSend);
+            OnCreatedBullet.RaiseEvent(playerID, newData.Item2, newData.Item3);
+
+            Debug.Log($"Forwards was:{newData.Item3}");
+            AddImportantMessageToClients(data, MessageType.PositionAndRotation,
+                NetByteTranslator.GetMesaggeID(messageDataToSend), true);
+
+            if (isImportant)
+            {
+                Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
+                NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
+                SendToClient(netConfirmation.Serialize(), ep);
+            }
         }
     }
 

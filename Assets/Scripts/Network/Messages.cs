@@ -14,7 +14,8 @@ public enum MessageType
     Confirmation,
     PositionAndRotation,
     AskForObject,
-    Exit
+    Exit,
+    Damage
 }
 
 
@@ -130,9 +131,7 @@ public abstract class BaseMessage<PayloadType> : BaseMessage
     }
 }
 
-//Todo: Add message when spawning entity
 //Todo: Add message for timer.
-//Todo: Add message for winning.
 public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
 {
     protected static ulong messageID = 0;
@@ -262,7 +261,7 @@ public class NetHandShake : BaseMessage<string>
         return outData.ToArray();
     }
 }
-
+//Todo:Change Type to String to send ExitError
 public class NetExit : BaseMessage<int>
 {
     public NetExit() : base()
@@ -280,8 +279,29 @@ public class NetExit : BaseMessage<int>
 
     public override int Deserialize(byte[] message)
     {
-        PlayerID = BitConverter.ToInt32(message, 4);
-        return PlayerID;
+        return 0;
+    }
+}
+
+public class NetDamage : OrderableMessage<int>
+{
+    public NetDamage() : base()
+    {
+        MsgType = MessageType.Damage;
+        Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
+    }
+
+    public override byte[] Serialize(int newPlayerId)
+    {
+        List<byte> outData = new List<byte>();
+        BasicSerialize(outData, MsgType, newPlayerId);
+        DataCheckSumEncryption(outData);
+        return outData.ToArray();
+    }
+
+    public override int Deserialize(byte[] message)
+    {
+        return 0;
     }
 }
 
@@ -335,7 +355,8 @@ public class NetSpawnObject : OrderableMessage<(int type, Vector3 pos, Vector3 f
         MsgType = MessageType.AskForObject;
         Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
     }
-    public NetSpawnObject(int id,Vector3 pos, Vector3 forward) : base()
+
+    public NetSpawnObject(int id, Vector3 pos, Vector3 forward) : base()
     {
         MsgType = MessageType.AskForObject;
         Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
@@ -383,7 +404,8 @@ public class NetPositionAndRotation : OrderableMessage<(int id, int type, Vector
     {
         MsgType = MessageType.PositionAndRotation;
     }
-    public NetPositionAndRotation(int id,int type,Vector3 pos, Vector3 forward) : base()
+
+    public NetPositionAndRotation(int id, int type, Vector3 pos, Vector3 forward) : base()
     {
         MsgType = MessageType.PositionAndRotation;
         Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
@@ -392,6 +414,7 @@ public class NetPositionAndRotation : OrderableMessage<(int id, int type, Vector
         Data.pos = pos;
         Data.forw = forward;
     }
+
     public override byte[] Serialize(int playerId)
     {
         List<byte> outData = new List<byte>();

@@ -57,35 +57,41 @@ public class GameManager : MonoBehaviour
         players.Clear();
     }
 
-    public void CreateNewPlayer(int id)
+    private void CreateNewPlayer(int id)
     {
         GameObject newObject = Instantiate(playerPrefab);
         PlayerController newPlayer = newObject.GetComponent<PlayerController>();
         newPlayer.id = id;
         newObject.transform.position = spawnPosition[currentPlayersConnected].position;
-       
+
         players.Add(newPlayer);
         currentPlayersConnected++;
     }
 
-    public void CreateMyNewPlayer(int id)
+    private void CreateMyNewPlayer(int id)
     {
         GameObject newObject = Instantiate(playerPrefab);
+        newObject.name = $"Player{currentPlayersConnected}";
         PlayerController newPlayer = newObject.GetComponent<PlayerController>();
         newPlayer.id = id;
         myPlayer = newPlayer;
         newObject.transform.position = spawnPosition[currentPlayersConnected].position;
         inputs.OnMoveChannel.AddListener(newPlayer.Move);
+        
         newPlayer.GetComponent<PlayerShooting>().OnBulletShoot.AddListener(AskForBullet);
+        
         newPlayer.OnMovement.AddListener(MovePlayerPos);
+        
+        Debug.Log($"The player with {id} has been subscribed.");
         newPlayer.OnHit.AddListener(OnPlayerHit);
         players.Add(newPlayer);
         currentPlayersConnected++;
     }
 
-    private void AskForBullet()
+    private void AskForBullet(Transform trans)
     {
-        askforBulletChannelSo.RaiseEvent(1, myPlayer.transform.position, myPlayer.transform.forward);
+        Debug.Log(trans.name);
+        askforBulletChannelSo.RaiseEvent(1, trans.position, trans.forward);
     }
 
     public void DisconnectPlayer(int id)
@@ -119,6 +125,9 @@ public class GameManager : MonoBehaviour
 
     private void OnPlayerHit(int playerID)
     {
-        OnHittedPlayer.RaiseEvent(playerID);
+        if (playerID == myPlayer.id)
+        {
+            OnHittedPlayer.RaiseEvent(playerID);
+        }
     }
 }
