@@ -18,14 +18,15 @@ public class GameManager : MonoBehaviour
     private PlayerController myPlayer;
     private int currentPlayersConnected = 0;
     public Vector3ChannelSO OnMyPlayerMovement;
-    public IntChannelSO OnPlayerCreated;
-    public IntChannelSO OnMyPlayerCreated;
+    public AskForPlayerChannelSo OnPlayerCreated;
+    public AskForPlayerChannelSo OnMyPlayerCreated;
     public MovePlayerChannelSO OnPlayerMoved;
     public IntChannelSO OnPlayerDestroyed;
     public IntChannelSO OnHittedPlayer;
     public AskforBulletChannelSO askforBulletChannelSo;
     public FloatChannelSO OnTimerChanged;
     public VoidChannelSO OnExitChannel;
+    public StringChannelSO OnWinnerChannel;
     [Header("GameInputs")]
     public InputController inputs;
 
@@ -39,6 +40,7 @@ public class GameManager : MonoBehaviour
         OnPlayerDestroyed.Subscribe(DisconnectPlayer);
         OnExitChannel.Subscribe(ResetConfig);
         OnTimerChanged.Subscribe(ChangeTimer);
+        currentPlayersConnected = 0;
     }
 
 
@@ -80,23 +82,26 @@ public class GameManager : MonoBehaviour
         this.enabled = false;
     }
 
-    private void CreateNewPlayer(int id)
+    private void CreateNewPlayer(int id,string nameTag)
     {
         GameObject newObject = Instantiate(playerPrefab);
+        newObject.name = $"Player{currentPlayersConnected}";
         PlayerController newPlayer = newObject.GetComponent<PlayerController>();
         newPlayer.id = id;
+        newPlayer.nameTagPlayer = nameTag;
         newObject.transform.position = spawnPosition[currentPlayersConnected].position;
 
         players.Add(newPlayer);
         currentPlayersConnected++;
     }
 
-    private void CreateMyNewPlayer(int id)
+    private void CreateMyNewPlayer(int id, string newNameTag)
     {
         GameObject newObject = Instantiate(playerPrefab);
         newObject.name = $"Player{currentPlayersConnected}";
         PlayerController newPlayer = newObject.GetComponent<PlayerController>();
         newPlayer.id = id;
+        newPlayer.nameTagPlayer = newNameTag;
         myPlayer = newPlayer;
         newObject.transform.position = spawnPosition[currentPlayersConnected].position;
         inputs.OnMoveChannel.AddListener(newPlayer.Move);
@@ -152,7 +157,24 @@ public class GameManager : MonoBehaviour
     {
         if (playerID == myPlayer.id)
         {
+            Debug.Log("I got Killed");
             OnHittedPlayer.RaiseEvent(playerID);
+        }
+    }
+    public string GetWinnerString()
+    {
+        int maxLives = players.Max(p => p.currentHealth);
+
+        var topPlayers = players.Where(p => p.currentHealth == maxLives).ToList();
+
+        if (topPlayers.Count == 1)
+        {
+            return $"The winner is {topPlayers[0].nameTagPlayer} with {topPlayers[0].currentHealth} lives.";
+        }
+        else
+        {
+            var drawPlayers = string.Join(", ", topPlayers.Select(p => p.nameTagPlayer));
+            return $"It's a draw between {drawPlayers}, each with {maxLives} lives.";
         }
     }
 }

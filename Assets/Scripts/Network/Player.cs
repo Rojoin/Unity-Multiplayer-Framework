@@ -11,7 +11,6 @@ public class Player
     {
         this.id = id;
         this.nameTag = nameTag;
-        lives = 5;
     }
 
     public Player()

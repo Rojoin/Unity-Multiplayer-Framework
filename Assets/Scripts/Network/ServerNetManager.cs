@@ -9,11 +9,12 @@ public class ServerNetManager : NetworkManager
     public readonly Dictionary<int, Client> clients = new Dictionary<int, Client>();
     protected readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
     [SerializeField] private bool showPing = false;
-
+//Todo: cambiar por enum 
     private bool hasGameStarted;
     private float timerInGame = 120;
     public int playerLimit = 4;
     [SerializeField] private VoidChannelSO OnGameEnding;
+    [SerializeField] private GameManager gameManager;
 
     protected override void OnConnect()
     {
@@ -124,19 +125,7 @@ public class ServerNetManager : NetworkManager
 
     private string GetPlayerVictoryString()
     {
-        int maxLives = players.Max(p => p.lives);
-
-        var topPlayers = players.Where(p => p.lives == maxLives).ToList();
-
-        if (topPlayers.Count == 1)
-        {
-            return $"The winner is {topPlayers[0].nameTag} with {topPlayers[0].lives} lives.";
-        }
-        else
-        {
-            var drawPlayers = string.Join(", ", topPlayers.Select(p => p.nameTag));
-            return $"It's a draw between {drawPlayers}, each with {maxLives} lives.";
-        }
+        return gameManager.GetWinnerString();
     }
 
     private void ClearInactiveClients()
@@ -175,11 +164,7 @@ public class ServerNetManager : NetworkManager
         players.Remove(playerToRemove);
         NetHandShakeOK newPlayerList = new NetHandShakeOK(players, MessageFlags.None);
         Broadcast(newPlayerList.Serialize());
-        Debug.Log("New Player list:");
-        foreach (Player player in players)
-        {
-            Debug.Log(player.nameTag);
-        }
+      
     }
 
     public void RemoveClient(IPEndPoint ip)
@@ -212,7 +197,8 @@ public class ServerNetManager : NetworkManager
                         players.Add(new Player(clientId, nameTag));
                         clientId++;
                         //Todo: Send Player logic
-                        OnPlayerCreated.RaiseEvent(id);
+                        OnPlayerCreated.RaiseEvent(id,nameTag);
+                        Debug.Log("Entre");
                         if (clients.Count >= playerLimit)
                         {
                             //Todo: Initiated Game
@@ -413,18 +399,13 @@ public class ServerNetManager : NetworkManager
     {
         NetDamage netDamage = new NetDamage();
         var damageData = netDamage.Deserialize(data);
-        Player aux = GetPlayer(playerID);
-        aux.lives--;
-        Debug.Log($"Player {playerID} was hitted and has {aux.lives} remaining.");
-        if (aux.lives <= 0)
+        if (damageData == playerID)
         {
+            Debug.Log($"Player {playerID} was been killed.");
             NetExit netExit = new NetExit("You have been eliminated.");
             SendToClient(netExit.Serialize(), ip);
             DisconnectPlayer(clients[playerID]);
-        }
-        else
-        {
-            Broadcast(netDamage.Serialize(playerID));
+            //  Broadcast(netDamage.Serialize(playerID));
         }
     }
 
@@ -440,17 +421,18 @@ public class ServerNetManager : NetworkManager
                 new NetPositionAndRotation((int)getMessageID, newData.Item1, newData.Item2, newData.Item3);
             byte[] messageDataToSend = netPositionAndRotation.Serialize(playerID);
 
-
-            Broadcast(messageDataToSend);
-            OnCreatedBullet.RaiseEvent(playerID, newData.Item2, newData.Item3);
-
-            Debug.Log($"Forwards was:{newData.Item3}");
-            AddImportantMessageToClients(data, MessageType.PositionAndRotation,
-                NetByteTranslator.GetMesaggeID(messageDataToSend), true);
+            if (hasGameStarted)
+            {
+                Broadcast(messageDataToSend);
+                OnCreatedBullet.RaiseEvent(playerID, newData.Item2, newData.Item3);
+                //Debug.Log($"Forwards was:{newData.Item3}");
+                AddImportantMessageToClients(data, MessageType.PositionAndRotation,
+                    NetByteTranslator.GetMesaggeID(messageDataToSend), true);
+            }
 
             if (isImportant)
             {
-                Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
+                //       Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
                 NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
                 SendToClient(netConfirmation.Serialize(), ep);
             }
@@ -484,10 +466,6 @@ public class ServerNetManager : NetworkManager
                 }
             }
         }
-        else
-        {
-            //Todo: Change to another place
-        }
     }
 
     private void CheckPositionMessage(byte[] data, MessageFlags flags, int playerID)
@@ -516,7 +494,7 @@ public class ServerNetManager : NetworkManager
     private void CheckConfirmation(byte[] data, int playerID)
     {
         NetConfirmation confirmation = new NetConfirmation();
-        Debug.Log($"Checking Confirmation form player {playerID}.");
+//        Debug.Log($"Checking Confirmation form player {playerID}.");
         clients[playerID].CheckImportantMessageConfirmation(confirmation.Deserialize(data));
     }
 
@@ -565,7 +543,7 @@ public class ServerNetManager : NetworkManager
     private void AddImportantMessageToClients(byte[] data, MessageType type, ulong getMesaggeID,
         bool shouldBeResend = false)
     {
-        Debug.Log($"Adding message of {type} with ID {getMesaggeID} to the clients.");
+//        Debug.Log($"Adding message of {type} with ID {getMesaggeID} to the clients.");
         foreach (var client in clients)
         {
             MessageCache messageCache = new MessageCache(type, data.ToList(), getMesaggeID)

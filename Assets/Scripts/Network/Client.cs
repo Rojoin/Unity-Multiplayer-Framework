@@ -112,12 +112,12 @@ public class Client : IMessageChecker
     {
         foreach (var cached in lastImportantMessages)
         {
-            Debug.Log($"Id Comparison {cached.messageId} & {data.Item2}");
+          //  Debug.Log($"Id Comparison {cached.messageId} & {data.Item2}");
             if (cached.messageId == data.Item2 && cached.type == data.Item1)
             {
                 cached.startTimer = true;
                 cached.canBeResend = false;
-                Debug.Log($"Confirmation from client {id} of {cached.type} with id {cached.messageId} was received.");
+               // Debug.Log($"Confirmation from client {id} of {cached.type} with id {cached.messageId} was received.");
                 lastImportantMessages?.Remove(cached);
                 break;
             }

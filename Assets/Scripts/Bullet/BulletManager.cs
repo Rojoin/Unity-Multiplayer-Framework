@@ -50,6 +50,5 @@ public class BulletManager : MonoBehaviour
         newBullet.Init(KillBullet);
         newBullet.StartBullet();
 
-        //Todo:
     }
 }

@@ -134,7 +134,7 @@ public abstract class BaseMessage<PayloadType> : BaseMessage
     }
 }
 
-//Todo: Add message for timer.
+
 public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
 {
     protected static ulong messageID = 0;
@@ -301,17 +301,25 @@ public class NetDamage : OrderableMessage<int>
         Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
     }
 
+    public NetDamage(int id) : base()
+    {
+        MsgType = MessageType.Damage;
+        Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
+        Data = id;
+    }
+
     public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
         BasicSerialize(outData, MsgType, newPlayerId);
+        outData.AddRange(BitConverter.GetBytes(Data));
         DataCheckSumEncryption(outData);
         return outData.ToArray();
     }
 
     public override int Deserialize(byte[] message)
     {
-        return 0;
+        return BitConverter.ToInt32(message, offsetSize);
     }
 
     public static int DeserializeStatic(byte[] message)
@@ -323,7 +331,6 @@ public class NetDamage : OrderableMessage<int>
 
 public class NetPlayerPos : OrderableMessage<(Vector3, int)>
 {
-    //TODO: Add id to object that needs to be created
     public NetPlayerPos(Vector3 data, int id) : base()
     {
         this.Data.Item1 = data;

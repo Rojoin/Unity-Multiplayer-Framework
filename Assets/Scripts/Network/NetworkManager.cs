@@ -29,7 +29,7 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
     public UnityEvent<string> OnChatMessage;
     public StringChannelSO OnMessageCreatedChannel;
     public VoidChannelSO OnCloseNetworkChannel;
-    public IntChannelSO OnPlayerCreated;
+    public AskForPlayerChannelSo OnPlayerCreated;
     public MovePlayerChannelSO OnPlayerMoved;
     public IntChannelSO OnPlayerDestroyed;
     public AskforBulletChannelSO AskforBulletChannelSo;

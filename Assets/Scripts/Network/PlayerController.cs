@@ -10,18 +10,24 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] public UnityEvent<Vector3> OnMovement = new();
     [SerializeField] public UnityEvent<int> OnHit;
- 
+
     [SerializeField] private float speed = 20;
+    [SerializeField] public string nameTagPlayer = "";
     [SerializeField] private float height = 1;
     [SerializeField] private float radius = 1;
+    [SerializeField] private int maxHealth = 6;
+    [SerializeField] public int currentHealth;
     private Coroutine movement;
     private BoxCollider box;
     private CharacterController characterController;
+    private bool isAlive = true;
 
     private void OnEnable()
     {
         box = GetComponent<BoxCollider>();
         characterController = GetComponent<CharacterController>();
+        currentHealth = maxHealth;
+        isAlive = true;
     }
 
     private void OnDisable()
@@ -44,6 +50,7 @@ public class PlayerController : MonoBehaviour
 
         movement = StartCoroutine(Movement(dir));
     }
+
     /// <summary>
     /// Movement Corroutine
     /// </summary>
@@ -78,10 +85,16 @@ public class PlayerController : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Bullet") && other.GetComponent<Bullet>().ID != id)
+        if (other.CompareTag("Bullet") && other.GetComponent<Bullet>().ID != id && isAlive)
         {
-            Debug.Log("I was hitted");
-            OnHit.Invoke(id);
+            other.gameObject.SetActive(false);
+            //  Debug.Log("I was hitted");
+            currentHealth--;
+            if (currentHealth <= 0)
+            {
+                OnHit.Invoke(id);
+                isAlive = false;
+            }
         }
     }
 }

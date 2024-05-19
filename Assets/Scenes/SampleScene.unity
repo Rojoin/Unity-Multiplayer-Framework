@@ -405,8 +405,8 @@ MonoBehaviour:
   maxPlayers: 4
   timer: 120
   OnMyPlayerMovement: {fileID: 11400000, guid: 88e35fbf41b0b0649a12cfb82a93e968, type: 2}
-  OnPlayerCreated: {fileID: 11400000, guid: af51d6844782f1c4bb8832a9aaafe6a6, type: 2}
-  OnMyPlayerCreated: {fileID: 11400000, guid: 1387f7edb5f31434ebc7e749c8b48fd1, type: 2}
+  OnPlayerCreated: {fileID: 11400000, guid: 4db4d9badad70774fa39b4bd0c40115d, type: 2}
+  OnMyPlayerCreated: {fileID: 11400000, guid: 811ae01799f8b1c4f86dcec49d5a2dd4, type: 2}
   OnPlayerMoved: {fileID: 11400000, guid: 4bd1501dcbb042441bf045428db9cbc0, type: 2}
   OnPlayerDestroyed: {fileID: 11400000, guid: 6153af112f5632544b308a355f162cbe, type: 2}
   OnHittedPlayer: {fileID: 11400000, guid: 86b6dbc34bac2c347acca1f502c4b6cc, type: 2}
@@ -414,6 +414,7 @@ MonoBehaviour:
     type: 2}
   OnTimerChanged: {fileID: 11400000, guid: 482557e085062e74990fc72406fce90e, type: 2}
   OnExitChannel: {fileID: 11400000, guid: ad82cbf0d0a497c49879e682d0570fbf, type: 2}
+  OnWinnerChannel: {fileID: 0}
   inputs: {fileID: 1756598226}
 --- !u!4 &137595969
 Transform:
@@ -507,7 +508,7 @@ MonoBehaviour:
     type: 2}
   OnCloseNetworkChannel: {fileID: 11400000, guid: ad82cbf0d0a497c49879e682d0570fbf,
     type: 2}
-  OnPlayerCreated: {fileID: 11400000, guid: af51d6844782f1c4bb8832a9aaafe6a6, type: 2}
+  OnPlayerCreated: {fileID: 11400000, guid: 4db4d9badad70774fa39b4bd0c40115d, type: 2}
   OnPlayerMoved: {fileID: 11400000, guid: 4bd1501dcbb042441bf045428db9cbc0, type: 2}
   OnPlayerDestroyed: {fileID: 11400000, guid: 6153af112f5632544b308a355f162cbe, type: 2}
   AskforBulletChannelSo: {fileID: 11400000, guid: 950ba96a2acb83443b4140350ecf1ece,
@@ -522,6 +523,7 @@ MonoBehaviour:
   showPing: 0
   playerLimit: 4
   OnGameEnding: {fileID: 11400000, guid: e43b04731a0cc084a9be8ed75e4fb410, type: 2}
+  gameManager: {fileID: 137595968}
 --- !u!114 &180350412
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -566,7 +568,7 @@ MonoBehaviour:
     type: 2}
   OnCloseNetworkChannel: {fileID: 11400000, guid: ad82cbf0d0a497c49879e682d0570fbf,
     type: 2}
-  OnPlayerCreated: {fileID: 11400000, guid: af51d6844782f1c4bb8832a9aaafe6a6, type: 2}
+  OnPlayerCreated: {fileID: 11400000, guid: 4db4d9badad70774fa39b4bd0c40115d, type: 2}
   OnPlayerMoved: {fileID: 11400000, guid: 4bd1501dcbb042441bf045428db9cbc0, type: 2}
   OnPlayerDestroyed: {fileID: 11400000, guid: 6153af112f5632544b308a355f162cbe, type: 2}
   AskforBulletChannelSo: {fileID: 11400000, guid: 950ba96a2acb83443b4140350ecf1ece,
@@ -594,7 +596,7 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-  OnMyPlayerCreated: {fileID: 11400000, guid: 1387f7edb5f31434ebc7e749c8b48fd1, type: 2}
+  OnMyPlayerCreated: {fileID: 11400000, guid: 811ae01799f8b1c4f86dcec49d5a2dd4, type: 2}
   OnHittedPlayer: {fileID: 11400000, guid: 86b6dbc34bac2c347acca1f502c4b6cc, type: 2}
   OnMyPlayerMoved: {fileID: 11400000, guid: 88e35fbf41b0b0649a12cfb82a93e968, type: 2}
 --- !u!1 &191163866

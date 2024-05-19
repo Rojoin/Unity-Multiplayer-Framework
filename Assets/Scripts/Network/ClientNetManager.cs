@@ -19,10 +19,10 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     private UnityEvent OnServerCloseEvent;
     private UnityEvent OnCouldntConnectToServer;
     public UnityEvent<double> OnMsUpdated;
-    public IntChannelSO OnMyPlayerCreated;
+    public AskForPlayerChannelSo OnMyPlayerCreated;
     public IntChannelSO OnHittedPlayer;
 
-    
+
     public Vector3ChannelSO OnMyPlayerMoved;
 
     public Dictionary<MessageType, List<MessageCache>> pendingMessages = new();
@@ -47,7 +47,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     private void SendHitted(int obj)
     {
-        NetDamage netDamage = new NetDamage();
+        NetDamage netDamage = new NetDamage(obj);
         byte[] serialize = netDamage.Serialize();
         SendToServer(serialize);
     }
@@ -140,10 +140,6 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         MessageType type = NetByteTranslator.GetNetworkType(data);
         int playerID = NetByteTranslator.GetPlayerID(data);
         MessageFlags flags = NetByteTranslator.GetFlags(data);
-        if (type != MessageType.Ping)
-        {
-            Debug.Log(type);
-        }
 
         bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
         bool isImportant = flags.HasFlag(MessageFlags.Important);
@@ -162,12 +158,9 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         {
             getMessageID = NetByteTranslator.GetMesaggeID(data);
         }
-        
+
         switch (type)
         {
-            case MessageType.HandShake:
-                //OnHandShakeMessage(data);
-                break;
             case MessageType.Position:
                 CheckPlayerPos(data, flags);
                 break;
@@ -198,7 +191,6 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 NetTime netTime = new NetTime();
                 OnTimerChanged.RaiseEvent(netTime.Deserialize(data));
                 break;
-
         }
     }
 
@@ -231,9 +223,9 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     private static void CheckPlayerDamage(byte[] data, int playerID)
     {
-        NetDamage damage = new NetDamage();
-        int damageData = damage.Deserialize(data);
-        Debug.Log($"Player id {playerID}");
+        //  NetDamage damage = new NetDamage();
+        //  int damageData = damage.Deserialize(data);
+        //  Debug.Log($"Player id {playerID}");
     }
 
     private void CheckBulletPosition(byte[] data, MessageType type, ulong getMessageID, int playerID, bool isImportant)
@@ -290,7 +282,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     {
         NetConsole message = new();
 
-        MessageCache msg = new MessageCache(message.GetMessageType(),data.ToList(),getMessageID);
+        MessageCache msg = new MessageCache(message.GetMessageType(), data.ToList(), getMessageID);
         if (IsTheNextMessage(type, msg, message))
         {
             string idName = playerID != -10 ? GetPlayer(playerID).nameTag + ":" : "Server:";
@@ -320,12 +312,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         }
 
         isConnected = true;
-        foreach (Player pl in newPlayersList)
-        {
-            Debug.Log("This is " + pl.nameTag + "with id:" + pl.id);
-        }
-
-        Debug.Log("My id is" + clientId);
+      
     }
 
 
@@ -405,27 +392,18 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 if (player.nameTag == tagName)
                 {
                     clientId = player.id;
-                    OnMyPlayerCreated.RaiseEvent(player.id);
+                    Debug.Log("Entre por player");
+                    OnMyPlayerCreated.RaiseEvent(player.id,player.nameTag);
+                    BaseMessage.PlayerID = clientId;
                 }
                 else
                 {
-                    OnPlayerCreated.RaiseEvent(player.id);
+                    OnPlayerCreated.RaiseEvent(player.id,player.nameTag);
                 }
             }
         }
 
         players = newPlayersList;
-        BaseMessage.PlayerID = clientId;
-       // NetConsole.PlayerID = clientId;
-       // NetExit.PlayerID = clientId;
-       // NetPlayerPos.PlayerID = clientId;
-       // NetPositionAndRotation.PlayerID = clientId;
-       // NetSpawnObject.PlayerID = clientId;
-       // NetPing.PlayerID = clientId;
-       // NetConfirmation.PlayerID = clientId;
-       // NetSpawnObject.PlayerID = clientId;
-       // NetPositionAndRotation.PlayerID = clientId;
-       // NetDamage.PlayerID = clientId;
     }
 
     private void SendToServer(byte[] data)
@@ -440,8 +418,8 @@ public class ClientNetManager : NetworkManager, IMessageChecker
             return true;
         }
 
-        Debug.Log($"The message id is {value}");
-        Debug.Log($"The last id is {lastReceiveMessage[messageType]}");
+        // Debug.Log($"The message id is {value}");
+        // Debug.Log($"The last id is {lastReceiveMessage[messageType]}");
         if (lastReceiveMessage[messageType].messageId > value.messageId)
         {
             return false;
