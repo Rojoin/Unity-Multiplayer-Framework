@@ -148,6 +148,21 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 OnServerDisconnect.Invoke();
                 break;
             case MessageType.Position:
+                if (flags.HasFlag(MessageFlags.Ordenable))
+                {
+                    NetPosition netPosition = new NetPosition();
+                    getMessageID = NetByteTranslator.GetMesaggeID(data);
+                    if (IsTheLastMesagge(MessageType.Position, getMessageID))
+                    {
+                        (Vector3,int) dataReceived;
+                        dataReceived = netPosition.Deserialize(data);
+                        OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1);
+                    }
+                    else
+                    {
+                        Debug.Log("Wassnt the last");
+                    }
+                }
                 break;
             case MessageType.String:
                 NetConsole message = new();
@@ -283,8 +298,9 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
                 if (!playerExistsInNewPlayersList)
                 {
-                    Debug.LogWarning($"Destroy Player{player.id}");
-                    OnPlayerDestroyed.RaiseEvent(player.id);
+                    //BUG:Destroyed other player 
+                    Debug.LogWarning($"Destroy Player{currentPlayer.id}");
+                    OnPlayerDestroyed.RaiseEvent(currentPlayer.id);
                 }
             }
 
