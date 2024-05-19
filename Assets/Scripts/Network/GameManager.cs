@@ -25,7 +25,6 @@ public class GameManager : MonoBehaviour
     public IntChannelSO OnHittedPlayer;
     public AskforBulletChannelSO askforBulletChannelSo;
     public FloatChannelSO OnTimerChanged;
-
     public VoidChannelSO OnExitChannel;
     [Header("GameInputs")]
     public InputController inputs;
@@ -40,7 +39,9 @@ public class GameManager : MonoBehaviour
         OnPlayerDestroyed.Subscribe(DisconnectPlayer);
         OnExitChannel.Subscribe(ResetConfig);
         OnTimerChanged.Subscribe(ChangeTimer);
+
     }
+
 
     private void ChangeTimer(float obj)
     {
@@ -57,6 +58,7 @@ public class GameManager : MonoBehaviour
         OnPlayerMoved.Unsubscribe(SetPlayerPos);
         OnPlayerDestroyed.Unsubscribe(DisconnectPlayer);
         OnExitChannel.Unsubscribe(ResetConfig);
+        OnTimerChanged.Unsubscribe(ChangeTimer);
         inputs.OnMoveChannel.RemoveAllListeners();
     }
 
@@ -69,6 +71,8 @@ public class GameManager : MonoBehaviour
         }
 
         players.Clear();
+        this.enabled = false;
+
     }
 
     private void CreateNewPlayer(int id)

@@ -1041,6 +1041,7 @@ MonoBehaviour:
   nameTagInputField: {fileID: 1828601337}
   client: {fileID: 180350412}
   server: {fileID: 180350411}
+  gameManager: {fileID: 137595968}
   loadingScreen: {fileID: 1571490463}
   loginScreen: {fileID: 1135070295}
   errorDisplayText: {fileID: 1624647091}

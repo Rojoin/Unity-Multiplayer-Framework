@@ -22,7 +22,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     public IntChannelSO OnMyPlayerCreated;
     public IntChannelSO OnHittedPlayer;
 
-    //Todo: Add implementation from player hit to comunicate with server
+    
     public Vector3ChannelSO OnMyPlayerMoved;
 
     public Dictionary<MessageType, List<MessageCache>> pendingMessages = new();

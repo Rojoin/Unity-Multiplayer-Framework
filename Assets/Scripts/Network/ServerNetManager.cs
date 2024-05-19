@@ -22,6 +22,7 @@ public class ServerNetManager : NetworkManager
         ipToId.Clear();
         connection = new UdpConnection(port, CouldntCreateUDPConnection, this);
         BaseMessage.PlayerID = -10;
+        hasGameStarted = false;
         timerInGame = 120;
     }
 
@@ -40,6 +41,7 @@ public class ServerNetManager : NetworkManager
         base.OnDisconect();
         NetExit closeServer = new NetExit("The Server has been closed.");
         Broadcast(closeServer.Serialize());
+        hasGameStarted = false;
         connection?.Close();
     }
 
@@ -98,6 +100,7 @@ public class ServerNetManager : NetworkManager
                     Broadcast(winnerMessage.Serialize());
                     hasGameStarted = false;
                     OnGameEnding.RaiseEvent();
+                    ChatScreen.Instance.SwitchToNetworkScreen();
                 }
                 else
                 {
@@ -108,11 +111,33 @@ public class ServerNetManager : NetworkManager
                         Broadcast(newTime.Serialize());
                         OnTimerChanged.RaiseEvent(delta);
                     }
+                    else
+                    {
+                        NetExit disconnectAll = new NetExit(GetPlayerVictoryString());
+                        Broadcast(disconnectAll.Serialize());
+                        ChatScreen.Instance.SwitchToNetworkScreen();
+                    }
                 }
             }
         }
     }
 
+    private string GetPlayerVictoryString()
+    {
+        int maxLives = players.Max(p => p.lives);
+        
+        var topPlayers = players.Where(p => p.lives == maxLives).ToList();
+
+        if (topPlayers.Count == 1)
+        {
+            return $"The winner is {topPlayers[0].nameTag} with {topPlayers[0].lives} lives.";
+        }
+        else
+        {
+            var drawPlayers = string.Join(", ", topPlayers.Select(p => p.nameTag));
+            return $"It's a draw between {drawPlayers}, each with {maxLives} lives.";
+        }
+    }
     private void ClearInactiveClients()
     {
         Dictionary<int, Client> aux = new(clients);
@@ -180,6 +205,10 @@ public class ServerNetManager : NetworkManager
 
                         int id = clientId;
                         ipToId[ip] = clientId;
+                        
+                        foreach (KeyValuePair<int,Client> VARIABLE in clients)
+                        {
+                        }
                         clients.Add(clientId, new Client(ip, id, DateTime.UtcNow, nameTag));
 
                         players.Add(new Player(clientId, nameTag));
@@ -445,6 +474,7 @@ public class ServerNetManager : NetworkManager
             Broadcast(netConsole.Serialize());
             NetPing ping = new();
             SendToClient(ping.Serialize(), gameTag, ep);
+            
         }
         else
         {

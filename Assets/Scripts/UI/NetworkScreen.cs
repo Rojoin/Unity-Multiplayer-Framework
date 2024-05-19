@@ -16,6 +16,7 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
 
     public ClientNetManager client;
     public ServerNetManager server;
+    public GameManager gameManager;
     public CanvasGroup loadingScreen;
     public CanvasGroup loginScreen;
     public Text errorDisplayText;
@@ -50,7 +51,7 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
         client.ipAddress = ipAddress;
         client.port = port;
         client.enabled = true;
-
+        gameManager.enabled = true;
         ToggleLoadScreen();
     }
 
@@ -73,6 +74,7 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
         SwitchToChatScreen();
         int port = System.Convert.ToInt32(portInputField.text);
         server.port = port;
+        gameManager.enabled = true;
         server.enabled = true;
     }
 
