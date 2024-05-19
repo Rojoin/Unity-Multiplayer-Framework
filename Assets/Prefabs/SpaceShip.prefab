@@ -140,6 +140,7 @@ GameObject:
   - component: {fileID: 8492530721915205002}
   - component: {fileID: 9065621869916247657}
   - component: {fileID: 2554563303014677038}
+  - component: {fileID: -8964627369963542926}
   m_Layer: 0
   m_Name: SpaceShip
   m_TagString: Player
@@ -210,7 +211,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 3.1863854, y: 0.8818307, z: 1.9066243}
   m_Center: {x: 0.017058969, y: 0.17133462, z: 0.11035025}
@@ -227,11 +228,38 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   id: 0
-  _characterController: {fileID: 0}
   OnMovement:
     m_PersistentCalls:
       m_Calls: []
   speed: 20
+  height: 1
+  radius: 1
+--- !u!143 &-8964627369963542926
+CharacterController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4561208014810438877}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Height: 1.49
+  m_Radius: 2.22
+  m_SlopeLimit: 45
+  m_StepOffset: 0.3
+  m_SkinWidth: 0.08
+  m_MinMoveDistance: 0.001
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &7312943972449882230
 GameObject:
   m_ObjectHideFlags: 0
