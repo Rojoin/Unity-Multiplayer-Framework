@@ -12,7 +12,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private List<Transform> spawnPosition;
     [SerializeField] private List<PlayerController> players;
     [SerializeField] private GameObject playerPrefab;
-   [SerializeField] private Text timerText;
+    [SerializeField] private Text timerText;
     public int maxPlayers = 4;
     public float timer = 120;
     private PlayerController myPlayer;
@@ -39,7 +39,6 @@ public class GameManager : MonoBehaviour
         OnPlayerDestroyed.Subscribe(DisconnectPlayer);
         OnExitChannel.Subscribe(ResetConfig);
         OnTimerChanged.Subscribe(ChangeTimer);
-
     }
 
 
@@ -60,6 +59,7 @@ public class GameManager : MonoBehaviour
         OnExitChannel.Unsubscribe(ResetConfig);
         OnTimerChanged.Unsubscribe(ChangeTimer);
         inputs.OnMoveChannel.RemoveAllListeners();
+        ResetConfig();
     }
 
     private void ResetConfig()
@@ -67,12 +67,17 @@ public class GameManager : MonoBehaviour
         currentPlayersConnected = 0;
         foreach (PlayerController player in players)
         {
-            Destroy(player.gameObject);
+            player.GetComponent<PlayerShooting>().OnBulletShoot.RemoveAllListeners();
+            player.OnMovement.RemoveAllListeners();
+            player.OnHit.RemoveAllListeners();
+            if (player != null)
+            {
+                Destroy(player.gameObject);
+            }
         }
 
         players.Clear();
         this.enabled = false;
-
     }
 
     private void CreateNewPlayer(int id)
@@ -95,11 +100,11 @@ public class GameManager : MonoBehaviour
         myPlayer = newPlayer;
         newObject.transform.position = spawnPosition[currentPlayersConnected].position;
         inputs.OnMoveChannel.AddListener(newPlayer.Move);
-        
+
         newPlayer.GetComponent<PlayerShooting>().OnBulletShoot.AddListener(AskForBullet);
-        
+
         newPlayer.OnMovement.AddListener(MovePlayerPos);
-        
+
         Debug.Log($"The player with {id} has been subscribed.");
         newPlayer.OnHit.AddListener(OnPlayerHit);
         players.Add(newPlayer);
@@ -118,6 +123,8 @@ public class GameManager : MonoBehaviour
         {
             if (player.id == id)
             {
+                player.OnMovement.RemoveAllListeners();
+                player.OnHit.RemoveAllListeners();
                 players.Remove(player);
                 Destroy(player.gameObject);
                 currentPlayersConnected--;

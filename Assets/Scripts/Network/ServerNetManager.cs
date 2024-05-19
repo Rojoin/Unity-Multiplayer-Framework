@@ -125,7 +125,7 @@ public class ServerNetManager : NetworkManager
     private string GetPlayerVictoryString()
     {
         int maxLives = players.Max(p => p.lives);
-        
+
         var topPlayers = players.Where(p => p.lives == maxLives).ToList();
 
         if (topPlayers.Count == 1)
@@ -138,6 +138,7 @@ public class ServerNetManager : NetworkManager
             return $"It's a draw between {drawPlayers}, each with {maxLives} lives.";
         }
     }
+
     private void ClearInactiveClients()
     {
         Dictionary<int, Client> aux = new(clients);
@@ -205,10 +206,7 @@ public class ServerNetManager : NetworkManager
 
                         int id = clientId;
                         ipToId[ip] = clientId;
-                        
-                        foreach (KeyValuePair<int,Client> VARIABLE in clients)
-                        {
-                        }
+
                         clients.Add(clientId, new Client(ip, id, DateTime.UtcNow, nameTag));
 
                         players.Add(new Player(clientId, nameTag));
@@ -434,7 +432,8 @@ public class ServerNetManager : NetworkManager
         bool isImportant)
     {
         NetSpawnObject objectToSpawn = new NetSpawnObject();
-        if (clients[playerID].IsTheNextMessage(type, getMessageID, objectToSpawn))
+        MessageCache messageToCheck = new MessageCache(objectToSpawn.GetMessageType(), data.ToList(), getMessageID);
+        if (clients[playerID].IsTheNextMessage(type, messageToCheck, objectToSpawn))
         {
             (int, Vector3, Vector3) newData = objectToSpawn.Deserialize(data);
             NetPositionAndRotation netPositionAndRotation =
@@ -474,7 +473,16 @@ public class ServerNetManager : NetworkManager
             Broadcast(netConsole.Serialize());
             NetPing ping = new();
             SendToClient(ping.Serialize(), gameTag, ep);
-            
+
+            foreach (KeyValuePair<int, Client> VARIABLE in clients)
+            {
+                if (VARIABLE.Value.tag != gameTag &&
+                    VARIABLE.Value.lastReceiveMessage.ContainsKey(MessageType.Position))
+                {
+                    var msg = VARIABLE.Value.GetLastMessage(MessageType.Position);
+                    SendToClient(msg.data.ToArray(), ep);
+                }
+            }
         }
         else
         {
@@ -489,7 +497,8 @@ public class ServerNetManager : NetworkManager
         {
             NetPlayerPos netPlayerPos = new NetPlayerPos();
             getMessageID = NetByteTranslator.GetMesaggeID(data);
-            if (clients[playerID].IsTheLastMesagge(MessageType.Position, getMessageID))
+            MessageCache msgToCache = new MessageCache(netPlayerPos.GetMessageType(), data.ToList(), getMessageID);
+            if (clients[playerID].IsTheLastMesagge(MessageType.Position, msgToCache))
             {
                 (Vector3, int) dataReceived;
                 dataReceived = netPlayerPos.Deserialize(data);
@@ -531,8 +540,8 @@ public class ServerNetManager : NetworkManager
         bool isImportant)
     {
         NetConsole message = new();
-
-        if (clients[playerID].IsTheNextMessage(type, getMessageID, message))
+        MessageCache msgToCache = new MessageCache(type, data.ToList(), getMessageID);
+        if (clients[playerID].IsTheNextMessage(type, msgToCache, message))
         {
             string deserializeMessage = message.Deserialize(data);
             string textToWrite =

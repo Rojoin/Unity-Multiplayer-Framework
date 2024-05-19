@@ -27,7 +27,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     public Dictionary<MessageType, List<MessageCache>> pendingMessages = new();
 
-    protected Dictionary<MessageType, ulong> lastReceiveMessage = new();
+    protected Dictionary<MessageType, MessageCache> lastReceiveMessage = new();
     UnityEvent<byte[], IPEndPoint> IMessageChecker.OnPreviousData { get; set; } = new();
 
     protected override void OnConnect()
@@ -239,7 +239,8 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     private void CheckBulletPosition(byte[] data, MessageType type, ulong getMessageID, int playerID, bool isImportant)
     {
         NetPositionAndRotation newPosAndRot = new NetPositionAndRotation();
-        if (IsTheNextMessage(type, getMessageID, newPosAndRot))
+        MessageCache msg = new MessageCache(type, data.ToList(), getMessageID);
+        if (IsTheNextMessage(type, msg, newPosAndRot))
         {
             AddMessageToCacheList(MessageType.String, data.ToList(), getMessageID, false);
             var bullet = newPosAndRot.Deserialize(data);
@@ -271,7 +272,8 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         {
             NetPlayerPos netPlayerPos = new NetPlayerPos();
             getMessageID = NetByteTranslator.GetMesaggeID(data);
-            if (IsTheLastMesagge(MessageType.Position, getMessageID))
+            MessageCache msg = new MessageCache(netPlayerPos.GetMessageType(), data.ToList(), getMessageID);
+            if (IsTheLastMesagge(MessageType.Position, msg))
             {
                 (Vector3, int) dataReceived;
                 dataReceived = netPlayerPos.Deserialize(data);
@@ -287,8 +289,9 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     private void CheckChatMessage(byte[] data, ulong getMessageID, MessageType type, int playerID, bool isImportant)
     {
         NetConsole message = new();
-        Debug.Log(getMessageID);
-        if (IsTheNextMessage(type, getMessageID, message))
+
+        MessageCache msg = new MessageCache(message.GetMessageType(),data.ToList(),getMessageID);
+        if (IsTheNextMessage(type, msg, message))
         {
             string idName = playerID != -10 ? GetPlayer(playerID).nameTag + ":" : "Server:";
             OnChatMessage.Invoke(idName + message.Deserialize(data));
@@ -341,24 +344,24 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         }
     }
 
-    public bool IsTheNextMessage(MessageType messageType, ulong value, BaseMessage baseMessage)
+    public bool IsTheNextMessage(MessageType messageType, MessageCache value, BaseMessage baseMessage)
     {
         if (lastReceiveMessage.TryAdd(messageType, value))
         {
             return true;
         }
 
-        if (lastReceiveMessage[messageType] + 1 == value)
+        if (lastReceiveMessage[messageType].messageId + 1 == value.messageId)
         {
             lastReceiveMessage[messageType] = value;
-            CheckPendingMessages(messageType, value);
+            CheckPendingMessages(messageType, value.messageId);
 
             return true;
         }
         else
         {
             pendingMessages.TryAdd(messageType, new List<MessageCache>());
-            pendingMessages[messageType].Add(new MessageCache(messageType, value));
+            pendingMessages[messageType].Add(new MessageCache(messageType, value.messageId));
             pendingMessages[messageType].Sort(Utilities.Sorter);
             return false;
         }
@@ -430,7 +433,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         connection.Send(data);
     }
 
-    private bool IsTheLastMesagge(MessageType messageType, ulong value)
+    private bool IsTheLastMesagge(MessageType messageType, MessageCache value)
     {
         if (lastReceiveMessage.TryAdd(messageType, value))
         {
@@ -439,7 +442,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
         Debug.Log($"The message id is {value}");
         Debug.Log($"The last id is {lastReceiveMessage[messageType]}");
-        if (lastReceiveMessage[messageType] > value)
+        if (lastReceiveMessage[messageType].messageId > value.messageId)
         {
             return false;
         }

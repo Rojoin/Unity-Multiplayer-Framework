@@ -14,11 +14,12 @@ public class Client : IMessageChecker
     public IPEndPoint ipEndPoint;
     public string tag;
     public float timer;
-    protected Dictionary<MessageType, ulong> lastReceiveMessage = new();
+    public Dictionary<MessageType, MessageCache> lastReceiveMessage = new();
     public Dictionary<MessageType, List<MessageCache>> pendingMessages = new();
     public List<MessageCache> lastImportantMessages = new();
     private IMessageChecker _messageCheckerImplementation;
-    UnityEvent<byte[], IPEndPoint> IMessageChecker.OnPreviousData { get; set;}= new();
+    UnityEvent<byte[], IPEndPoint> IMessageChecker.OnPreviousData { get; set; } = new();
+
     public Client(IPEndPoint ipEndPoint, int id, DateTime timeStamp, string tag)
     {
         this.timeStamp = timeStamp;
@@ -28,11 +29,17 @@ public class Client : IMessageChecker
         timer = 0.0f;
         isActive = true;
     }
+
     public void OnDestroy()
     {
         lastImportantMessages.Clear();
         pendingMessages.Clear();
         lastReceiveMessage.Clear();
+    }
+
+    public MessageCache GetLastMessage(MessageType msg)
+    {
+        return lastReceiveMessage[msg];
     }
 
     public TimeSpan GetCurrentMS(DateTime currentTimeStamp)
@@ -46,46 +53,45 @@ public class Client : IMessageChecker
         timeStamp = currentTimeStamp;
     }
 
-    public bool IsTheLastMesagge(MessageType messageType, ulong value)
+    public bool IsTheLastMesagge(MessageType messageType, MessageCache msgToCache)
     {
-        if (lastReceiveMessage.TryAdd(messageType, value))
+        if (lastReceiveMessage.TryAdd(messageType, msgToCache))
         {
             return true;
         }
 
-        if (lastReceiveMessage[messageType] < value)
+        if (lastReceiveMessage[messageType].messageId < msgToCache.messageId)
         {
-            lastReceiveMessage[messageType] = value;
+            lastReceiveMessage[messageType] = msgToCache;
             return true;
         }
 
         return true;
     }
 
-    public bool IsTheNextMessage(MessageType messageType, ulong value, BaseMessage baseMessage)
+    public bool IsTheNextMessage(MessageType messageType, MessageCache value, BaseMessage baseMessage)
     {
         if (lastReceiveMessage.TryAdd(messageType, value))
         {
             return true;
         }
-        
-        if (lastReceiveMessage[messageType] + 1 == value)
+
+        if (lastReceiveMessage[messageType].messageId + 1 == value.messageId)
         {
             lastReceiveMessage[messageType] = value;
-            CheckPendingMessages(messageType, value);
+            CheckPendingMessages(messageType, value.messageId);
 
             return true;
         }
         else
         {
             pendingMessages.TryAdd(messageType, new List<MessageCache>());
-            pendingMessages[messageType].Add(new MessageCache(messageType, value));
+            pendingMessages[messageType].Add(new MessageCache(messageType, value.messageId));
             pendingMessages[messageType].Sort(Utilities.Sorter);
             return false;
         }
     }
 
-  
 
     public void CheckPendingMessages(MessageType messageType, ulong value)
     {
@@ -94,13 +100,12 @@ public class Client : IMessageChecker
             pendingMessages[messageType].Sort(Utilities.Sorter);
             if (value - pendingMessages[messageType][0].messageId + 1 == 0)
             {
-                ((IMessageChecker)this).OnPreviousData.Invoke(pendingMessages[messageType][0].data.ToArray(), ipEndPoint);
+                ((IMessageChecker)this).OnPreviousData.Invoke(pendingMessages[messageType][0].data.ToArray(),
+                    ipEndPoint);
                 pendingMessages[messageType].RemoveAt(0);
             }
         }
     }
-
-
 
 
     public void CheckImportantMessageConfirmation((MessageType, ulong) data)
@@ -119,4 +124,3 @@ public class Client : IMessageChecker
         }
     }
 }
-
