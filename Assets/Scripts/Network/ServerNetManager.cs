@@ -362,7 +362,8 @@ public class ServerNetManager : NetworkManager
                 (Vector3,int) dataReceived;
                 dataReceived = netPosition.Deserialize(data);
                 OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1);
-                SendToEveryoneExceptClient(netPosition.Serialize(), playerID);
+                NetPosition positionToSend = new NetPosition(dataReceived.Item1,dataReceived.Item2);
+                SendToEveryoneExceptClient(positionToSend.Serialize(playerID), playerID);
             }
             else
             {
