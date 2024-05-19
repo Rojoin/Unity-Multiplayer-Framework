@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Threading;
-
 using UnityEngine;
 
 /// <summary>
@@ -10,43 +9,41 @@ using UnityEngine;
 public class Bullet : MonoBehaviour
 {
     private Action<Bullet> killAction;
-    public float Velocity { get; set; } = 50f;
-    public float Damage { get; set; } = 30f;
+    [SerializeField] float Velocity  = 400f;
+    [SerializeField] public float Damage  = 1f;
     public static float maxAliveTime = 7f;
-   // public DirectionHandler DirHandler { get; set; }
-    private Transform world;
+
     private Vector3 direction;
-    
+
+    public int ID;
+    private Coroutine startBullet;
     public void Init(Action<Bullet> onKill)
     {
         killAction = onKill;
     }
+
     private IEnumerator OnStart()
     {
         float timer = 0;
+        direction = transform.forward;
         while (gameObject.activeSelf)
         {
+            Debug.Log("Im Here");
             timer += Time.deltaTime;
-         //TODO:CHANGE for current player direction
-         // direction = DirHandler.GetDirection(transform, world);
-            transform.localPosition += Time.deltaTime * Velocity * direction;
+            //TODO:CHANGE for current player direction
+            transform.position += Time.deltaTime * Velocity * direction;
             if (timer > maxAliveTime)
             {
                 killAction(this);
             }
+
             yield return null;
         }
+
+        DestroyGameObject();
     }
-    
-    /// <summary>
-    /// Set the World of the bullet
-    /// </summary>
-    /// <param name="worldTransform">World to use calculations</param>
-    public void SetWorld(Transform worldTransform)
-    {
-        world = worldTransform;
-        direction = world.transform.InverseTransformDirection(transform.forward);
-    }
+
+
 
     /// <summary>
     /// Set bullet spawnPosition
@@ -55,6 +52,7 @@ public class Bullet : MonoBehaviour
     public void SetStartPosition(Transform spawnPosition)
     {
         transform.position = spawnPosition.position;
+        transform.forward = spawnPosition.forward;
     }
 
     /// <summary>
@@ -64,9 +62,14 @@ public class Bullet : MonoBehaviour
     {
         Destroy(this.gameObject);
     }
+
     public void StartBullet()
     {
-        StartCoroutine(OnStart());
+        if (startBullet != null)
+        {
+            StopCoroutine(startBullet);
+        }
+        startBullet = StartCoroutine(OnStart());
     }
 
     private void OnTriggerEnter(Collider other)
@@ -78,8 +81,7 @@ public class Bullet : MonoBehaviour
             {
                 health.Deactivate();
             }
-
         }
-        DestroyGameObject();
+
     }
 }

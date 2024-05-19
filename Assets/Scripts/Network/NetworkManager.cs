@@ -33,7 +33,8 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
     public IntChannelSO OnPlayerCreated;
     public MovePlayerChannelSO OnPlayerMoved;
     public IntChannelSO OnPlayerDestroyed;
-
+    public AskforBulletChannelSO AskforBulletChannelSo;
+    [SerializeField] public AskforBulletChannelSO OnCreatedBullet;
     protected List<MessageCache> lastImportantMessages = new();
     private List<GameObject> entities;
     public StringChannelSO OnErrorMessage;

@@ -406,6 +406,9 @@ MonoBehaviour:
   OnMyPlayerCreated: {fileID: 11400000, guid: 1387f7edb5f31434ebc7e749c8b48fd1, type: 2}
   OnPlayerMoved: {fileID: 11400000, guid: 4bd1501dcbb042441bf045428db9cbc0, type: 2}
   OnPlayerDestroyed: {fileID: 11400000, guid: 6153af112f5632544b308a355f162cbe, type: 2}
+  OnHittedPlayer: {fileID: 11400000, guid: 86b6dbc34bac2c347acca1f502c4b6cc, type: 2}
+  askforBulletChannelSo: {fileID: 11400000, guid: 950ba96a2acb83443b4140350ecf1ece,
+    type: 2}
   OnExitChannel: {fileID: 11400000, guid: ad82cbf0d0a497c49879e682d0570fbf, type: 2}
   inputs: {fileID: 1756598226}
 --- !u!4 &137595969
@@ -449,7 +452,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 180350408}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 648.8062, y: 449.30316, z: -80}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -503,6 +506,9 @@ MonoBehaviour:
   OnPlayerCreated: {fileID: 11400000, guid: af51d6844782f1c4bb8832a9aaafe6a6, type: 2}
   OnPlayerMoved: {fileID: 11400000, guid: 4bd1501dcbb042441bf045428db9cbc0, type: 2}
   OnPlayerDestroyed: {fileID: 11400000, guid: 6153af112f5632544b308a355f162cbe, type: 2}
+  AskforBulletChannelSo: {fileID: 11400000, guid: 950ba96a2acb83443b4140350ecf1ece,
+    type: 2}
+  OnCreatedBullet: {fileID: 11400000, guid: a405b06c0a551ae4188296e9e623b51e, type: 2}
   OnErrorMessage: {fileID: 11400000, guid: 223e10691f67ae24094e284a20f386b4, type: 2}
   OnResendMessage:
     m_PersistentCalls:
@@ -556,6 +562,9 @@ MonoBehaviour:
   OnPlayerCreated: {fileID: 11400000, guid: af51d6844782f1c4bb8832a9aaafe6a6, type: 2}
   OnPlayerMoved: {fileID: 11400000, guid: 4bd1501dcbb042441bf045428db9cbc0, type: 2}
   OnPlayerDestroyed: {fileID: 11400000, guid: 6153af112f5632544b308a355f162cbe, type: 2}
+  AskforBulletChannelSo: {fileID: 11400000, guid: 950ba96a2acb83443b4140350ecf1ece,
+    type: 2}
+  OnCreatedBullet: {fileID: 11400000, guid: a405b06c0a551ae4188296e9e623b51e, type: 2}
   OnErrorMessage: {fileID: 11400000, guid: 223e10691f67ae24094e284a20f386b4, type: 2}
   OnResendMessage:
     m_PersistentCalls:
@@ -578,6 +587,7 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
   OnMyPlayerCreated: {fileID: 11400000, guid: 1387f7edb5f31434ebc7e749c8b48fd1, type: 2}
+  OnHittedPlayer: {fileID: 11400000, guid: 86b6dbc34bac2c347acca1f502c4b6cc, type: 2}
   OnMyPlayerMoved: {fileID: 11400000, guid: 88e35fbf41b0b0649a12cfb82a93e968, type: 2}
 --- !u!1 &191163866
 GameObject:
@@ -2055,6 +2065,54 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1084298005}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1110030006
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1110030008}
+  - component: {fileID: 1110030007}
+  m_Layer: 0
+  m_Name: BulletParent
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1110030007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1110030006}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 036749f06f4ba64458bb1d23eab4061f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  askforBullet: {fileID: 11400000, guid: a405b06c0a551ae4188296e9e623b51e, type: 2}
+  bulletParent: {fileID: 1110030008}
+  bulletPrefab: {fileID: 4011314863634883809, guid: a53931abb0e50a64db813033097bf285,
+    type: 3}
+--- !u!4 &1110030008
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1110030006}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -26.679384, y: -11.347173, z: 2.9085188}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1128064671
 GameObject:
   m_ObjectHideFlags: 0
@@ -3448,7 +3506,7 @@ MonoBehaviour:
   OnRollChannel: {fileID: 0}
   OnPauseChannel: {fileID: 0}
   OnFocusChannel: {fileID: 0}
-  OnFireChannel: {fileID: 0}
+  OnFireChannel: {fileID: 11400000, guid: ef84963ddc610e94f93f1a754b2dd7d9, type: 2}
 --- !u!114 &1756598227
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3492,7 +3550,19 @@ MonoBehaviour:
     m_ActionId: b8e1c498-7c5d-470d-907f-db248c80dacc
     m_ActionName: Player/Move[/DualSenseGamepadHID/leftStick,/XInputControllerWindows/leftStick,/Keyboard/w,/Keyboard/upArrow,/Keyboard/s,/Keyboard/downArrow,/Keyboard/a,/Keyboard/leftArrow,/Keyboard/d,/Keyboard/rightArrow]
   - m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1756598226}
+        m_TargetAssemblyTypeName: InputController, Assembly-CSharp
+        m_MethodName: OnFire
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
     m_ActionId: ea12826f-fc4e-4636-a804-84f3deed5576
     m_ActionName: Player/Fire[/Mouse/leftButton,/DualSenseGamepadHID/buttonWest,/XInputControllerWindows/buttonWest]
   - m_PersistentCalls:
@@ -3958,7 +4028,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2034178765}
   - component: {fileID: 2034178764}
-  - component: {fileID: 2034178763}
+  - component: {fileID: 2034178766}
   m_Layer: 0
   m_Name: EventSystem
   m_TagString: Untagged
@@ -3966,26 +4036,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2034178763
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2034178762}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4f231c4fb786f3946a6b90b886c48677, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_SendPointerHoverToParent: 1
-  m_HorizontalAxis: Horizontal
-  m_VerticalAxis: Vertical
-  m_SubmitButton: Submit
-  m_CancelButton: Cancel
-  m_InputActionsPerSecond: 10
-  m_RepeatDelay: 0.5
-  m_ForceModuleActive: 0
 --- !u!114 &2034178764
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4016,6 +4066,47 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2034178766
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2034178762}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01614664b831546d2ae94a42149d80ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_SendPointerHoverToParent: 1
+  m_MoveRepeatDelay: 0.5
+  m_MoveRepeatRate: 0.1
+  m_XRTrackingOrigin: {fileID: 0}
+  m_ActionsAsset: {fileID: -944628639613478452, guid: ca9f5fa95ffab41fb9a615ab714db018,
+    type: 3}
+  m_PointAction: {fileID: -1654692200621890270, guid: ca9f5fa95ffab41fb9a615ab714db018,
+    type: 3}
+  m_MoveAction: {fileID: -8784545083839296357, guid: ca9f5fa95ffab41fb9a615ab714db018,
+    type: 3}
+  m_SubmitAction: {fileID: 392368643174621059, guid: ca9f5fa95ffab41fb9a615ab714db018,
+    type: 3}
+  m_CancelAction: {fileID: 7727032971491509709, guid: ca9f5fa95ffab41fb9a615ab714db018,
+    type: 3}
+  m_LeftClickAction: {fileID: 3001919216989983466, guid: ca9f5fa95ffab41fb9a615ab714db018,
+    type: 3}
+  m_MiddleClickAction: {fileID: -2185481485913320682, guid: ca9f5fa95ffab41fb9a615ab714db018,
+    type: 3}
+  m_RightClickAction: {fileID: -4090225696740746782, guid: ca9f5fa95ffab41fb9a615ab714db018,
+    type: 3}
+  m_ScrollWheelAction: {fileID: 6240969308177333660, guid: ca9f5fa95ffab41fb9a615ab714db018,
+    type: 3}
+  m_TrackedDevicePositionAction: {fileID: 6564999863303420839, guid: ca9f5fa95ffab41fb9a615ab714db018,
+    type: 3}
+  m_TrackedDeviceOrientationAction: {fileID: 7970375526676320489, guid: ca9f5fa95ffab41fb9a615ab714db018,
+    type: 3}
+  m_DeselectOnBackgroundClick: 1
+  m_PointerBehavior: 0
+  m_CursorLockBehavior: 0
 --- !u!1 &2097084991
 GameObject:
   m_ObjectHideFlags: 0
@@ -4248,8 +4339,8 @@ SceneRoots:
   - {fileID: 963194228}
   - {fileID: 705507995}
   - {fileID: 124582378}
-  - {fileID: 2034178765}
   - {fileID: 180350410}
+  - {fileID: 2034178765}
   - {fileID: 1717377334}
   - {fileID: 137595969}
   - {fileID: 191163870}
@@ -4258,3 +4349,4 @@ SceneRoots:
   - {fileID: 1437164846}
   - {fileID: 59987940}
   - {fileID: 1756598228}
+  - {fileID: 1110030008}

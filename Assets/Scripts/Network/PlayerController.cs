@@ -9,6 +9,8 @@ public class PlayerController : MonoBehaviour
     public int id;
 
     [SerializeField] public UnityEvent<Vector3> OnMovement = new();
+    [SerializeField] public UnityEvent<int> OnHit;
+ 
     [SerializeField] private float speed = 20;
     [SerializeField] private float height = 1;
     [SerializeField] private float radius = 1;
@@ -30,6 +32,7 @@ public class PlayerController : MonoBehaviour
         }
 
         OnMovement.RemoveAllListeners();
+        OnHit.RemoveAllListeners();
     }
 
     public void Move(Vector2 dir)
@@ -53,52 +56,15 @@ public class PlayerController : MonoBehaviour
         {
             Vector3 moveDir = new Vector3(dir.x, 0, dir.y);
             float time = Time.deltaTime;
-            
+
             Rotation(moveDir);
             characterController.Move(moveDir * (time * speed));
             // transform.position += moveDir * (time * speed);
             OnMovement.Invoke(transform.position);
-
-
             yield return null;
         }
     }
 
-    private bool CanMove(Vector2 dir, float time, ref Vector3 moveDir)
-    {
-        moveDir = new Vector3(dir.x, 0, dir.y);
-        bool canMove = !IsColliding(moveDir);
-
-        if (!canMove)
-        {
-            Vector3 moveDirX = new Vector3(dir.x, 0, 0);
-            canMove = !IsColliding(moveDirX);
-            if (canMove)
-            {
-                moveDir = moveDirX;
-            }
-            else
-            {
-                Vector3 moveDirY = new Vector3(0, 0, dir.y);
-                canMove = !IsColliding(moveDirY);
-                if (canMove)
-                {
-                    moveDir = moveDirY;
-                }
-            }
-        }
-
-        return canMove;
-    }
-
-//Todo:Change To rigidbody or raycast
-    private bool IsColliding(Vector3 moveDir)
-    {
-        var position = transform.position;
-
-        return Physics.BoxCast(box.bounds.center, box.size,
-            moveDir);
-    }
 
     private void Rotation(Vector3 moveDir)
     {
@@ -109,5 +75,14 @@ public class PlayerController : MonoBehaviour
     {
         transform.forward = (moveDir - transform.position);
         transform.position = moveDir;
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        //Todo: Avisar que me pegaron, bajarme la vida y seguir
+        if (other.CompareTag("Bullet"))
+        {
+            OnHit.Invoke(id);
+        }
     }
 }

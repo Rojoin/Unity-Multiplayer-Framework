@@ -20,9 +20,11 @@ public class ServerNetManager : NetworkManager
         connection = new UdpConnection(port, CouldntCreateUDPConnection, this);
         NetConsole.PlayerID = -10;
         NetExit.PlayerID = -10;
-        NetPosition.PlayerID = -10;
+        NetPlayerPos.PlayerID = -10;
         NetPing.PlayerID = -10;
         NetConfirmation.PlayerID = -10;
+        NetSpawnObject.PlayerID = -10;
+        NetPositionAndRotation.PlayerID = -10;
     }
 
     protected override void ReSendMessage(MessageCache arg0)
@@ -82,15 +84,13 @@ public class ServerNetManager : NetworkManager
                 while (iterator.MoveNext())
                 {
                     iterator.Current.Value.timer += delta;
-                    Debug.Log($"Client {iterator.Current.Value.id}:{iterator.Current.Value.timer}");
                     if (iterator.Current.Value.timer >= timeOut && iterator.Current.Value.isActive)
                     {
                         DisconnectPlayer(iterator.Current.Value);
                     }
                 }
             }
-
-            Debug.Log("Llego");
+            
             ClearInactiveClients();
         }
     }
@@ -302,37 +302,17 @@ public class ServerNetManager : NetworkManager
         switch (type)
         {
             case MessageType.HandShake:
-                NetHandShake handShake = new NetHandShake();
-                string gameTag = handShake.Deserialize(data);
-                Debug.Log($"La ip de el cliente es: {ep.Address} y el nameTag es: {gameTag}");
-
-                if (TryAddClient(ep, out var id, gameTag))
-                {
-                    NetHandShakeOK handOK = new(players);
-                    Broadcast(handOK.Serialize());
-                    string welcomeMessage = $"The player {gameTag} has joined the game.";
-                    OnChatMessage.Invoke(welcomeMessage);
-                    NetConsole netConsole = new NetConsole(welcomeMessage);
-                    Broadcast(netConsole.Serialize());
-                    NetPing ping = new();
-                    SendToClient(ping.Serialize(), gameTag, ep);
-                }
-                else
-                {
-                    NetHandShake errorHandshake = new NetHandShake("Error: Tagname already exist.");
-                    SendToClient(errorHandshake.Serialize(), ep);
-                }
-
+                CheckHandShake(data, ep);
                 break;
             case MessageType.Position when clients.ContainsKey(playerID):
 
-                Position(data, flags, playerID);
+                CheckPositionMessage(data, flags, playerID);
 
                 break;
             case MessageType.String when !clients.ContainsKey(playerID):
                 break;
             case MessageType.String:
-                ChatMessage(data, ep, playerID, type, getMessageID, isImportant);
+                CheckChatMessage(data, ep, playerID, type, getMessageID, isImportant);
                 break;
             case MessageType.Exit:
                 DisconnectPlayer(clients[playerID]);
@@ -340,30 +320,80 @@ public class ServerNetManager : NetworkManager
             case MessageType.Ping when !clients.ContainsKey(playerID):
                 break;
             case MessageType.Ping:
-                Ping(data, ep);
+                CheckPing(data, ep);
                 break;
             case MessageType.HandShakeOk:
                 break;
             case MessageType.Confirmation when clients.ContainsKey(playerID):
-                Confirmation(data, playerID);
+                CheckConfirmation(data, playerID);
+                break;
+            case MessageType.Error:
+                break;
+            case MessageType.PositionAndRotation:
+                break;
+
+            case MessageType.AskForObject:
+                NetSpawnObject objectToSpawn = new NetSpawnObject();
+                if (clients[playerID].IsTheNextMessage(type, getMessageID, objectToSpawn))
+                {
+                    (int, Vector3, Vector3) newData = objectToSpawn.Deserialize(data);
+                    NetPositionAndRotation netPositionAndRotation =
+                        new NetPositionAndRotation((int)getMessageID, newData.Item1, newData.Item2, newData.Item3);
+                    byte[] messageDataToSend = netPositionAndRotation.Serialize(playerID);
+                    Broadcast(messageDataToSend);
+                    OnCreatedBullet.RaiseEvent(newData.Item1,newData.Item2,newData.Item3);
+                    Debug.Log($"Forwards was:{newData.Item3}");
+                    AddImportantMessageToClients(data, MessageType.PositionAndRotation, NetByteTranslator.GetMesaggeID(messageDataToSend), true);
+                    if (isImportant)
+                    {
+                        Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
+                        NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
+                        SendToClient(netConfirmation.Serialize(), ep);
+                    }
+                }
+
                 break;
         }
     }
 
-    private void Position(byte[] data, MessageFlags flags, int playerID)
+    private void CheckHandShake(byte[] data, IPEndPoint ep)
+    {
+        NetHandShake handShake = new NetHandShake();
+        string gameTag = handShake.Deserialize(data);
+        Debug.Log($"La ip de el cliente es: {ep.Address} y el nameTag es: {gameTag}");
+
+        if (TryAddClient(ep, out var id, gameTag))
+        {
+            NetHandShakeOK handOK = new(players);
+            Broadcast(handOK.Serialize());
+            string welcomeMessage = $"The player {gameTag} has joined the game.";
+            OnChatMessage.Invoke(welcomeMessage);
+            NetConsole netConsole = new NetConsole(welcomeMessage);
+            Broadcast(netConsole.Serialize());
+            NetPing ping = new();
+            SendToClient(ping.Serialize(), gameTag, ep);
+        }
+        else
+        {
+            NetHandShake errorHandshake = new NetHandShake("Error: Tagname already exist.");
+            SendToClient(errorHandshake.Serialize(), ep);
+        }
+    }
+
+    private void CheckPositionMessage(byte[] data, MessageFlags flags, int playerID)
     {
         ulong getMessageID;
         if (flags.HasFlag(MessageFlags.Ordenable))
         {
-            NetPosition netPosition = new NetPosition();
+            NetPlayerPos netPlayerPos = new NetPlayerPos();
             getMessageID = NetByteTranslator.GetMesaggeID(data);
             if (clients[playerID].IsTheLastMesagge(MessageType.Position, getMessageID))
             {
-                (Vector3,int) dataReceived;
-                dataReceived = netPosition.Deserialize(data);
+                (Vector3, int) dataReceived;
+                dataReceived = netPlayerPos.Deserialize(data);
                 OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1);
-                NetPosition positionToSend = new NetPosition(dataReceived.Item1,dataReceived.Item2);
-                SendToEveryoneExceptClient(positionToSend.Serialize(playerID), playerID);
+                NetPlayerPos playerPosToSend = new NetPlayerPos(dataReceived.Item1, dataReceived.Item2);
+                SendToEveryoneExceptClient(playerPosToSend.Serialize(playerID), playerID);
             }
             else
             {
@@ -372,14 +402,14 @@ public class ServerNetManager : NetworkManager
         }
     }
 
-    private void Confirmation(byte[] data, int playerID)
+    private void CheckConfirmation(byte[] data, int playerID)
     {
         NetConfirmation confirmation = new NetConfirmation();
         Debug.Log($"Checking Confirmation fomr player {playerID}.");
         clients[playerID].CheckImportantMessageConfirmation(confirmation.Deserialize(data));
     }
 
-    private void Ping(byte[] data, IPEndPoint ep)
+    private void CheckPing(byte[] data, IPEndPoint ep)
     {
         NetPing pingMessage = new();
         NetPing pongMessage = new();
@@ -395,7 +425,7 @@ public class ServerNetManager : NetworkManager
         clients[currentClientId].ResetTimer(currentTime);
     }
 
-    private void ChatMessage(byte[] data, IPEndPoint ep, int playerID, MessageType type, ulong getMessageID,
+    private void CheckChatMessage(byte[] data, IPEndPoint ep, int playerID, MessageType type, ulong getMessageID,
         bool isImportant)
     {
         NetConsole message = new();

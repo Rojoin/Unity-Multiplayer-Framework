@@ -89,11 +89,8 @@ public class UdpConnection
             if (connection.Client.Connected)
             {
                 dataReceived.data = connection.EndReceive(ar, ref dataReceived.ipEndPoint);
-                Debug.Log(NetByteTranslator.GetNetworkType(dataReceived.data));
             }
-            else
-            {
-            }
+ 
         }
         catch (SocketException e)
         {

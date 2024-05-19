@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
+using ScriptableObjects;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Serialization;
@@ -19,6 +20,9 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     private UnityEvent OnCouldntConnectToServer;
     public UnityEvent<double> OnMsUpdated;
     public IntChannelSO OnMyPlayerCreated;
+    public IntChannelSO OnHittedPlayer;
+
+    //Todo: Add implementation from player hit to comunicate with server
     public Vector3ChannelSO OnMyPlayerMoved;
 
     public Dictionary<MessageType, List<MessageCache>> pendingMessages = new();
@@ -33,10 +37,19 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         connection = new UdpConnection(ipAddress, port, tagName, CouldntCreateUDPConnection, this);
         OnServerDisconnect.AddListener(CloseConnection);
         OnMyPlayerMoved.Subscribe(SendPosition);
+        AskforBulletChannelSo.Subscribe(SendBulletRequest);
         TimeOutTimer = 0;
         lastReceiveMessage.Clear();
         pendingMessages.Clear();
         ((IMessageChecker)this).OnPreviousData.AddListener(OnReceiveDataEvent);
+    }
+
+    private void SendBulletRequest(int type, Vector3 pos, Vector3 forw)
+    {
+        NetSpawnObject netSpawnObject = new NetSpawnObject(type, pos, forw);
+        byte[] serialize = netSpawnObject.Serialize();
+        SendToServer(serialize);
+        AddMessageToCacheList(MessageType.AskForObject, serialize.ToList(), NetByteTranslator.GetMesaggeID(serialize), true);
     }
 
 
@@ -44,6 +57,9 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     {
         base.OnDisconect();
         CloseConnection();
+        AskforBulletChannelSo.Unsubscribe(SendBulletRequest);
+        OnServerDisconnect.RemoveListener(CloseConnection);
+        OnMyPlayerMoved.Unsubscribe(SendPosition);
         ((IMessageChecker)this).OnPreviousData.RemoveListener(OnReceiveDataEvent);
     }
 
@@ -150,12 +166,12 @@ public class ClientNetManager : NetworkManager, IMessageChecker
             case MessageType.Position:
                 if (flags.HasFlag(MessageFlags.Ordenable))
                 {
-                    NetPosition netPosition = new NetPosition();
+                    NetPlayerPos netPlayerPos = new NetPlayerPos();
                     getMessageID = NetByteTranslator.GetMesaggeID(data);
                     if (IsTheLastMesagge(MessageType.Position, getMessageID))
                     {
                         (Vector3,int) dataReceived;
-                        dataReceived = netPosition.Deserialize(data);
+                        dataReceived = netPlayerPos.Deserialize(data);
                         OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1);
                     }
                     else
@@ -225,6 +241,29 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 Debug.Log("Confirmation Message Appears");
                 NetConfirmation netConfirmation = new NetConfirmation();
                 CheckImportantMessageConfirmation(netConfirmation.Deserialize(data));
+                break;
+            case MessageType.Error:
+                break;
+            case MessageType.PositionAndRotation:
+                NetPositionAndRotation newPosAndRot = new NetPositionAndRotation();
+                if (IsTheNextMessage(type, getMessageID, newPosAndRot))
+                {
+                    AddMessageToCacheList(MessageType.String, data.ToList(), getMessageID, false);
+                    var bullet = newPosAndRot.Deserialize(data);
+                    OnCreatedBullet.RaiseEvent(bullet.Item2,bullet.Item3,bullet.Item4);
+                    if (isImportant)
+                    {
+                        Debug.Log("Confirmation Message" + getMessageID);
+                        NetConfirmation confirmation = new NetConfirmation((type, getMessageID));
+                        SendToServer(confirmation.Serialize());
+                    }
+                }
+                else
+                {
+                    Debug.Log("Message wasnt the last");
+                }
+                break;
+            case MessageType.AskForObject:
                 break;
             default:
                 Debug.Log("MessageType not found");
@@ -321,11 +360,13 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         players = newPlayersList;
         NetConsole.PlayerID = clientId;
         NetExit.PlayerID = clientId;
-        NetPosition.PlayerID = clientId;
+        NetPlayerPos.PlayerID = clientId;
         NetPositionAndRotation.PlayerID = clientId;
         NetSpawnObject.PlayerID = clientId;
         NetPing.PlayerID = clientId;
         NetConfirmation.PlayerID = clientId;
+        NetSpawnObject.PlayerID = clientId;
+        NetPositionAndRotation.PlayerID = clientId;
     }
 
     public void SendToServer(byte[] data)
@@ -367,7 +408,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     }
     private void SendPosition(Vector3 newPos)
     {
-        NetPosition netPosition = new NetPosition(newPos,clientId);
-        SendToServer(netPosition.Serialize());
+        NetPlayerPos netPlayerPos = new NetPlayerPos(newPos,clientId);
+        SendToServer(netPlayerPos.Serialize());
     }
 }

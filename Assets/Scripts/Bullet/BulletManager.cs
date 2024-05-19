@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ScriptableObjects;
 using UnityEngine;
 using UnityEngine.Pool;
 using UnityEngine.Serialization;
@@ -6,29 +7,34 @@ using UnityEngine.Serialization;
 public class BulletManager : MonoBehaviour
 {
     [Header("Channels")]
-
+    [SerializeField]
+    private AskforBulletChannelSO askforBullet;
     [Header("Transform")]
     [SerializeField] private Transform bulletParent;
-    [SerializeField] private Transform world;
-    [SerializeField] private Transform turretWorld;
 
     [FormerlySerializedAs("bullet")] [SerializeField]
     private Bullet bulletPrefab;
     private BulletFactory factory = new BulletFactory();
     private ObjectPool<Bullet> _pool;
 
+    private int currentBulletId = 0;
 
-    public void Awake()
+    public void OnEnable()
     {
+        askforBullet.Subscribe(SpawnBullet);
+        _pool = new ObjectPool<Bullet>(() => Instantiate(bulletPrefab),
+            bullet => { bullet.gameObject.SetActive(true); }, bullet => { OnRelease(bullet); },
+            bullet => { Destroy(bullet.gameObject); }, false, 10, 100);
+    }
 
-        _pool = new ObjectPool<Bullet>(() => Instantiate(bulletPrefab, bulletParent),
-            bullet => { bullet.gameObject.SetActive(true); }, bullet => { bullet.gameObject.SetActive(false); },
-            bullet => { Destroy(bullet.gameObject); }, false, 20, 100);
+    private static void OnRelease(Bullet bullet)
+    {
+        bullet.gameObject.SetActive(false);
     }
 
     public void OnDisable()
     {
-
+        askforBullet.Unsubscribe(SpawnBullet);
     }
 
     public void KillBullet(Bullet bul)
@@ -36,13 +42,14 @@ public class BulletManager : MonoBehaviour
         _pool.Release(bul);
     }
 
-    private void SpawnBullet(Transform pos, string layer, Quaternion rotation)
+    private void SpawnBullet(int id,Vector3 pos, Vector3 forw)
     {
         var newBullet = _pool.Get();
-     
-        factory.ConfigureBullet(ref newBullet, pos, layer, world, bulletParent, rotation);
-            
+        newBullet.ID = currentBulletId++;
+        factory.ConfigureBullet(ref newBullet, pos, forw, bulletParent);
         newBullet.Init(KillBullet);
         newBullet.StartBullet();
+
+        //Todo:
     }
 }

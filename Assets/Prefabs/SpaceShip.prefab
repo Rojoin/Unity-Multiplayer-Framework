@@ -178,6 +178,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7322c2be5e74bf54e8d8c0ec477d51b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  OnFireChannel: {fileID: 11400000, guid: ef84963ddc610e94f93f1a754b2dd7d9, type: 2}
   rayPosition: {fileID: 2741220430394713321}
   shootingPoints: []
   cannon: {fileID: 6168236011001517408}
@@ -229,6 +230,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: 0
   OnMovement:
+    m_PersistentCalls:
+      m_Calls: []
+  OnHit:
     m_PersistentCalls:
       m_Calls: []
   speed: 20

@@ -13,6 +13,7 @@ public enum MessageType
     Ping,
     Confirmation,
     PositionAndRotation,
+    AskForObject,
     Exit
 }
 
@@ -29,7 +30,7 @@ public enum MessageFlags
 
 public abstract class BaseMessage
 {
-    protected MessageType Type;
+    protected MessageType MsgType;
     protected MessageFlags Flags;
     public static int PlayerID;
     protected byte[] ByteData;
@@ -73,7 +74,7 @@ public abstract class BaseMessage<PayloadType> : BaseMessage
 
     public MessageType GetMessageType()
     {
-        return Type;
+        return MsgType;
     }
 
     public int GetID()
@@ -158,13 +159,13 @@ public class NetHandShakeOK : BaseMessage<List<Player>>
     public NetHandShakeOK(List<Player> clients, MessageFlags messageFlags = DefaultFlags) : base(clients, messageFlags)
     {
         Data = clients;
-        Type = MessageType.HandShakeOk;
+        MsgType = MessageType.HandShakeOk;
         Flags = messageFlags;
     }
 
     public NetHandShakeOK() : base()
     {
-        Type = MessageType.HandShakeOk;
+        MsgType = MessageType.HandShakeOk;
     }
 
     public override byte[] Serialize(int newPlayerId)
@@ -172,7 +173,7 @@ public class NetHandShakeOK : BaseMessage<List<Player>>
         List<byte> outData = new List<byte>();
 
         int listSize = Data.Count;
-        BasicSerialize(outData, Type, newPlayerId);
+        BasicSerialize(outData, MsgType, newPlayerId);
         outData.AddRange(BitConverter.GetBytes(Data.Count));
 
         for (int i = 0; i < listSize; i++)
@@ -223,12 +224,12 @@ public class NetHandShake : BaseMessage<string>
     public NetHandShake(string tag) : base()
     {
         Data = tag;
-        Type = MessageType.HandShake;
+        MsgType = MessageType.HandShake;
     }
 
     public NetHandShake() : base()
     {
-        Type = MessageType.HandShake;
+        MsgType = MessageType.HandShake;
     }
 
     public override string Deserialize(byte[] message)
@@ -249,7 +250,7 @@ public class NetHandShake : BaseMessage<string>
     {
         List<byte> outData = new List<byte>();
 
-        BasicSerialize(outData, Type, newPlayerId);
+        BasicSerialize(outData, MsgType, newPlayerId);
 
         outData.AddRange(BitConverter.GetBytes(Data.Length));
         for (int i = 0; i < Data.Length; i++)
@@ -266,13 +267,13 @@ public class NetExit : BaseMessage<int>
 {
     public NetExit() : base()
     {
-        Type = MessageType.Exit;
+        MsgType = MessageType.Exit;
     }
 
     public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
-        BasicSerialize(outData, Type, newPlayerId);
+        BasicSerialize(outData, MsgType, newPlayerId);
         DataCheckSumEncryption(outData);
         return outData.ToArray();
     }
@@ -284,19 +285,19 @@ public class NetExit : BaseMessage<int>
     }
 }
 
-public class NetPosition : OrderableMessage<(Vector3, int)>
+public class NetPlayerPos : OrderableMessage<(Vector3, int)>
 {
     //TODO: Add id to object that needs to be created
-    public NetPosition(Vector3 data, int id) : base()
+    public NetPlayerPos(Vector3 data, int id) : base()
     {
         this.Data.Item1 = data;
         this.Data.Item2 = id;
-        Type = MessageType.Position;
+        MsgType = MessageType.Position;
         Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
         SetOffset();
     }
 
-    public NetPosition() : base()
+    public NetPlayerPos() : base()
     {
     }
 
@@ -315,7 +316,7 @@ public class NetPosition : OrderableMessage<(Vector3, int)>
     {
         List<byte> outData = new List<byte>();
 
-        BasicSerialize(outData, Type, newPlayerId);
+        BasicSerialize(outData, MsgType, newPlayerId);
         outData.AddRange(BitConverter.GetBytes(Data.Item1.x));
         outData.AddRange(BitConverter.GetBytes(Data.Item1.y));
         outData.AddRange(BitConverter.GetBytes(Data.Item1.z));
@@ -327,13 +328,27 @@ public class NetPosition : OrderableMessage<(Vector3, int)>
 }
 
 //Todo: Mandar y chequear Quien la dispara para punto de origen, el indice de la lista de posibles objetos, posicion y forward
-public class NetSpawnObject : OrderableMessage<(int, Vector3, Vector3)>
+public class NetSpawnObject : OrderableMessage<(int type, Vector3 pos, Vector3 forw)>
 {
+    public NetSpawnObject() : base()
+    {
+        MsgType = MessageType.AskForObject;
+        Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
+    }
+    public NetSpawnObject(int id,Vector3 pos, Vector3 forward) : base()
+    {
+        MsgType = MessageType.AskForObject;
+        Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
+        Data.type = id;
+        Data.pos = pos;
+        Data.forw = forward;
+    }
+
     public override byte[] Serialize(int playerId)
     {
         List<byte> outData = new List<byte>();
 
-        BasicSerialize(outData, Type, playerId);
+        BasicSerialize(outData, MsgType, playerId);
         outData.AddRange(BitConverter.GetBytes(Data.Item1));
         outData.AddRange(BitConverter.GetBytes(Data.Item2.x));
         outData.AddRange(BitConverter.GetBytes(Data.Item2.y));
@@ -362,13 +377,26 @@ public class NetSpawnObject : OrderableMessage<(int, Vector3, Vector3)>
 }
 
 //Todo: Send int of position, int of type of object, position and forward
-public class NetPositionAndRotation : OrderableMessage<(int, int, Vector3, Vector3)>
+public class NetPositionAndRotation : OrderableMessage<(int id, int type, Vector3 pos, Vector3 forw)>
 {
+    public NetPositionAndRotation() : base()
+    {
+        MsgType = MessageType.PositionAndRotation;
+    }
+    public NetPositionAndRotation(int id,int type,Vector3 pos, Vector3 forward) : base()
+    {
+        MsgType = MessageType.PositionAndRotation;
+        Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
+        Data.id = id;
+        Data.type = type;
+        Data.pos = pos;
+        Data.forw = forward;
+    }
     public override byte[] Serialize(int playerId)
     {
         List<byte> outData = new List<byte>();
 
-        BasicSerialize(outData, Type, playerId);
+        BasicSerialize(outData, MsgType, playerId);
         outData.AddRange(BitConverter.GetBytes(Data.Item1));
         outData.AddRange(BitConverter.GetBytes(Data.Item2));
         outData.AddRange(BitConverter.GetBytes(Data.Item3.x));
@@ -404,14 +432,14 @@ public class NetConsole : OrderableMessage<string>
 
     public NetConsole() : base()
     {
-        Type = MessageType.String;
+        MsgType = MessageType.String;
         Flags = MessageFlags.CheckSum | MessageFlags.Ordenable | MessageFlags.Important;
     }
 
     public NetConsole(string data) : base()
     {
         this.data = data;
-        Type = MessageType.String;
+        MsgType = MessageType.String;
         Flags = MessageFlags.CheckSum | MessageFlags.Ordenable | MessageFlags.Important;
     }
 
@@ -433,7 +461,7 @@ public class NetConsole : OrderableMessage<string>
     public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
-        BasicSerialize(outData, Type, newPlayerId);
+        BasicSerialize(outData, MsgType, newPlayerId);
         outData.AddRange(BitConverter.GetBytes(data.Length));
         for (int i = 0; i < data.Length; i++)
         {
@@ -449,13 +477,13 @@ public class NetPing : BaseMessage<int>
 {
     public NetPing() : base()
     {
-        Type = MessageType.Ping;
+        MsgType = MessageType.Ping;
     }
 
     public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
-        BasicSerialize(outData, Type, newPlayerId);
+        BasicSerialize(outData, MsgType, newPlayerId);
         DataCheckSumEncryption(outData);
         return outData.ToArray();
     }
@@ -470,18 +498,18 @@ public class NetConfirmation : BaseMessage<(MessageType, ulong)>
 {
     public NetConfirmation() : base()
     {
-        Type = MessageType.Confirmation;
+        MsgType = MessageType.Confirmation;
     }
 
     public NetConfirmation((MessageType, ulong) data) : base(data)
     {
-        Type = MessageType.Confirmation;
+        MsgType = MessageType.Confirmation;
     }
 
     public override byte[] Serialize(int newPlayerId)
     {
         List<byte> outData = new List<byte>();
-        BasicSerialize(outData, Type, newPlayerId);
+        BasicSerialize(outData, MsgType, newPlayerId);
         outData.AddRange(BitConverter.GetBytes((int)Data.Item1));
         outData.AddRange(BitConverter.GetBytes(Data.Item2));
         DataCheckSumEncryption(outData);
