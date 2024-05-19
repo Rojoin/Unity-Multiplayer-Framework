@@ -29,7 +29,6 @@ public class Bullet : MonoBehaviour
         while (gameObject.activeSelf)
         {
             timer += Time.deltaTime;
-            //TODO:CHANGE for current player direction
             transform.position += Time.deltaTime * Velocity * direction;
             if (timer > maxAliveTime)
             {

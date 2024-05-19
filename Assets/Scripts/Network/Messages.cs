@@ -347,7 +347,6 @@ public class NetPlayerPos : OrderableMessage<(Vector3, int)>
     }
 }
 
-//Todo: Mandar y chequear Quien la dispara para punto de origen, el indice de la lista de posibles objetos, posicion y forward
 public class NetSpawnObject : OrderableMessage<(int type, Vector3 pos, Vector3 forw)>
 {
     public NetSpawnObject() : base()

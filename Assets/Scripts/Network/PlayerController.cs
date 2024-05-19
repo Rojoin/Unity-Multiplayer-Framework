@@ -44,7 +44,6 @@ public class PlayerController : MonoBehaviour
 
         movement = StartCoroutine(Movement(dir));
     }
-//Todo: Avoid slopes 
     /// <summary>
     /// Movement Corroutine
     /// </summary>

@@ -4,8 +4,6 @@ using UnityEngine;
 
 public class BulletFactory
 {
-  //Todo CHange everything
-  
     public void ConfigureBullet(ref Bullet newBullet,Vector3 pos,Vector3 forw,  Transform bulletParent)
     {
         newBullet.transform.rotation = Quaternion.identity;
