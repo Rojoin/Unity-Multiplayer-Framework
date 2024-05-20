@@ -30,7 +30,6 @@ public class PlayerController : MonoBehaviour
         characterController = GetComponent<CharacterController>();
         currentHealth = maxHealth;
         isAlive = true;
-        playerNameText.text = nameTagPlayer;
     }
 
     private void OnDisable()
