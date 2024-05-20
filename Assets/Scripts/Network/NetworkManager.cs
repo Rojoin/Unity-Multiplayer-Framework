@@ -10,6 +10,7 @@ using UnityEngine.Serialization;
 
 public abstract class NetworkManager : MonoBehaviour, IReceiveData
 {
+    //Todo: Add ScrollView to see messages below
   
     public IPAddress ipAddress { get; set; }
     public int port { get; set; }
