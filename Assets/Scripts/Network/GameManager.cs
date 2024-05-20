@@ -15,18 +15,19 @@ public class GameManager : MonoBehaviour
     [SerializeField] private Text timerText;
     public int maxPlayers = 4;
     public float timer = 120;
+    private bool isFirstTime = false;
     private PlayerController myPlayer;
     private int currentPlayersConnected = 0;
-    public Vector3ChannelSO OnMyPlayerMovement;
-    public AskForPlayerChannelSo OnPlayerCreated;
-    public AskForPlayerChannelSo OnMyPlayerCreated;
-    public MovePlayerChannelSO OnPlayerMoved;
-    public IntChannelSO OnPlayerDestroyed;
-    public IntChannelSO OnHittedPlayer;
-    public AskforBulletChannelSO askforBulletChannelSo;
-    public FloatChannelSO OnTimerChanged;
-    public VoidChannelSO OnExitChannel;
-    public StringChannelSO OnWinnerChannel;
+    [SerializeField] private Vector3ChannelSO OnMyPlayerMovement;
+    [SerializeField] private AskForPlayerChannelSo OnPlayerCreated;
+    [SerializeField] private AskForPlayerChannelSo OnMyPlayerCreated;
+    [SerializeField] private MovePlayerChannelSO OnPlayerMoved;
+    [SerializeField] private IntChannelSO OnPlayerDestroyed;
+    [SerializeField] private IntChannelSO OnHittedPlayer;
+    [SerializeField] private AskforBulletChannelSO askforBulletChannelSo;
+    [SerializeField] private FloatChannelSO OnTimerChanged;
+    [SerializeField] private VoidChannelSO OnExitChannel;
+    [SerializeField] private StringChannelSO OnWinnerChannel;
     [Header("GameInputs")]
     public InputController inputs;
 
@@ -41,15 +42,29 @@ public class GameManager : MonoBehaviour
         OnExitChannel.Subscribe(ResetConfig);
         OnTimerChanged.Subscribe(ChangeTimer);
         currentPlayersConnected = 0;
+        isFirstTime = true;
     }
 
 
     private void ChangeTimer(float obj)
     {
+        if (isFirstTime)
+        {
+            isFirstTime = false;
+            SetAllPlayerPos();
+        }
         timer -= obj;
         TimeSpan time = TimeSpan.FromSeconds(timer);
         string str = time.ToString(@"hh\:mm\:ss\:fff");
         timerText.text = str;
+    }
+
+    public void SetAllPlayerPos()
+    {
+        for (int i = 0; i < currentPlayersConnected; i++)
+        {
+            players[i].SetPosition(spawnPosition[i].position);
+        }
     }
 
     private void OnDisable()
@@ -61,6 +76,7 @@ public class GameManager : MonoBehaviour
         OnExitChannel.Unsubscribe(ResetConfig);
         OnTimerChanged.Unsubscribe(ChangeTimer);
         inputs.OnMoveChannel.RemoveAllListeners();
+        isFirstTime = true;
         ResetConfig();
     }
 
@@ -79,10 +95,11 @@ public class GameManager : MonoBehaviour
         }
 
         players.Clear();
+        isFirstTime = true;
         this.enabled = false;
     }
 
-    private void CreateNewPlayer(int id,string nameTag)
+    private void CreateNewPlayer(int id, string nameTag)
     {
         GameObject newObject = Instantiate(playerPrefab);
         newObject.name = $"Player{currentPlayersConnected}";
@@ -161,6 +178,7 @@ public class GameManager : MonoBehaviour
             OnHittedPlayer.RaiseEvent(playerID);
         }
     }
+
     public string GetWinnerString()
     {
         int maxLives = players.Max(p => p.currentHealth);
@@ -177,4 +195,6 @@ public class GameManager : MonoBehaviour
             return $"It's a draw between {drawPlayers}, each with {maxLives} lives.";
         }
     }
+
+ 
 }

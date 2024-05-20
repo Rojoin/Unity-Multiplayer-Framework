@@ -1,30 +1,47 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using UnityEngine;
+
+public enum GameState
+{
+    WaitingForPlayers,
+    CooldownUntilStart,
+    GameHasStarted
+}
 
 public class ServerNetManager : NetworkManager
 {
     public readonly Dictionary<int, Client> clients = new Dictionary<int, Client>();
     protected readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
     [SerializeField] private bool showPing = false;
-//Todo: cambiar por enum 
-    private bool hasGameStarted;
+
+    private GameState _gameState;
+    private bool lastFiveSeconds;
+    private Coroutine fiveSecondTimer;
+    public float timerUntilStart = 30;
     private float timerInGame = 120;
+    private float countdownUntilGameStart;
     public int playerLimit = 4;
     [SerializeField] private VoidChannelSO OnGameEnding;
     [SerializeField] private GameManager gameManager;
+    [SerializeField] private int minimunPlayerToInitiate;
+    [SerializeField] private WaitForSeconds waitOneSecond;
 
     protected override void OnConnect()
     {
         base.OnConnect();
         clients.Clear();
         ipToId.Clear();
+        countdownUntilGameStart = timerUntilStart;
         connection = new UdpConnection(port, CouldntCreateUDPConnection, this);
         BaseMessage.PlayerID = -10;
-        hasGameStarted = false;
+        lastFiveSeconds = false;
+        _gameState = GameState.WaitingForPlayers;
         timerInGame = 120;
+        waitOneSecond = new WaitForSeconds(1);
     }
 
     protected override void ReSendMessage(MessageCache arg0)
@@ -42,8 +59,13 @@ public class ServerNetManager : NetworkManager
         base.OnDisconect();
         NetExit closeServer = new NetExit("The Server has been closed.");
         Broadcast(closeServer.Serialize());
-        hasGameStarted = false;
+        lastFiveSeconds = false;
+        _gameState = GameState.WaitingForPlayers;
         connection?.Close();
+        if (fiveSecondTimer != null)
+        {
+            StopCoroutine(fiveSecondTimer);
+        }
     }
 
     protected override void CouldntCreateUDPConnection(string errorMessage)
@@ -93,13 +115,13 @@ public class ServerNetManager : NetworkManager
             }
 
             ClearInactiveClients();
-            if (hasGameStarted)
+            if (_gameState == GameState.GameHasStarted)
             {
                 if (clients.Count < 2)
                 {
                     NetExit winnerMessage = new("You have won!");
                     Broadcast(winnerMessage.Serialize());
-                    hasGameStarted = false;
+                    lastFiveSeconds = false;
                     OnGameEnding.RaiseEvent();
                     ChatScreen.Instance.SwitchToNetworkScreen();
                 }
@@ -120,12 +142,52 @@ public class ServerNetManager : NetworkManager
                     }
                 }
             }
+
+            if (_gameState == GameState.CooldownUntilStart)
+            {
+                countdownUntilGameStart -= delta;
+                if (countdownUntilGameStart < 0)
+                {
+                    if (fiveSecondTimer != null)
+                    {
+                        StopCoroutine(fiveSecondTimer);
+                    }
+
+                    _gameState = GameState.GameHasStarted;
+                    gameManager.SetAllPlayerPos();
+                }
+                else if (countdownUntilGameStart <= 5 && !lastFiveSeconds)
+                {
+                    if (fiveSecondTimer != null)
+                    {
+                        StopCoroutine(fiveSecondTimer);
+                    }
+
+                    lastFiveSeconds = true;
+                    fiveSecondTimer = StartCoroutine(OnLastFiveSeconds());
+                }
+            }
         }
     }
 
     private string GetPlayerVictoryString()
     {
         return gameManager.GetWinnerString();
+    }
+
+    private IEnumerator OnLastFiveSeconds()
+    {
+        OnTextAdded("Game will start in 5.");
+        yield return waitOneSecond;
+        OnTextAdded("Game will start in 4.");
+        yield return waitOneSecond;
+        OnTextAdded("Game will start in 3.");
+        yield return waitOneSecond;
+        OnTextAdded("Game will start in 2.");
+        yield return waitOneSecond;
+        OnTextAdded("Game will start in 1.");
+        yield return waitOneSecond;
+        OnTextAdded("GO.");
     }
 
     private void ClearInactiveClients()
@@ -145,7 +207,10 @@ public class ServerNetManager : NetworkManager
     private void DisconnectPlayer(Client client)
     {
         string leftMessage = $"The player {client.tag} has left the game.";
-        OnTextAdded(leftMessage);
+        if (clients.Count > 0)
+        {
+            OnTextAdded(leftMessage);
+        }
 
         // RemoveClient(client.ipEndPoint);
         Player playerToRemove = new();
@@ -164,7 +229,6 @@ public class ServerNetManager : NetworkManager
         players.Remove(playerToRemove);
         NetHandShakeOK newPlayerList = new NetHandShakeOK(players, MessageFlags.None);
         Broadcast(newPlayerList.Serialize());
-      
     }
 
     public void RemoveClient(IPEndPoint ip)
@@ -181,7 +245,7 @@ public class ServerNetManager : NetworkManager
     {
         if (!ipToId.ContainsKey(ip))
         {
-            if (!hasGameStarted)
+            if (!lastFiveSeconds)
             {
                 if (clients.Count < playerLimit)
                 {
@@ -197,13 +261,15 @@ public class ServerNetManager : NetworkManager
                         players.Add(new Player(clientId, nameTag));
                         clientId++;
                         //Todo: Send Player logic
-                        OnPlayerCreated.RaiseEvent(id,nameTag);
+                        OnPlayerCreated.RaiseEvent(id, nameTag);
                         Debug.Log("Entre");
-                        if (clients.Count >= playerLimit)
+                        if (clients.Count > minimunPlayerToInitiate)
                         {
-                            //Todo: Initiated Game
-                            hasGameStarted = true;
+                            _gameState = GameState.CooldownUntilStart;
+                            string data = $"Game will start in {countdownUntilGameStart}.";
+                            OnTextAdded(data);
                         }
+
 
                         return true;
                     }
@@ -361,9 +427,7 @@ public class ServerNetManager : NetworkManager
                 CheckHandShake(data, ep);
                 break;
             case MessageType.Position when clients.ContainsKey(playerID):
-
                 CheckPositionMessage(data, flags, playerID);
-
                 break;
             case MessageType.String when !clients.ContainsKey(playerID):
                 break;
@@ -386,7 +450,6 @@ public class ServerNetManager : NetworkManager
 
             case MessageType.AskForObject when clients.ContainsKey(playerID):
                 CheckAskForBullet(data, ep, playerID, type, getMessageID, isImportant);
-
                 break;
             case MessageType.Damage:
                 CheckDamage(data, playerID, ep);
@@ -421,7 +484,7 @@ public class ServerNetManager : NetworkManager
                 new NetPositionAndRotation((int)getMessageID, newData.Item1, newData.Item2, newData.Item3);
             byte[] messageDataToSend = netPositionAndRotation.Serialize(playerID);
 
-            if (hasGameStarted)
+            if (_gameState == GameState.GameHasStarted)
             {
                 Broadcast(messageDataToSend);
                 OnCreatedBullet.RaiseEvent(playerID, newData.Item2, newData.Item3);
@@ -486,7 +549,7 @@ public class ServerNetManager : NetworkManager
             }
             else
             {
-                Debug.Log("Wassnt the last");
+                Debug.Log("Wasnt the last");
             }
         }
     }

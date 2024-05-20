@@ -213,8 +213,11 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   speed: 20
+  nameTagPlayer: 
   height: 1
   radius: 1
+  maxHealth: 6
+  currentHealth: 6
 --- !u!143 &-8964627369963542926
 CharacterController:
   m_ObjectHideFlags: 0

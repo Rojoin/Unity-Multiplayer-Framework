@@ -11,6 +11,7 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
     public Button connectBtn;
     public Button startServerBtn;
     public InputField portInputField;
+    public InputField timerForGameField;
     public InputField addressInputField;
     public InputField nameTagInputField;
 
@@ -73,7 +74,10 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
     {
         SwitchToChatScreen();
         int port = System.Convert.ToInt32(portInputField.text);
+        int waitTimer = System.Convert.ToInt32(timerForGameField.text);
+        int minTimer = 10;
         server.port = port;
+        server.timerUntilStart = waitTimer <= minTimer ? minTimer : waitTimer;
         gameManager.enabled = true;
         server.enabled = true;
     }

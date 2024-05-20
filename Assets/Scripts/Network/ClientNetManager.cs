@@ -21,6 +21,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     public UnityEvent<double> OnMsUpdated;
     public AskForPlayerChannelSo OnMyPlayerCreated;
     public IntChannelSO OnHittedPlayer;
+    private bool hasPositionBeenSet;
 
 
     public Vector3ChannelSO OnMyPlayerMoved;
@@ -42,6 +43,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         TimeOutTimer = 0;
         lastReceiveMessage.Clear();
         pendingMessages.Clear();
+        hasPositionBeenSet = false;
         ((IMessageChecker)this).OnPreviousData.AddListener(OnReceiveDataEvent);
     }
 
@@ -69,6 +71,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         AskforBulletChannelSo.Unsubscribe(SendBulletRequest);
         OnServerDisconnect.RemoveListener(CloseConnection);
         OnMyPlayerMoved.Unsubscribe(SendPosition);
+        hasPositionBeenSet = false;
         ((IMessageChecker)this).OnPreviousData.RemoveListener(OnReceiveDataEvent);
     }
 
