@@ -11,7 +11,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
     public Button exitNetwork;
     public StringChannelSO onTextCreated;
     public VoidChannelSO closeChatScreen;
-
+//Todo: Desactivar input cuando estoy con UI
     protected override void Initialize()
     {
         inputMessage.onEndEdit.AddListener(OnEndEdit);
@@ -42,6 +42,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
             inputMessage.Select();
             inputMessage.text = "";
         }
+        //Todo: Activar Input aca
     }
 
     public void SwitchToNetworkScreen()

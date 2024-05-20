@@ -51,6 +51,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     {
         NetDamage netDamage = new NetDamage(obj);
         byte[] serialize = netDamage.Serialize();
+        Debug.Log($"I have send the damagewith id {clientId}");
         SendToServer(serialize);
     }
 
@@ -69,6 +70,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         base.OnDisconect();
         CloseConnection();
         AskforBulletChannelSo.Unsubscribe(SendBulletRequest);
+        OnHittedPlayer.Unsubscribe(SendHitted);
         OnServerDisconnect.RemoveListener(CloseConnection);
         OnMyPlayerMoved.Unsubscribe(SendPosition);
         hasPositionBeenSet = false;
@@ -89,7 +91,6 @@ public class ClientNetManager : NetworkManager, IMessageChecker
             connection.Close();
             isConnected = false;
             TimeOutTimer = 0;
-            //Todo: Look a way more clean to do it
             ChatScreen.Instance.SwitchToNetworkScreen();
         }
     }
@@ -188,7 +189,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 CheckBulletPosition(data, type, getMessageID, playerID, isImportant);
                 break;
             case MessageType.Damage:
-                CheckPlayerDamage(data, playerID);
+                //CheckPlayerDamage(data, playerID);
                 break;
             case MessageType.Timer:
                 NetTime netTime = new NetTime();
@@ -247,10 +248,6 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 SendToServer(confirmation.Serialize());
             }
         }
-        else
-        {
-            Debug.Log("Message wasnt the last");
-        }
     }
 
     private void CheckConfirmation(byte[] data)
@@ -274,10 +271,6 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 dataReceived = netPlayerPos.Deserialize(data);
                 OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1);
             }
-            else
-            {
-                Debug.Log("Wassnt the last");
-            }
         }
     }
 
@@ -285,7 +278,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     {
         NetConsole message = new();
 
-        MessageCache msg = new MessageCache(message.GetMessageType(), data.ToList(), getMessageID);
+        MessageCache msg = new MessageCache(type, data.ToList(), getMessageID);
         if (IsTheNextMessage(type, msg, message))
         {
             string idName = playerID != -10 ? GetPlayer(playerID).nameTag + ":" : "Server:";
@@ -336,6 +329,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     public bool IsTheNextMessage(MessageType messageType, MessageCache value, BaseMessage baseMessage)
     {
+        Debug.Log($"The id of the message is {value.messageId}");
         if (lastReceiveMessage.TryAdd(messageType, value))
         {
             return true;
@@ -350,6 +344,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         }
         else
         {
+            Debug.Log($"The message that I need is {lastReceiveMessage[messageType].messageId}");
             pendingMessages.TryAdd(messageType, new List<MessageCache>());
             pendingMessages[messageType].Add(new MessageCache(messageType, value.messageId));
             pendingMessages[messageType].Sort(Utilities.Sorter);

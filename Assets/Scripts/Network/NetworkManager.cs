@@ -50,6 +50,7 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
         OnMessageCreatedChannel.Subscribe(OnTextAdded);
         OnCloseNetworkChannel.Subscribe(Deactivate);
         OnResendMessage.AddListener(ReSendMessage);
+       
         lastImportantMessages.Clear();
         players.Clear();
         clientId = 0;
@@ -60,6 +61,7 @@ public abstract class NetworkManager : MonoBehaviour, IReceiveData
 
     protected void OnDisable()
     {
+        
         OnDisconect();
     }
 

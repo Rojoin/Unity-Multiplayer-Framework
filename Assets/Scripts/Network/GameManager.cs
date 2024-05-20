@@ -43,6 +43,7 @@ public class GameManager : MonoBehaviour
         OnTimerChanged.Subscribe(ChangeTimer);
         currentPlayersConnected = 0;
         isFirstTime = true;
+        timerText.text = "";
     }
 
 

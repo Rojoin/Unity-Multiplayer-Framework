@@ -46,7 +46,7 @@ public class ServerNetManager : NetworkManager
 
     protected override void ReSendMessage(MessageCache arg0)
     {
-        //Todo:Check for every message to have a way back for every client
+  
     }
 
     public override void CloseConnection()
@@ -155,6 +155,7 @@ public class ServerNetManager : NetworkManager
 
                     _gameState = GameState.GameHasStarted;
                     gameManager.SetAllPlayerPos();
+                    OnTextAdded("Go");
                 }
                 else if (countdownUntilGameStart <= 5 && !lastFiveSeconds)
                 {
@@ -177,17 +178,31 @@ public class ServerNetManager : NetworkManager
 
     private IEnumerator OnLastFiveSeconds()
     {
-        OnTextAdded("Game will start in 5.");
+        int time = 5;
+        string data = $"Game will start in {time--}.";
+        OnTextAdded(data);
         yield return waitOneSecond;
-        OnTextAdded("Game will start in 4.");
+        data = $"Game will start in {time--}.";
+        OnTextAdded(data);
         yield return waitOneSecond;
-        OnTextAdded("Game will start in 3.");
+        data = $"Game will start in {time--}.";
+        OnTextAdded(data);
         yield return waitOneSecond;
-        OnTextAdded("Game will start in 2.");
+        data = $"Game will start in {time--}.";
+        OnTextAdded(data);
         yield return waitOneSecond;
-        OnTextAdded("Game will start in 1.");
+        data = $"Game will start in {time--}.";
+        OnTextAdded(data);
         yield return waitOneSecond;
-        OnTextAdded("GO.");
+
+    }
+
+    private void CreateMessage(string data)
+    {
+        NetConsole message = new NetConsole(data);
+        OnChatMessage.Invoke(data);
+        byte[] messageDataToSend = message.Serialize();
+        Broadcast(messageDataToSend);
     }
 
     private void ClearInactiveClients()
@@ -206,13 +221,9 @@ public class ServerNetManager : NetworkManager
 
     private void DisconnectPlayer(Client client)
     {
-        string leftMessage = $"The player {client.tag} has left the game.";
-        if (clients.Count > 0)
-        {
-            OnTextAdded(leftMessage);
-        }
+        string textToWrite = $"The player {client.tag} has left the game.";
+        OnMessageCreatedChannel.RaiseEvent(textToWrite);
 
-        // RemoveClient(client.ipEndPoint);
         Player playerToRemove = new();
         foreach (Player player in players)
         {
@@ -223,8 +234,7 @@ public class ServerNetManager : NetworkManager
                 break;
             }
         }
-
-        Debug.Log($"{client.id}");
+        
         client.isActive = false;
         players.Remove(playerToRemove);
         NetHandShakeOK newPlayerList = new NetHandShakeOK(players, MessageFlags.None);
@@ -260,14 +270,14 @@ public class ServerNetManager : NetworkManager
 
                         players.Add(new Player(clientId, nameTag));
                         clientId++;
-                        //Todo: Send Player logic
                         OnPlayerCreated.RaiseEvent(id, nameTag);
                         Debug.Log("Entre");
                         if (clients.Count > minimunPlayerToInitiate)
                         {
                             _gameState = GameState.CooldownUntilStart;
-                            string data = $"Game will start in {countdownUntilGameStart}.";
-                            OnTextAdded(data);
+                           string data = $"Game will start in {countdownUntilGameStart}.";
+                           //OnMessageCreatedChannel.RaiseEvent(data);
+                           CreateMessage(data);
                         }
 
 
@@ -464,11 +474,10 @@ public class ServerNetManager : NetworkManager
         var damageData = netDamage.Deserialize(data);
         if (damageData == playerID)
         {
-            Debug.Log($"Player {playerID} was been killed.");
-            NetExit netExit = new NetExit("You have been eliminated.");
-            SendToClient(netExit.Serialize(), ip);
+            Debug.Log($"Player {playerID} has been killed.");
+           NetExit netExit = new NetExit("You have been eliminated.");
+           SendToClient(netExit.Serialize(), ip);
             DisconnectPlayer(clients[playerID]);
-            //  Broadcast(netDamage.Serialize(playerID));
         }
     }
 
@@ -596,11 +605,12 @@ public class ServerNetManager : NetworkManager
 
             if (isImportant)
             {
-                Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
+//                Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
                 NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
                 SendToClient(netConfirmation.Serialize(), ep);
             }
         }
+        
     }
 
     private void AddImportantMessageToClients(byte[] data, MessageType type, ulong getMesaggeID,

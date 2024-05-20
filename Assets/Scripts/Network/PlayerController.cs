@@ -3,6 +3,7 @@ using System.Collections;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.UI;
 
 public class PlayerController : MonoBehaviour
 {
@@ -12,6 +13,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] public UnityEvent<int> OnHit;
 
     [SerializeField] private float speed = 20;
+    [SerializeField] private Text playerNameText;
     [SerializeField] public string nameTagPlayer = "";
     [SerializeField] private float height = 1;
     [SerializeField] private float radius = 1;
@@ -28,6 +30,7 @@ public class PlayerController : MonoBehaviour
         characterController = GetComponent<CharacterController>();
         currentHealth = maxHealth;
         isAlive = true;
+        playerNameText.text = nameTagPlayer;
     }
 
     private void OnDisable()

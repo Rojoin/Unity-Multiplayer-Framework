@@ -277,7 +277,7 @@ public class NetHandShake : BaseMessage<string>
     }
 }
 
-public class NetExit : NetConsole
+public class NetExit : BaseMessage<string>
 {
     public NetExit() : base()
     {
@@ -290,6 +290,38 @@ public class NetExit : NetConsole
         MsgType = MessageType.Exit;
         Flags = MessageFlags.CheckSum;
         Data = ExitMessage;
+    }
+    public override string Deserialize(byte[] message)
+    {
+        string outData = "";
+        SetOffset();
+        int messageLength = BitConverter.ToInt32(message, offsetSize);
+        for (int i = 0; i < messageLength; i++)
+        {
+            outData += (char)message[offsetSize + 4 + i];
+        }
+
+        return outData;
+    }
+
+    public static string DeserializeStatic(byte[] message)
+    {
+        NetConsole aux = new();
+        return aux.Deserialize(message);
+    }
+
+    public override byte[] Serialize(int newPlayerId)
+    {
+        List<byte> outData = new List<byte>();
+        BasicSerialize(outData, MsgType, newPlayerId);
+        outData.AddRange(BitConverter.GetBytes(Data.Length));
+        for (int i = 0; i < Data.Length; i++)
+        {
+            outData.Add((byte)Data[i]);
+        }
+
+        DataCheckSumEncryption(outData);
+        return outData.ToArray();
     }
 }
 

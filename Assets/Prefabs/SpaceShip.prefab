@@ -213,6 +213,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   speed: 20
+  playerNameText: {fileID: 0}
   nameTagPlayer: 
   height: 1
   radius: 1
