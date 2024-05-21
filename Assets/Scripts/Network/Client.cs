@@ -117,7 +117,7 @@ public class Client : IMessageChecker
             {
                 cached.startTimer = true;
                 cached.canBeResend = false;
-               // Debug.Log($"Confirmation from client {id} of {cached.type} with id {cached.messageId} was received.");
+                Debug.Log($"Confirmation from client {id} of {cached.type} with id {cached.messageId} was received.");
                 lastImportantMessages?.Remove(cached);
                 break;
             }

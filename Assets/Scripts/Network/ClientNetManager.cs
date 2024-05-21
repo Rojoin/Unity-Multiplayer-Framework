@@ -172,7 +172,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 CheckChatMessage(data, getMessageID, type, playerID, isImportant);
                 break;
             case MessageType.HandShakeOk:
-                CheckHandShakeOKMessage(data);
+                CheckHandShakeOKMessage(data, isImportant, type, getMessageID);
                 break;
             case MessageType.Exit:
                 CheckExitMessage(data);
@@ -297,18 +297,28 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         }
     }
 
-    private void CheckHandShakeOKMessage(byte[] data)
+    private void CheckHandShakeOKMessage(byte[] data, bool isImportant, MessageType type, ulong getMessageID)
     {
         NetHandShakeOK handOk = new();
         List<Player> newPlayersList = handOk.Deserialize(data);
-        SetPlayer(newPlayersList);
-        if (!isConnected)
+        MessageCache msgCache = new(type, data.ToList(), getMessageID);
+        if (IsTheNextMessage(type, msgCache, handOk))
         {
-            NetworkScreen.Instance.SwitchToChatScreen();
+            SetPlayer(newPlayersList);
+            if (!isConnected)
+            {
+                NetworkScreen.Instance.SwitchToChatScreen();
+            }
+            if (isImportant && isConnected)
+            {
+                //    Debug.Log("Confirmation Message" + getMessageID);
+                NetConfirmation confirmation = new NetConfirmation((type, getMessageID));
+                SendToServer(confirmation.Serialize());
+            }
+            isConnected = true;
+
         }
 
-        isConnected = true;
-      
     }
 
 
@@ -391,12 +401,12 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 {
                     clientId = player.id;
                     Debug.Log("Entre por player");
-                    OnMyPlayerCreated.RaiseEvent(player.id,player.nameTag);
+                    OnMyPlayerCreated.RaiseEvent(player.id, player.nameTag);
                     BaseMessage.PlayerID = clientId;
                 }
                 else
                 {
-                    OnPlayerCreated.RaiseEvent(player.id,player.nameTag);
+                    OnPlayerCreated.RaiseEvent(player.id, player.nameTag);
                 }
             }
         }

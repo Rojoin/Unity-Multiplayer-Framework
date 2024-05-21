@@ -45,6 +45,9 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
 
     void OnConnectBtnClick()
     {
+        if (string.IsNullOrWhiteSpace(nameTagInputField.text))
+            return;
+
         IPAddress ipAddress = IPAddress.Parse(addressInputField.text);
         int port = System.Convert.ToInt32(portInputField.text);
 
