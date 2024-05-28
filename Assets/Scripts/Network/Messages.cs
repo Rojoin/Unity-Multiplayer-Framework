@@ -154,11 +154,11 @@ public abstract class OrderableMessage<PayloadType> : BaseMessage<PayloadType>
     }
 }
 
-public class NetHandShakeOK : BaseMessage<List<Player>>
+public class NetHandShakeOK : OrderableMessage<List<Player>>
 {
-    private const MessageFlags DefaultFlags = MessageFlags.CheckSum | MessageFlags.Important;
+    private const MessageFlags DefaultFlags = MessageFlags.CheckSum |MessageFlags.Ordenable | MessageFlags.Important;
 
-    public NetHandShakeOK(List<Player> clients, MessageFlags messageFlags = DefaultFlags) : base(clients, messageFlags)
+    public NetHandShakeOK(List<Player> clients, MessageFlags messageFlags = DefaultFlags)
     {
         Data = clients;
         MsgType = MessageType.HandShakeOk;

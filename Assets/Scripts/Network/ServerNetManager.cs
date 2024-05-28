@@ -27,7 +27,7 @@ public class ServerNetManager : NetworkManager
     public int playerLimit = 4;
     [SerializeField] private VoidChannelSO OnGameEnding;
     [SerializeField] private GameManager gameManager;
-    [SerializeField] private int minimunPlayerToInitiate;
+    [SerializeField] private int minimunPlayerToInitiate = 2;
     [SerializeField] private WaitForSeconds waitOneSecond;
 
     protected override void OnConnect()
@@ -39,6 +39,7 @@ public class ServerNetManager : NetworkManager
         connection = new UdpConnection(port, CouldntCreateUDPConnection, this);
         BaseMessage.PlayerID = -10;
         lastFiveSeconds = false;
+        minimunPlayerToInitiate = 2;
         _gameState = GameState.WaitingForPlayers;
         timerInGame = 120;
         waitOneSecond = new WaitForSeconds(1);
@@ -46,7 +47,7 @@ public class ServerNetManager : NetworkManager
 
     protected override void ReSendMessage(MessageCache arg0)
     {
-  
+
     }
 
     public override void CloseConnection()
@@ -234,7 +235,7 @@ public class ServerNetManager : NetworkManager
                 break;
             }
         }
-        
+
         client.isActive = false;
         players.Remove(playerToRemove);
         NetHandShakeOK newPlayerList = new NetHandShakeOK(players, MessageFlags.None);
@@ -255,7 +256,7 @@ public class ServerNetManager : NetworkManager
     {
         if (!ipToId.ContainsKey(ip))
         {
-            if (!lastFiveSeconds)
+            if (_gameState != GameState.GameHasStarted)
             {
                 if (clients.Count < playerLimit)
                 {
@@ -275,9 +276,9 @@ public class ServerNetManager : NetworkManager
                         if (clients.Count > minimunPlayerToInitiate)
                         {
                             _gameState = GameState.CooldownUntilStart;
-                           string data = $"Game will start in {countdownUntilGameStart}.";
-                           //OnMessageCreatedChannel.RaiseEvent(data);
-                           CreateMessage(data);
+                            string data = $"Game will start in {countdownUntilGameStart}.";
+                            //OnMessageCreatedChannel.RaiseEvent(data);
+                            CreateMessage(data);
                         }
 
 
@@ -467,7 +468,7 @@ public class ServerNetManager : NetworkManager
         }
     }
 
-
+    //Todo: Add damage indicator
     private void CheckDamage(byte[] data, int playerID, IPEndPoint ip)
     {
         NetDamage netDamage = new NetDamage();
@@ -475,8 +476,8 @@ public class ServerNetManager : NetworkManager
         if (damageData == playerID)
         {
             Debug.Log($"Player {playerID} has been killed.");
-           NetExit netExit = new NetExit("You have been eliminated.");
-           SendToClient(netExit.Serialize(), ip);
+            NetExit netExit = new NetExit("You have been eliminated.");
+            SendToClient(netExit.Serialize(), ip);
             DisconnectPlayer(clients[playerID]);
         }
     }
@@ -520,14 +521,17 @@ public class ServerNetManager : NetworkManager
         if (TryAddClient(ep, gameTag))
         {
             NetHandShakeOK handOK = new(players);
-            Broadcast(handOK.Serialize());
+            byte[] handData = handOK.Serialize();
+            Broadcast(handData);
             string welcomeMessage = $"The player {gameTag} has joined the game.";
             OnChatMessage.Invoke(welcomeMessage);
             NetConsole netConsole = new NetConsole(welcomeMessage);
-            Broadcast(netConsole.Serialize());
+            byte[] newData = netConsole.Serialize();
+            Broadcast(newData);
+            NetByteTranslator.GetMesaggeID(newData);
             NetPing ping = new();
             SendToClient(ping.Serialize(), gameTag, ep);
-
+            AddImportantMessageToClients(handData, MessageType.HandShakeOk, NetByteTranslator.GetMesaggeID(handData), true);
             foreach (KeyValuePair<int, Client> VARIABLE in clients)
             {
                 if (VARIABLE.Value.tag != gameTag &&
@@ -566,7 +570,7 @@ public class ServerNetManager : NetworkManager
     private void CheckConfirmation(byte[] data, int playerID)
     {
         NetConfirmation confirmation = new NetConfirmation();
-//        Debug.Log($"Checking Confirmation form player {playerID}.");
+        //        Debug.Log($"Checking Confirmation form player {playerID}.");
         clients[playerID].CheckImportantMessageConfirmation(confirmation.Deserialize(data));
     }
 
@@ -605,18 +609,18 @@ public class ServerNetManager : NetworkManager
 
             if (isImportant)
             {
-//                Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
+                //                Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
                 NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
                 SendToClient(netConfirmation.Serialize(), ep);
             }
         }
-        
+
     }
 
     private void AddImportantMessageToClients(byte[] data, MessageType type, ulong getMesaggeID,
         bool shouldBeResend = false)
     {
-//        Debug.Log($"Adding message of {type} with ID {getMesaggeID} to the clients.");
+        //        Debug.Log($"Adding message of {type} with ID {getMesaggeID} to the clients.");
         foreach (var client in clients)
         {
             MessageCache messageCache = new MessageCache(type, data.ToList(), getMesaggeID)
