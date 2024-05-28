@@ -467,7 +467,7 @@ public class ServerNetManager : NetworkManager
         }
     }
 
-//Todo: Add damage indicator
+
     private void CheckDamage(byte[] data, int playerID, IPEndPoint ip)
     {
         NetDamage netDamage = new NetDamage();
