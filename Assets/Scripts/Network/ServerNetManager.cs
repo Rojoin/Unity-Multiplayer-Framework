@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using RojoinNetworkSystem;
 using UnityEngine;
 
 public enum GameState
@@ -489,7 +490,7 @@ public class ServerNetManager : NetworkManager
         MessageCache messageToCheck = new MessageCache(objectToSpawn.GetMessageType(), data.ToList(), getMessageID);
         if (clients[playerID].IsTheNextMessage(type, messageToCheck, objectToSpawn))
         {
-            (int, Vector3, Vector3) newData = objectToSpawn.Deserialize(data);
+            var newData = objectToSpawn.Deserialize(data);
             NetPositionAndRotation netPositionAndRotation =
                 new NetPositionAndRotation((int)getMessageID, newData.Item1, newData.Item2, newData.Item3);
             byte[] messageDataToSend = netPositionAndRotation.Serialize(playerID);
@@ -497,7 +498,7 @@ public class ServerNetManager : NetworkManager
             if (_gameState == GameState.GameHasStarted)
             {
                 Broadcast(messageDataToSend);
-                OnCreatedBullet.RaiseEvent(playerID, newData.Item2, newData.Item3);
+                OnCreatedBullet.RaiseEvent(playerID, newData.Item2.ToUnityVector3(), newData.Item3.ToUnityVector3());
                 //Debug.Log($"Forwards was:{newData.Item3}");
                 AddImportantMessageToClients(data, MessageType.PositionAndRotation,
                     NetByteTranslator.GetMesaggeID(messageDataToSend), true);
@@ -554,9 +555,8 @@ public class ServerNetManager : NetworkManager
             MessageCache msgToCache = new MessageCache(netPlayerPos.GetMessageType(), data.ToList(), getMessageID);
             if (clients[playerID].IsTheLastMesagge(MessageType.Position, msgToCache))
             {
-                (Vector3, int) dataReceived;
-                dataReceived = netPlayerPos.Deserialize(data);
-                OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1);
+                var dataReceived = netPlayerPos.Deserialize(data);
+                OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1.ToUnityVector3());
                 NetPlayerPos playerPosToSend = new NetPlayerPos(dataReceived.Item1, dataReceived.Item2);
                 SendToEveryoneExceptClient(playerPosToSend.Serialize(playerID), playerID);
             }

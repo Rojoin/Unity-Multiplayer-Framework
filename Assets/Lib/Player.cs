@@ -1,5 +1,8 @@
 ﻿using System;
 
+namespace RojoinNetworkSystem
+{
+    
 [Serializable]
 public class Player
 {
@@ -17,5 +20,5 @@ public class Player
     {
         lives = 5;
     }
-
+}
 }

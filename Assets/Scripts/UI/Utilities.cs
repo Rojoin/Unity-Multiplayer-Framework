@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using RojoinNetworkSystem;
 using UnityEngine;
 
 public static class Utilities
@@ -135,4 +136,5 @@ public static class NetByteTranslator
     {
         return checkSum >>= 3;
     }
+  
 }

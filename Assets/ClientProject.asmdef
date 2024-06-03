@@ -1,0 +1,18 @@
+{
+    "name": "ClientProject",
+    "rootNamespace": "",
+    "references": [
+        "GUID:732c36c28eaca0849a4206a3835862a5",
+        "GUID:75469ad4d38634e559750d17036d5f7c",
+        "GUID:f0d80cbfe83da524db65713d3ea47239"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
