@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using RojoinNetworkSystem;
-using UnityEngine;
-using UnityEngine.Scripting;
+
 
 public class UdpConnection
 {
@@ -57,7 +56,7 @@ public class UdpConnection
         catch (Exception e)
         {
             OnSocketError?.Invoke($"Error: The port {port} doesnt have a server initialized.");
-            Debug.Log($"Error: The port {port} doesnt have a server initialized.");
+            Console.WriteLine($"Error: The port {port} doesnt have a server initialized.");
         }
     }
 
@@ -97,7 +96,7 @@ public class UdpConnection
         {
             // This happens when a client disconnects, as we fail to send to that port.
             //OnSocketError?.Invoke("[UdpConnection] " + e.Message);
-            Debug.Log("[UdpConnection] " + e.Message);
+            Console.WriteLine("[UdpConnection] " + e.Message);
         }
 
 

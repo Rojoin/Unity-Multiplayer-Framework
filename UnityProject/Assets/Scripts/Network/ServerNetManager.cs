@@ -37,7 +37,7 @@ public class ServerNetManager : NetworkManager
         clients.Clear();
         ipToId.Clear();
         countdownUntilGameStart = timerUntilStart;
-        connection = new UdpConnection(port, CouldntCreateUDPConnection, this);
+        connection = new UdpConnection(port, CouldntCreateUDPConnection);
         BaseMessage.PlayerID = -10;
         lastFiveSeconds = false;
         minimunPlayerToInitiate = 2;
