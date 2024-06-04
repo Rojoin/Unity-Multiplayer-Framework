@@ -1,10 +1,7 @@
 {
     "name": "RojoinNetworkSystem",
     "rootNamespace": "",
-    "references": [
-        "GUID:732c36c28eaca0849a4206a3835862a5",
-        ""
-    ],
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
