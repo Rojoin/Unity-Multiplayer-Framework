@@ -9,8 +9,8 @@ using System;
             Console.WriteLine($"Test Server");
             while (serverIsActive)
             {
-            
-            }
+            Console.WriteLine($"Tu Server");
+        }
         }
     }
 
