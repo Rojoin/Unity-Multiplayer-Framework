@@ -90,14 +90,24 @@ namespace RojoinNetworkSystem
         private static uint SelectOperations(BitOperations[] operationsToDo, uint checkSum, byte currentByte)
         {
             int index = currentByte % operationsToDo.Length;
-            checkSum = operationsToDo[index] switch
+            switch (operationsToDo[index])
             {
-                BitOperations.sum => BitSum(checkSum, currentByte),
-                BitOperations.substract => BitSus(checkSum, currentByte),
-                BitOperations.moveLeft => BitLeft(checkSum, currentByte),
-                BitOperations.moveRight => BitRight(checkSum, currentByte),
-                _ => checkSum
-            };
+                case BitOperations.sum:
+                    checkSum = BitSum(checkSum, currentByte);
+                    break;
+                case BitOperations.substract:
+                    checkSum = BitSus(checkSum, currentByte);
+                    break;
+                case BitOperations.moveLeft:
+                    checkSum = BitLeft(checkSum, currentByte);
+                    break;
+                case BitOperations.moveRight:
+                    checkSum = BitRight(checkSum, currentByte);
+                    break;
+                default:
+                    checkSum = checkSum;
+                    break;
+            }
 
             return checkSum;
         }

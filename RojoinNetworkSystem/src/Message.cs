@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
@@ -275,7 +274,7 @@ namespace RojoinNetworkSystem
 
         public static string DeserializeStatic(byte[] message)
         {
-            NetHandShake aux = new();
+            NetHandShake aux = new NetHandShake();
             return aux.Deserialize(message);
         }
     }
@@ -310,7 +309,7 @@ namespace RojoinNetworkSystem
 
         public static string DeserializeStatic(byte[] message)
         {
-            NetConsole aux = new();
+            NetConsole aux = new NetConsole();
             return aux.Deserialize(message);
         }
 
@@ -360,7 +359,7 @@ namespace RojoinNetworkSystem
 
         public static int DeserializeStatic(byte[] message)
         {
-            NetDamage aux = new();
+            NetDamage aux = new NetDamage();
             return aux.Deserialize(message);
         }
     }
@@ -407,7 +406,7 @@ namespace RojoinNetworkSystem
 
         public static (Vector3, int) DeserializeStatic(byte[] message)
         {
-            NetPlayerPos aux = new();
+            NetPlayerPos aux = new NetPlayerPos();
             return aux.Deserialize(message);
         }
     }
@@ -462,7 +461,7 @@ namespace RojoinNetworkSystem
 
         public static (int, Vector3, Vector3) DeserializeStatic(byte[] message)
         {
-            NetSpawnObject aux = new();
+            NetSpawnObject aux = new NetSpawnObject();
             return aux.Deserialize(message);
         }
     }
@@ -520,7 +519,7 @@ namespace RojoinNetworkSystem
 
         public static (int, int, Vector3, Vector3) DeserializeStatic(byte[] message)
         {
-            NetPositionAndRotation aux = new();
+            NetPositionAndRotation aux = new NetPositionAndRotation();
             return aux.Deserialize(message);
         }
     }
@@ -558,7 +557,7 @@ namespace RojoinNetworkSystem
 
         public static string DeserializeStatic(byte[] message)
         {
-            NetConsole aux = new();
+            NetConsole aux = new NetConsole();
             return aux.Deserialize(message);
         }
 
@@ -599,7 +598,7 @@ namespace RojoinNetworkSystem
 
         public static int DeserializeStatic(byte[] message)
         {
-            NetPing aux = new();
+            NetPing aux = new NetPing();
             return aux.Deserialize(message);
         }
     }
@@ -666,7 +665,7 @@ namespace RojoinNetworkSystem
 
         public static (MessageType, ulong) DeserializeStatic(byte[] message)
         {
-            NetConfirmation aux = new();
+            NetConfirmation aux = new NetConfirmation();
             return aux.Deserialize(message);
         }
     }
