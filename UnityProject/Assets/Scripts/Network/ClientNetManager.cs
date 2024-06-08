@@ -101,9 +101,9 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     protected override void CouldntCreateUDPConnection(string errorMessage)
     {
-        OnErrorMessage.RaiseEvent(errorMessage);
+      //  OnErrorMessage.RaiseEvent(errorMessage);
         Debug.Log(errorMessage);
-        ChatScreen.Instance.SwitchToNetworkScreen();
+    //    ChatScreen.Instance.SwitchToNetworkScreen();
     }
 
     protected override void OnUpdate(float deltaTime)

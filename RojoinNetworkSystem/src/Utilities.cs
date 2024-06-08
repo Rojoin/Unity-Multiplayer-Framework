@@ -132,4 +132,11 @@ namespace RojoinNetworkSystem
             return checkSum >>= 3;
         }
     }
+    public static class Utilities
+    {
+        public static int Sorter(MessageCache cache1, MessageCache cache2)
+        {
+            return cache1.messageId > cache2.messageId ? (int)cache1.messageId : (int)cache2.messageId;
+        }
+    }
 }

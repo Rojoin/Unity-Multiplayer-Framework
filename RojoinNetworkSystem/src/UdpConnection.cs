@@ -51,12 +51,13 @@ public class UdpConnection
             connection.BeginReceive(OnReceive, null);
 
             NetHandShake handShake = new NetHandShake(tag);
-            Send(handShake.Serialize());
+            byte[] serialize = handShake.Serialize();
+            Send(serialize);
+            OnSocketError?.Invoke($"Data size.{serialize.Length}");
         }
         catch (Exception e)
         {
             OnSocketError?.Invoke($"Error: The port {port} doesnt have a server initialized.");
-            Console.WriteLine($"Error: The port {port} doesnt have a server initialized.");
         }
     }
 
@@ -86,11 +87,7 @@ public class UdpConnection
         DataReceived dataReceived = new DataReceived();
         try
         {
-            if (connection.Client.Connected)
-            {
-                dataReceived.data = connection.EndReceive(ar, ref dataReceived.ipEndPoint);
-            }
- 
+            dataReceived.data = connection.EndReceive(ar, ref dataReceived.ipEndPoint);
         }
         catch (SocketException e)
         {
@@ -98,13 +95,14 @@ public class UdpConnection
             //OnSocketError?.Invoke("[UdpConnection] " + e.Message);
             Console.WriteLine("[UdpConnection] " + e.Message);
         }
-
-
-        lock (handler)
+        finally
         {
-            dataReceivedQueue?.Enqueue(dataReceived);
+            lock (handler)
+            {
+                dataReceivedQueue?.Enqueue(dataReceived);
+            }
+            connection.BeginReceive(OnReceive, null);
         }
-        connection.BeginReceive(OnReceive, null);
     }
 
     public void Send(byte[] data)
