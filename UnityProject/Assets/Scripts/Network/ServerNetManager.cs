@@ -6,12 +6,7 @@ using System.Net;
 using RojoinNetworkSystem;
 using UnityEngine;
 
-public enum GameState
-{
-    WaitingForPlayers,
-    CooldownUntilStart,
-    GameHasStarted
-}
+
 
 public class ServerNetManager : NetworkManager
 {

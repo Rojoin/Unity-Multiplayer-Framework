@@ -1,9 +1,20 @@
-﻿namespace MatchMaker;
+﻿using RojoinNetworkSystem;
+
+namespace MatchMaker;
 
 class Program
 {
     static void Main(string[] args)
     {
-        Console.WriteLine("Hello, World!");
+        MatchMaker mm = new MatchMaker();
+        bool isMatchMakerOn = true;
+        while (isMatchMakerOn)
+        {
+            mm.OnUpdate();
+            if (Console.ReadKey().Key == ConsoleKey.Y)
+            {
+                isMatchMakerOn = false;
+            }
+        }
     }
 }

@@ -8,7 +8,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\RojoinNetworkSystem\RojoinNetworkSystem.csproj" />
+      <Reference Include="RojoinNetworkSystem">
+        <HintPath>lib\RojoinNetworkSystem.dll</HintPath>
+      </Reference>
     </ItemGroup>
+
+    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+      <Exec Command="xcopy &quot;$(TargetDir)$(TargetName).exe&quot; &quot;$(ProjectDir)..\Builds&quot; /Y" />
+    </Target>
 
 </Project>

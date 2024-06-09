@@ -7,4 +7,14 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+      <Reference Include="RojoinNetworkSystem">
+        <HintPath>lib\RojoinNetworkSystem.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
+    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+      <Exec Command="xcopy &quot;$(TargetDir)$(TargetName).exe&quot; &quot;$(ProjectDir)..\Builds&quot; /Y" />
+    </Target>
+
 </Project>

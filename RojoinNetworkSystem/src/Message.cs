@@ -10,6 +10,7 @@ namespace RojoinNetworkSystem
         Error = -3,
         HandShake = -2,
         HandShakeOk = -1,
+        ServerDir = 0,
         Position = 1,
         String = 2,
         Ping,
@@ -225,6 +226,63 @@ namespace RojoinNetworkSystem
         public static List<Player> DeserializeStatic(byte[] message)
         {
             NetHandShakeOK aux = new NetHandShakeOK();
+            return aux.Deserialize(message);
+        }
+    }
+
+    public class NetServerDirection : OrderableMessage<(string, int)>
+    {
+        private const MessageFlags DefaultFlags =
+            MessageFlags.CheckSum | MessageFlags.Ordenable | MessageFlags.Important;
+
+        public NetServerDirection((string, int) newData, MessageFlags messageFlags = DefaultFlags)
+        {
+            Data = newData;
+            MsgType = MessageType.ServerDir;
+            Flags = messageFlags;
+        }
+
+        public NetServerDirection() : base()
+        {
+            MsgType = MessageType.ServerDir;
+        }
+
+        public override byte[] Serialize(int newPlayerId)
+        {
+            List<byte> outData = new List<byte>();
+
+            int listSize = Data.Item1.Length;
+            BasicSerialize(outData, MsgType, newPlayerId);
+            outData.AddRange(BitConverter.GetBytes(listSize));
+
+            for (int i = 0; i < Data.Item1.Length; i++)
+            {
+                outData.Add((byte)Data.Item1[i]);
+            }
+
+            outData.AddRange(BitConverter.GetBytes(Data.Item2));
+            DataCheckSumEncryption(outData);
+            return outData.ToArray();
+        }
+
+        public override (string, int) Deserialize(byte[] message)
+        {
+            (string, int) outData;
+            outData.Item1 = "";
+            int max = BitConverter.ToInt32(message, offsetSize);
+            for (int i = 0; i < max; i++)
+            {
+                outData.Item1 += (char)message[offsetSize + 4 + i];
+            }
+            outData.Item2 = BitConverter.ToInt32(message, offsetSize + 4 + max);
+            Data.Item1 = outData.Item1;
+            Data.Item2 = outData.Item2;
+            return outData;
+        }
+
+        public static (string, int) DeserializeStatic(byte[] message)
+        {
+            NetServerDirection aux = new NetServerDirection();
             return aux.Deserialize(message);
         }
     }

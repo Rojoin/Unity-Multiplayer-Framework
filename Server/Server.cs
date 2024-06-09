@@ -33,9 +33,19 @@ class Server : IReceiveData
     private bool closeServer;
     public Server(ref bool isServerRunning)
     {
+        CreateServer(out isServerRunning,port);
+    }
+    public Server(ref bool isServerRunning, int newPort)
+    {
+        CreateServer(out isServerRunning,newPort);
+    }
+
+    private void CreateServer(out bool isServerRunning, int serverPort)
+    {
         lastImportantMessages.Clear();
         players.Clear();
         clientId = 0;
+        port = serverPort;
         countdownUntilGameStart = timerUntilStart;
         connection = new UdpConnection(port, CouldntCreateUDPConnection, this);
         BaseMessage.PlayerID = -10;
@@ -44,6 +54,7 @@ class Server : IReceiveData
         timerInGame = 120;
         isServerRunning = true;
     }
+
 
     ~Server()
     {
