@@ -11,10 +11,6 @@ class Program
         while (isMatchMakerOn)
         {
             mm.OnUpdate();
-            if (Console.ReadKey().Key == ConsoleKey.Y)
-            {
-                isMatchMakerOn = false;
-            }
         }
     }
 }

@@ -14,7 +14,7 @@
     </ItemGroup>
 
     <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-      <Exec Command="xcopy &quot;$(TargetDir)$(TargetName).exe&quot; &quot;$(ProjectDir)..\Builds&quot; /Y" />
+      <Exec Command="xcopy &quot;$(TargetDir)$(TargetName).exe&quot; &quot;$(ProjectDir)..\Builds&quot; /Y&#xA;xcopy &quot;$(TargetDir)$(TargetName).dll&quot; &quot;$(ProjectDir)..\Builds&quot; /Y&#xA;xcopy &quot;$(TargetDir)$(TargetName).exe&quot; &quot;$(ProjectDir)..\MatchMaker\bin\Debug\net7.0&quot; /Y&#xA;xcopy &quot;$(TargetDir)$(TargetName).dll&quot; &quot;$(ProjectDir)..\MatchMaker\bin\Debug\net7.0&quot; /Y" />
     </Target>
 
 </Project>

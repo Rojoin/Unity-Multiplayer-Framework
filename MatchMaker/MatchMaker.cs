@@ -32,7 +32,7 @@ class MatchMaker : IReceiveData
 
     private void OnError(string obj)
     {
-       
+       Console.WriteLine(obj);
     }
     ~MatchMaker()
     {

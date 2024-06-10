@@ -199,11 +199,8 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 connection.Close();
                 NetServerDirection messageReceived = new NetServerDirection();
                 (string, int) connectionData = messageReceived.Deserialize(data);
-
                 IPAddress newAdressToConnect = IPAddress.Parse(connectionData.Item1);
-                port = System.Convert.ToInt32(connectionData.Item2);
-                int newPortToConnect = port;
-                connection.Close();
+                int newPortToConnect = System.Convert.ToInt32(connectionData.Item2);
                 connection = new UdpConnection(newAdressToConnect, newPortToConnect, tagName, CouldntCreateUDPConnection, this);
                 break;
             case MessageType.Timer:
