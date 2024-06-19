@@ -2,19 +2,20 @@
 
 namespace RojoinNetworkSystem
 {
-    public class Attribute : System.Attribute
+    public class NetValue : Attribute
     {
         public MessageFlags messageFlags;
         public int id;
 
-        public Attribute(int id, MessageFlags flags = MessageFlags.None)
+        public NetValue(int id, MessageFlags flags = MessageFlags.CheckSum)
         {
             this.id = id;
             messageFlags = flags;
         }
     }
 
-    public class NetNotSync : System.Attribute
+    public class NetNotSync : Attribute
     {
+
     }
 }
