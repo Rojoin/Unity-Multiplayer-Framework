@@ -57,49 +57,57 @@ namespace RojoinNetworkSystem
         {
             netObjects.Add(netObject);
         }
+        
 
-        void GetObjectsToSend()
-        {
-            foreach (T ne in netObjects)
-            {
-                if (ne.GetOwner() == owner)
-                {
-                    Type aux = ne.GetType();
-                }
-            }
-        }
-
-        public void CheckNetObjects()
+        public void CheckNetObjectsToSend()
         {
             foreach (T netObject in netObjects)
             {
-                List<int> route = new List<int>();
-                InspectCreateMessage(netObject.GetType(), netObject, route);
+                if (netObject.GetOwner() == owner)
+                {
+                    Stack<int> route = new Stack<int>();
+                    InspectCreateMessage(netObject.GetType(), netObject, netObject.GetID(), route);
+                }
             }
         }
 
-        public void CreateMessage(Type type, object obj)
+        public void ChangeExternalNetObjects(object data, List<int> route, int objId)
         {
-            if (obj != null)
+            foreach (T netObject in netObjects)
             {
-                foreach (FieldInfo info in type.GetFields(BindingFlags.NonPublic | BindingFlags.Public |
-                                                          BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                int iterator = 0;
+                if (owner != netObject.GetOwner())
                 {
-                    NetValue customAttribute = info.GetCustomAttribute<NetValue>();
-                    if (customAttribute != null)
+                    if (objId == netObject.GetID())
                     {
-                        //TODO:Create Message
-                    }
-
-                    if (type.BaseType != null)
-                    {
-                        // InspectCreateMessage(type.BaseType, obj);
+                        InspectDataToChange(netObject.GetType(), netObject, netObject.GetID(), route, iterator);
                     }
                 }
             }
         }
 
-        public void InspectCreateMessage(Type type, object obj, List<int> route)
+
+        public void InspectCreateMessage(Type type, object obj, int objID, Stack<int> route)
+        {
+            if (obj != null)
+            {
+                Stack<int> listBeforeIteration = new Stack<int>(route);
+                foreach (FieldInfo info in type.GetFields(BindingFlags.NonPublic | BindingFlags.Public |
+                                                          BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                {
+                    route = listBeforeIteration;
+                    NetValue netValue = info.GetCustomAttribute<NetValue>();
+                    if (netValue != null)
+                    {
+                        route.Push(netValue.id);
+                        ReadValue(info, obj, objID, route, netValue);
+                        route.Pop();
+                    }
+                }
+            }
+        }
+
+        public void InspectDataToChange(Type type, object obj, object data, List<int> route, int iterator)
         {
             if (obj != null)
             {
@@ -107,62 +115,56 @@ namespace RojoinNetworkSystem
                                                           BindingFlags.Instance | BindingFlags.DeclaredOnly))
                 {
                     NetValue netValue = info.GetCustomAttribute<NetValue>();
-
-                    if (netValue != null)
+                    if (netValue != null && netValue.id == route[iterator])
                     {
-                        //BUG: Change postion of list
-                        route.Add(netValue.id);
-                        //1
-                        ReadValue(info, obj, route, netValue);
+                        iterator++;
+
+                        if (iterator >= route.Count)
+                        {
+                            SetValues(info, obj, data);
+                        }
+                        else if (iterator < route.Count)
+                        {
+                            if (typeof(System.Collections.ICollection).IsAssignableFrom(info.FieldType))
+                            {
+                                foreach (object item in (info.GetValue(obj) as System.Collections.ICollection))
+                                {
+                                    InspectDataToChange(info.FieldType, obj, data, route, iterator);
+                                }
+                            }
+                            else
+                            {
+                                InspectDataToChange(info.FieldType, obj, data, route, iterator);
+                            }
+                        }
                     }
-
-                    //      ReadValue(info, obj);
-                }
-
-                if (type.BaseType != null)
-                {
-                    InspectCreateMessage(type.BaseType, obj);
                 }
             }
+        }
+
+        private void SetValues(FieldInfo info, object obj, object data)
+        {
+            info.SetValue(obj, data);
         }
 
         //1
-        public void ReadValue(FieldInfo info, object obj, List<int> route, NetValue value)
+        public void ReadValue(FieldInfo info, object obj, int objID, Stack<int> route, NetValue value)
         {
             if (info.FieldType.IsValueType || info.FieldType == typeof(string) || info.FieldType.IsEnum)
             {
-                // Debug.Log(info.Name + ": " + info.GetValue(obj));
-                //SendMessage(info, obj, value,route)
+                List<int> valuesRoute = new List<int>(route);
+                SendMessage(info, obj, objID, valuesRoute, value);
             }
             else if (typeof(System.Collections.ICollection).IsAssignableFrom(info.FieldType))
             {
                 foreach (object item in (info.GetValue(obj) as System.Collections.ICollection))
                 {
-                    InspectCreateMessage(item.GetType(), item);
+                    InspectCreateMessage(item.GetType(), obj, objID, route);
                 }
             }
             else
             {
-                InspectCreateMessage(info.FieldType, info.GetValue(obj));
-            }
-        }
-
-        public void SetValues(FieldInfo info, object obj, object data)
-        {
-            if (info.FieldType.IsValueType || info.FieldType == typeof(string) || info.FieldType.IsEnum)
-            {
-                info.SetValue(obj, data);
-            }
-            else if (typeof(System.Collections.ICollection).IsAssignableFrom(info.FieldType))
-            {
-                foreach (object item in (info.GetValue(obj) as System.Collections.ICollection))
-                {
-                    InspectCreateMessage(item.GetType(), item);
-                }
-            }
-            else
-            {
-                InspectCreateMessage(info.FieldType, info.GetValue(obj));
+                InspectCreateMessage(info.FieldType, info.GetValue(obj), objID, route);
             }
         }
 
@@ -173,7 +175,8 @@ namespace RojoinNetworkSystem
 
             foreach (Type currentType in executingAssembly.GetTypes())
             {
-                if (currentType.BaseType != null && currentType.IsClass && currentType.BaseType.IsGenericType)
+                if (currentType.BaseType != null && currentType.IsGenericType &&
+                    currentType.BaseType.GetGenericTypeDefinition() == typeof(INetObjectMessage<>))
                 {
                     Type[] generic = currentType.BaseType.GetGenericArguments();
                     foreach (Type arg in generic)
@@ -191,9 +194,9 @@ namespace RojoinNetworkSystem
                             if (ctor != null)
                             {
                                 object message = ctor.Invoke(parameters);
-                               var a = (message as BaseMessage );
-                               a.Serialize();
-                               //Todo: Send message
+                                var a = (message as BaseMessage);
+                                a.Serialize();
+                                //Todo: Send message
                             }
                         }
                     }
