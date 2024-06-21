@@ -51,21 +51,21 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     private void SendHitted(int obj)
     {
-        NetDamage netDamage = new NetDamage(obj);
-        byte[] serialize = netDamage.Serialize();
-        Debug.Log($"I have send the damagewith id {clientId}");
-        SendToServer(serialize);
+        // NetTRS netTRS = new NetTRS(obj);
+        // byte[] serialize = netTRS.Serialize();
+        // Debug.Log($"I have send the damagewith id {clientId}");
+        // SendToServer(serialize);
     }
 
     private void SendBulletRequest(int type, Vector3 pos, Vector3 forw)
     {
-        System.Numerics.Vector3 posToSend = new System.Numerics.Vector3(pos.x,pos.y,pos.z);
-        System.Numerics.Vector3 forwToSend = new System.Numerics.Vector3(forw.x,forw.y,forw.z);
-        NetSpawnObject netSpawnObject = new NetSpawnObject(type, posToSend, forwToSend);
-        byte[] serialize = netSpawnObject.Serialize();
-        SendToServer(serialize);
-        AddMessageToCacheList(MessageType.AskForObject, serialize.ToList(), NetByteTranslator.GetMesaggeID(serialize),
-            true);
+        // System.Numerics.Vector3 posToSend = new System.Numerics.Vector3(pos.x,pos.y,pos.z);
+        // System.Numerics.Vector3 forwToSend = new System.Numerics.Vector3(forw.x,forw.y,forw.z);
+        // NetSpawnObject netSpawnObject = new NetSpawnObject(type, posToSend, forwToSend);
+        // byte[] serialize = netSpawnObject.Serialize();
+        // SendToServer(serialize);
+        // AddMessageToCacheList(MessageType.AskForObject, serialize.ToList(), NetByteTranslator.GetMesaggeID(serialize),
+        //     true);
     }
 
 
@@ -140,7 +140,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         NetConsole message = new(text);
         byte[] serialize = message.Serialize();
         SendToServer(serialize);
-        AddMessageToCacheList(MessageType.String, serialize.ToList(), NetByteTranslator.GetMesaggeID(serialize), true);
+        AddMessageToCacheList(MessageType.Message, serialize.ToList(), NetByteTranslator.GetMesaggeID(serialize), true);
     }
 
     public override void OnReceiveDataEvent(byte[] data, IPEndPoint ep = null)
@@ -172,7 +172,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
             case MessageType.Position:
                 CheckPlayerPos(data, flags);
                 break;
-            case MessageType.String:
+            case MessageType.Message:
                 CheckChatMessage(data, getMessageID, type, playerID, isImportant);
                 break;
             case MessageType.HandShakeOk:
@@ -189,10 +189,8 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 break;
             case MessageType.Error:
                 break;
-            case MessageType.PositionAndRotation:
-                CheckBulletPosition(data, type, getMessageID, playerID, isImportant);
                 break;
-            case MessageType.Damage:
+            case MessageType.TRS:
                 //CheckPlayerDamage(data, playerID);
                 break;
             case MessageType.ServerDir:
@@ -243,26 +241,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         //  int damageData = damage.Deserialize(data);
         //  Debug.Log($"Player id {playerID}");
     }
-
-    private void CheckBulletPosition(byte[] data, MessageType type, ulong getMessageID, int playerID, bool isImportant)
-    {
-        NetPositionAndRotation newPosAndRot = new NetPositionAndRotation();
-        MessageCache msg = new MessageCache(type, data.ToList(), getMessageID);
-        if (IsTheNextMessage(type, msg, newPosAndRot))
-        {
-            AddMessageToCacheList(MessageType.String, data.ToList(), getMessageID, false);
-            (int, int, System.Numerics.Vector3, System.Numerics.Vector3) bullet = newPosAndRot.Deserialize(data);
-            
-            OnCreatedBullet.RaiseEvent(playerID,bullet.Item3.ToUnityVector3(), bullet.Item4.ToUnityVector3());
-            if (isImportant)
-            {
-                //Debug.Log("Confirmation Message" + getMessageID);
-                NetConfirmation confirmation = new NetConfirmation((type, getMessageID));
-                SendToServer(confirmation.Serialize());
-            }
-        }
-    }
-
+    
     private void CheckConfirmation(byte[] data)
     {
         // Debug.Log("Confirmation Message Appears");
@@ -275,15 +254,14 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         ulong getMessageID;
         if (flags.HasFlag(MessageFlags.Ordenable))
         {
-            NetPlayerPos netPlayerPos = new NetPlayerPos();
             getMessageID = NetByteTranslator.GetMesaggeID(data);
-            MessageCache msg = new MessageCache(netPlayerPos.GetMessageType(), data.ToList(), getMessageID);
-            if (IsTheLastMesagge(MessageType.Position, msg))
-            {
-                (System.Numerics.Vector3, int) dataReceived;
-                dataReceived = netPlayerPos.Deserialize(data);
-                OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1.ToUnityVector3());
-            }
+            // MessageCache msg = new MessageCache(netPlayerPos.GetMessageType(), data.ToList(), getMessageID);
+            // if (IsTheLastMesagge(MessageType.Position, msg))
+            // {
+            //     (System.Numerics.Vector3, int) dataReceived;
+            //     dataReceived = netPlayerPos.Deserialize(data);
+            //     OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1.ToUnityVector3());
+            // }
         }
     }
 
@@ -296,7 +274,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         {
             string idName = playerID != -10 ? GetPlayer(playerID).nameTag + ":" : "Server:";
             OnChatMessage.Invoke(idName + message.Deserialize(data));
-            AddMessageToCacheList(MessageType.String, data.ToList(), getMessageID, false);
+            AddMessageToCacheList(MessageType.Message, data.ToList(), getMessageID, false);
             if (isImportant)
             {
                 Debug.Log("Confirmation Message" + getMessageID);
@@ -467,7 +445,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     private void SendPosition(Vector3 newPos)
     {
-        NetPlayerPos netPlayerPos = new NetPlayerPos(newPos.ToSystemVector3(), clientId);
-        SendToServer(netPlayerPos.Serialize());
+        // NetPlayerPos netPlayerPos = new NetPlayerPos(newPos.ToSystemVector3(), clientId);
+        // SendToServer(netPlayerPos.Serialize());
     }
 }

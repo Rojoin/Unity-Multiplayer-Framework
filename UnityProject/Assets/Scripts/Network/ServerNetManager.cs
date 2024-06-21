@@ -436,9 +436,9 @@ public class ServerNetManager : NetworkManager
             case MessageType.Position when clients.ContainsKey(playerID):
                 CheckPositionMessage(data, flags, playerID);
                 break;
-            case MessageType.String when !clients.ContainsKey(playerID):
+            case MessageType.Message when !clients.ContainsKey(playerID):
                 break;
-            case MessageType.String:
+            case MessageType.Message:
                 CheckChatMessage(data, ep, playerID, type, getMessageID, isImportant);
                 break;
             case MessageType.Exit when clients.ContainsKey(playerID):
@@ -456,9 +456,9 @@ public class ServerNetManager : NetworkManager
                 break;
 
             case MessageType.AskForObject when clients.ContainsKey(playerID):
-                CheckAskForBullet(data, ep, playerID, type, getMessageID, isImportant);
+               // CheckAskForBullet(data, ep, playerID, type, getMessageID, isImportant);
                 break;
-            case MessageType.Damage:
+            case MessageType.TRS:
                 CheckDamage(data, playerID, ep);
                 break;
         }
@@ -467,46 +467,9 @@ public class ServerNetManager : NetworkManager
     //Todo: Add damage indicator
     private void CheckDamage(byte[] data, int playerID, IPEndPoint ip)
     {
-        NetDamage netDamage = new NetDamage();
-        var damageData = netDamage.Deserialize(data);
-        if (damageData == playerID)
-        {
-            Debug.Log($"Player {playerID} has been killed.");
-            NetExit netExit = new NetExit("You have been eliminated.");
-            SendToClient(netExit.Serialize(), ip);
-            DisconnectPlayer(clients[playerID]);
-        }
+    
     }
-
-    private void CheckAskForBullet(byte[] data, IPEndPoint ep, int playerID, MessageType type, ulong getMessageID,
-        bool isImportant)
-    {
-        NetSpawnObject objectToSpawn = new NetSpawnObject();
-        MessageCache messageToCheck = new MessageCache(objectToSpawn.GetMessageType(), data.ToList(), getMessageID);
-        if (clients[playerID].IsTheNextMessage(type, messageToCheck, objectToSpawn))
-        {
-            var newData = objectToSpawn.Deserialize(data);
-            NetPositionAndRotation netPositionAndRotation =
-                new NetPositionAndRotation((int)getMessageID, newData.Item1, newData.Item2, newData.Item3);
-            byte[] messageDataToSend = netPositionAndRotation.Serialize(playerID);
-
-            if (_gameState == GameState.GameHasStarted)
-            {
-                Broadcast(messageDataToSend);
-                OnCreatedBullet.RaiseEvent(playerID, newData.Item2.ToUnityVector3(), newData.Item3.ToUnityVector3());
-                //Debug.Log($"Forwards was:{newData.Item3}");
-                AddImportantMessageToClients(data, MessageType.PositionAndRotation,
-                    NetByteTranslator.GetMesaggeID(messageDataToSend), true);
-            }
-
-            if (isImportant)
-            {
-                //       Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
-                NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
-                SendToClient(netConfirmation.Serialize(), ep);
-            }
-        }
-    }
+    
 
     private void CheckHandShake(byte[] data, IPEndPoint ep)
     {
@@ -545,20 +508,20 @@ public class ServerNetManager : NetworkManager
         ulong getMessageID;
         if (flags.HasFlag(MessageFlags.Ordenable))
         {
-            NetPlayerPos netPlayerPos = new NetPlayerPos();
+          //  NetPlayerPos netPlayerPos = new NetPlayerPos();
             getMessageID = NetByteTranslator.GetMesaggeID(data);
-            MessageCache msgToCache = new MessageCache(netPlayerPos.GetMessageType(), data.ToList(), getMessageID);
-            if (clients[playerID].IsTheLastMesagge(MessageType.Position, msgToCache))
-            {
-                var dataReceived = netPlayerPos.Deserialize(data);
-                OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1.ToUnityVector3());
-                NetPlayerPos playerPosToSend = new NetPlayerPos(dataReceived.Item1, dataReceived.Item2);
-                SendToEveryoneExceptClient(playerPosToSend.Serialize(playerID), playerID);
-            }
-            else
-            {
-                Debug.Log("Wasnt the last");
-            }
+          //  MessageCache msgToCache = new MessageCache(netPlayerPos.GetMessageType(), data.ToList(), getMessageID);
+            // if (clients[playerID].IsTheLastMesagge(MessageType.Position, msgToCache))
+            // {
+            //     var dataReceived = netPlayerPos.Deserialize(data);
+            //     OnPlayerMoved.RaiseEvent(dataReceived.Item2, dataReceived.Item1.ToUnityVector3());
+            //     NetPlayerPos playerPosToSend = new NetPlayerPos(dataReceived.Item1, dataReceived.Item2);
+            //     SendToEveryoneExceptClient(playerPosToSend.Serialize(playerID), playerID);
+            // }
+            // else
+            // {
+            //     Debug.Log("Wasnt the last");
+            // }
         }
     }
 
