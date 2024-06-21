@@ -14,6 +14,8 @@ namespace RojoinNetworkSystem
         }
     }
 
+    //Todo: add a way to syncronyze TRS
+    //Maybe check if object inheriths from Monobehaviour and take the transform 
     public class NetNotSync : Attribute
     {
 

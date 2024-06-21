@@ -1,12 +1,16 @@
-﻿namespace RojoinNetworkSystem
+﻿using System;
+using System.Collections.Generic;
+using System.Numerics;
+
+namespace RojoinNetworkSystem
 {
     public interface INetObject
     {
         int GetID();
         int GetOwner();
         NetObject GetObject();
-
     }
+
     public class NetObject
     {
         public int id;
