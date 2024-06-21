@@ -1,0 +1,172 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &9129184151379659106
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5447296571653415456}
+  - component: {fileID: 457917307280148397}
+  - component: {fileID: 7639079347095868083}
+  m_Layer: 0
+  m_Name: NetworkManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5447296571653415456
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9129184151379659106}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 648.8062, y: 449.30316, z: -80}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &457917307280148397
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9129184151379659106}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d79dc5cad72c4f66933556af1e1e491f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  timeOut: 10
+  players: []
+  tagName: 
+  clientId: 0
+  OnPlayerDisconnect:
+    m_PersistentCalls:
+      m_Calls: []
+  OnServerDisconnect:
+    m_PersistentCalls:
+      m_Calls: []
+  OnNewPlayer:
+    m_PersistentCalls:
+      m_Calls: []
+  OnChatMessage:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 0}
+        m_TargetAssemblyTypeName: ChatScreen, Assembly-CSharp
+        m_MethodName: AddText
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+  OnMessageCreatedChannel: {fileID: 11400000, guid: e1a90e195c8ed7a45806d0ad2bedbe2f,
+    type: 2}
+  OnCloseNetworkChannel: {fileID: 11400000, guid: ad82cbf0d0a497c49879e682d0570fbf,
+    type: 2}
+  OnPlayerCreated: {fileID: 11400000, guid: 4db4d9badad70774fa39b4bd0c40115d, type: 2}
+  OnPlayerMoved: {fileID: 11400000, guid: 4bd1501dcbb042441bf045428db9cbc0, type: 2}
+  OnPlayerDestroyed: {fileID: 11400000, guid: 6153af112f5632544b308a355f162cbe, type: 2}
+  AskforBulletChannelSo: {fileID: 11400000, guid: 950ba96a2acb83443b4140350ecf1ece,
+    type: 2}
+  OnCreatedBullet: {fileID: 11400000, guid: a405b06c0a551ae4188296e9e623b51e, type: 2}
+  OnErrorMessage: {fileID: 11400000, guid: 223e10691f67ae24094e284a20f386b4, type: 2}
+  OnTimerChanged: {fileID: 11400000, guid: 482557e085062e74990fc72406fce90e, type: 2}
+  OnResendMessage:
+    m_PersistentCalls:
+      m_Calls: []
+  timeUntilResend: 15
+  isConnected: 0
+  OnMsUpdated:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 0}
+        m_TargetAssemblyTypeName: ChatScreen, Assembly-CSharp
+        m_MethodName: UpdateMsWithServer
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+  OnMyPlayerCreated: {fileID: 11400000, guid: 811ae01799f8b1c4f86dcec49d5a2dd4, type: 2}
+  OnHittedPlayer: {fileID: 11400000, guid: 86b6dbc34bac2c347acca1f502c4b6cc, type: 2}
+  OnMyPlayerMoved: {fileID: 11400000, guid: 88e35fbf41b0b0649a12cfb82a93e968, type: 2}
+--- !u!114 &7639079347095868083
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9129184151379659106}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: edbaca3e21e74979b0b56995d3d190d6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  timeOut: 10
+  players: []
+  tagName: 
+  clientId: 0
+  OnPlayerDisconnect:
+    m_PersistentCalls:
+      m_Calls: []
+  OnServerDisconnect:
+    m_PersistentCalls:
+      m_Calls: []
+  OnNewPlayer:
+    m_PersistentCalls:
+      m_Calls: []
+  OnChatMessage:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 0}
+        m_TargetAssemblyTypeName: ChatScreen, Assembly-CSharp
+        m_MethodName: AddText
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+  OnMessageCreatedChannel: {fileID: 11400000, guid: e1a90e195c8ed7a45806d0ad2bedbe2f,
+    type: 2}
+  OnCloseNetworkChannel: {fileID: 11400000, guid: ad82cbf0d0a497c49879e682d0570fbf,
+    type: 2}
+  OnPlayerCreated: {fileID: 11400000, guid: 4db4d9badad70774fa39b4bd0c40115d, type: 2}
+  OnPlayerMoved: {fileID: 11400000, guid: 4bd1501dcbb042441bf045428db9cbc0, type: 2}
+  OnPlayerDestroyed: {fileID: 11400000, guid: 6153af112f5632544b308a355f162cbe, type: 2}
+  AskforBulletChannelSo: {fileID: 11400000, guid: 950ba96a2acb83443b4140350ecf1ece,
+    type: 2}
+  OnCreatedBullet: {fileID: 11400000, guid: a405b06c0a551ae4188296e9e623b51e, type: 2}
+  OnErrorMessage: {fileID: 11400000, guid: 223e10691f67ae24094e284a20f386b4, type: 2}
+  OnTimerChanged: {fileID: 11400000, guid: 482557e085062e74990fc72406fce90e, type: 2}
+  OnResendMessage:
+    m_PersistentCalls:
+      m_Calls: []
+  timeUntilResend: 5
+  showPing: 0
+  timerUntilStart: 30
+  playerLimit: 4
+  OnGameEnding: {fileID: 11400000, guid: e43b04731a0cc084a9be8ed75e4fb410, type: 2}
+  gameManager: {fileID: 0}
+  minimunPlayerToInitiate: 2
