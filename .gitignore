@@ -33,8 +33,9 @@
 ExportedObj/
 .consulo/
 UnityProject/*.csproj
+UnityProject/*.sln
 *.unityproj
-*.sln
+.sln
 *.suo
 *.tmp
 *.user
