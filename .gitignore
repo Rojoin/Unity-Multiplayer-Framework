@@ -74,6 +74,8 @@ crashlytics-build.properties
 **/bin/
 **/obj/
 /.idea/
+/UnityProject_clone_0/
+/UnityProject_clone_1/
 UnityProject/.idea/
 # Default ignored files
 **/shelf/

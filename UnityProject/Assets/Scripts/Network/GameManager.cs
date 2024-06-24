@@ -5,14 +5,14 @@ using ScriptableObjects;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Serialization;
-using UnityEngine.UI;
+
 
 public class GameManager : MonoBehaviour
 {
     [SerializeField] private List<Transform> spawnPosition;
     [SerializeField] private List<PlayerController> players;
     [SerializeField] private GameObject playerPrefab;
-    [SerializeField] private Text timerText;
+   // [SerializeField] private Text timerText;
     public int maxPlayers = 4;
     public float timer = 120;
     private bool isFirstTime = false;
@@ -43,7 +43,7 @@ public class GameManager : MonoBehaviour
         OnTimerChanged.Subscribe(ChangeTimer);
         currentPlayersConnected = 0;
         isFirstTime = true;
-        timerText.text = "";
+     //   timerText.text = "";
     }
 
 
@@ -57,7 +57,7 @@ public class GameManager : MonoBehaviour
         timer -= obj;
         TimeSpan time = TimeSpan.FromSeconds(timer);
         string str = time.ToString(@"hh\:mm\:ss\:fff");
-        timerText.text = str;
+       // timerText.text = str;
     }
 
     public void SetAllPlayerPos()

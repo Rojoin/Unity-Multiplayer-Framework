@@ -31,13 +31,15 @@ class Server : IReceiveData
     private float timeUntilResend = 3.0f;
     private IReceiveData _receiveDataImplementation;
     private bool closeServer;
+
     public Server(ref bool isServerRunning)
     {
-        CreateServer(out isServerRunning,port);
+        CreateServer(out isServerRunning, port);
     }
+
     public Server(ref bool isServerRunning, int newPort)
     {
-        CreateServer(out isServerRunning,newPort);
+        CreateServer(out isServerRunning, newPort);
     }
 
     private void CreateServer(out bool isServerRunning, int serverPort)
@@ -137,47 +139,47 @@ class Server : IReceiveData
                     iterator.Current.Value.timer += delta;
                     if (iterator.Current.Value.timer >= timeOut && iterator.Current.Value.isActive)
                     {
-                        DisconnectPlayer(iterator.Current.Value);
+                        //    DisconnectPlayer(iterator.Current.Value);
                     }
                 }
             }
 
-            ClearInactiveClients();
-            if (_gameState == GameState.GameHasStarted)
-            {
-                if (clients.Count < 2)
-                {
-                    NetExit winnerMessage = new("You have won!");
-                    Broadcast(winnerMessage.Serialize());
-                    isServerRunning = false;
-                }
-                else
-                {
-                    timerInGame -= delta;
-                    if (timerInGame > 0)
-                    {
-                        NetTime newTime = new NetTime(delta);
-                        Broadcast(newTime.Serialize());
-                    }
-                    else
-                    {
-                        NetExit disconnectAll = new NetExit(GetPlayerVictoryString());
-                        Broadcast(disconnectAll.Serialize());
-                    }
-                }
-            }
-
-            if (_gameState == GameState.CooldownUntilStart)
-            {
-                countdownUntilGameStart -= delta;
-                if (countdownUntilGameStart < 0)
-                {
-                    _gameState = GameState.GameHasStarted;
-                    //Todo:Change to have send all players initial pos
-                    //   gameManager.SetAllPlayerPos();
-                    CreateMessage("Server:Go");
-                }
-            }
+            // ClearInactiveClients();
+            // if (_gameState == GameState.GameHasStarted)
+            // {
+            //     if (clients.Count < 2)
+            //     {
+            //         NetExit winnerMessage = new("You have won!");
+            //         Broadcast(winnerMessage.Serialize());
+            //         isServerRunning = false;
+            //     }
+            //     else
+            //     {
+            //         timerInGame -= delta;
+            //         if (timerInGame > 0)
+            //         {
+            //             NetTime newTime = new NetTime(delta);
+            //             Broadcast(newTime.Serialize());
+            //         }
+            //         else
+            //         {
+            //             NetExit disconnectAll = new NetExit(GetPlayerVictoryString());
+            //             Broadcast(disconnectAll.Serialize());
+            //         }
+            //     }
+            // }
+            //
+            // if (_gameState == GameState.CooldownUntilStart)
+            // {
+            //     countdownUntilGameStart -= delta;
+            //     if (countdownUntilGameStart < 0)
+            //     {
+            //         _gameState = GameState.GameHasStarted;
+            //         //Todo:Change to have send all players initial pos
+            //         //   gameManager.SetAllPlayerPos();
+            //         CreateMessage("Server:Go");
+            //     }
+            // }
         }
     }
 
@@ -243,6 +245,17 @@ class Server : IReceiveData
                 break;
             case MessageType.TRS:
                 CheckDamage(data, playerID, ep);
+                break;
+            case MessageType.Float:
+                NetFloat a = new NetFloat();
+                Console.WriteLine($"Converter a mano:{BitConverter.ToSingle(data, 32)}");
+                Console.WriteLine($"Converter Deserialized:{a.Deserialize(data)}");
+                Broadcast(data);
+                break;
+            case MessageType.Char:
+                //  CheckDamage(data, playerID, ep);
+                Console.WriteLine("NetMessage appeared");
+                Broadcast(data);
                 break;
         }
     }

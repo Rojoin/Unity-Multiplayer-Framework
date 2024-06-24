@@ -38,34 +38,80 @@ namespace RojoinNetworkSystem
         }
     }
 
-    public class NetworkSystem<T> where T : INetObject
+    public class NetworkSystem
     {
         private Assembly gameAssembly;
         private Assembly executingAssembly;
 
-        private List<T> netObjects = new List<T>();
+        private List<object> netObjects = new List<object>();
         private int owner;
 
-        void StartNetworkSystem(int ownerId)
+        public Action<byte[]> dataToSend;
+        public Action<string> consoleMessage;
+
+        public void StartNetworkSystem(int ownerId)
         {
             gameAssembly = Assembly.GetCallingAssembly();
             executingAssembly = Assembly.GetExecutingAssembly();
             owner = ownerId;
+
+            List<Type> netObjectTypes = GetNetObjectImplementations();
+            foreach (Type netObjectType in netObjectTypes)
+            {
+                consoleMessage?.Invoke($"Found INetObject implementation: {netObjectType.Name}");
+            }
         }
 
-        public void AddNetObject(T netObject)
+        public void StartNetworkSystem(int ownerId, Action<string> consoleMessage)
         {
-            netObjects.Add(netObject);
+            gameAssembly = Assembly.GetCallingAssembly();
+            executingAssembly = Assembly.GetExecutingAssembly();
+            owner = ownerId;
+            this.consoleMessage += consoleMessage;
+            List<Type> netObjectTypes = GetNetObjectImplementations();
+            foreach (Type netObjectType in netObjectTypes)
+            {
+                consoleMessage?.Invoke($"Found INetObject implementation: {netObjectType.Name}");
+            }
         }
-        
+
+        public void AddNetObject(object netObject)
+        {
+            if (netObject is INetObject)
+            {
+                netObjects.Add(netObject);
+            }
+            else
+            {
+                Console.Error.WriteLine("The item doesnt have the INetObject interface.");
+                consoleMessage.Invoke("The item doesnt have the INetObject interface.");
+            }
+        }
+
+        public List<Type> GetNetObjectImplementations()
+        {
+            List<Type> netObjectTypes = new List<Type>();
+
+            foreach (Type type in gameAssembly.GetTypes())
+            {
+                if (typeof(INetObject).IsAssignableFrom(type) && type.IsClass && !type.IsAbstract)
+                {
+                    netObjectTypes.Add(type);
+                }
+            }
+
+            return netObjectTypes;
+        }
 
         public void CheckNetObjectsToSend()
         {
-            foreach (T netObject in netObjects)
+            //Todo: can crash
+            foreach (INetObject netObject in netObjects)
             {
                 if (netObject.GetOwner() == owner)
                 {
                     Stack<int> route = new Stack<int>();
+                    consoleMessage.Invoke("Preparing Object to send");
                     InspectCreateMessage(netObject.GetType(), netObject, netObject.GetID(), route);
                 }
             }
@@ -73,15 +119,25 @@ namespace RojoinNetworkSystem
 
         public void ChangeExternalNetObjects(object data, List<int> route, int objId)
         {
-            foreach (T netObject in netObjects)
+            foreach (INetObject netObject in netObjects)
             {
                 int iterator = 0;
                 if (owner != netObject.GetOwner())
                 {
+                    consoleMessage.Invoke($"The object id is {objId}  and the owned is{netObject.GetID()}");
+                    consoleMessage.Invoke($"The data is {data}");
                     if (objId == netObject.GetID())
                     {
-                        InspectDataToChange(netObject.GetType(), netObject, netObject.GetID(), route, iterator);
+                        InspectDataToChange(netObject.GetType(), netObject, data, route, iterator);
                     }
+                    else
+                    {
+                        consoleMessage.Invoke("The object has a different ID");
+                    }
+                }
+                else
+                {
+                    consoleMessage.Invoke("The object cant be changed");
                 }
             }
         }
@@ -99,6 +155,7 @@ namespace RojoinNetworkSystem
                     NetValue netValue = info.GetCustomAttribute<NetValue>();
                     if (netValue != null)
                     {
+                        consoleMessage.Invoke($"The object has NetValue {netValue.id}");
                         route.Push(netValue.id);
                         ReadValue(info, obj, objID, route, netValue);
                         route.Pop();
@@ -175,7 +232,7 @@ namespace RojoinNetworkSystem
 
             foreach (Type currentType in executingAssembly.GetTypes())
             {
-                if (currentType.BaseType != null && currentType.IsGenericType &&
+                if (currentType.BaseType != null && currentType.BaseType.IsGenericType &&
                     currentType.BaseType.GetGenericTypeDefinition() == typeof(INetObjectMessage<>))
                 {
                     Type[] generic = currentType.BaseType.GetGenericArguments();
@@ -186,17 +243,23 @@ namespace RojoinNetworkSystem
                             //Create message
                             BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance;
 
+                            consoleMessage?.Invoke($"{objId}");
+                            consoleMessage?.Invoke($"Package of type {packageType}:{package}");
                             Type[] parametersToApply =
                                 { packageType, objId.GetType(), route.GetType(), value.messageFlags.GetType() };
-
                             object[] parameters = new[] { package, objId, route, value.messageFlags };
-                            ConstructorInfo? ctor = currentType.GetConstructor(parametersToApply);
-                            if (ctor != null)
+                            //ConstructorInfo? ctor = currentType.GetConstructor(parametersToApply);
+                            object netMessage = Activator.CreateInstance(currentType, parameters);
+                            if (netMessage != null)
                             {
-                                object message = ctor.Invoke(parameters);
-                                var a = (message as BaseMessage);
-                                a.Serialize();
+                              //  object message = ctor.Invoke(parameters);
+                                //var a = (message as BaseMessage);
+                                BaseMessage message = netMessage as BaseMessage;
+                                consoleMessage?.Invoke($"NetMessage Data: {(message as NetFloat).GetData()}");
+                                byte[] messageToSend = message.Serialize();
+                                consoleMessage?.Invoke($"DeseializedMessage Lib:{BitConverter.ToSingle(messageToSend, 32)}");
                                 //Todo: Send message
+                                dataToSend.Invoke(messageToSend);
                             }
                         }
                     }

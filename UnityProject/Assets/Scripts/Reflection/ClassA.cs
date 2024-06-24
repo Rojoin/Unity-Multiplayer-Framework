@@ -1,24 +1,31 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Reflection;
 using RojoinNetworkSystem;
 using UnityEngine;
 
-public class ClassA
+public class ClassA : MonoBehaviour, INetObject
 {
-    [NetValue(0)] public float publicFloat;
-    [NetValue(1)] private string privateString;
-    [NetValue(2)] protected bool protectedBool;
-    public ClassA()
+    [SerializeField] [NetValue(2)] public float publicFloat = 213;
+    [SerializeField] [NetValue(3)] public char publicChar = 'd';
+    private NetObject _netObject = new NetObject();
+
+    private void Awake()
     {
-        publicFloat = 10.0f;
-        privateString = "patata";
-        protectedBool = true;
+        _netObject.id = 1;
+        _netObject.owner = 1;
+    }
+
+    public int GetID()
+    {
+        return _netObject.id;
+    }
+
+    public int GetOwner()
+    {
+        return _netObject.owner;
+    }
+
+    public NetObject GetObject()
+    {
+        return _netObject;
     }
 }
-
-
-
-
-

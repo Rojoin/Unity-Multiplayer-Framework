@@ -55,7 +55,7 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
         client.ipAddress = ipAddress;
         client.port = port;
         client.enabled = true;
-        gameManager.enabled = true;
+       // gameManager.enabled = true;
         ToggleLoadScreen();
     }
 

@@ -25,6 +25,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     public IntChannelSO OnHittedPlayer;
     private bool hasPositionBeenSet;
 
+    public UnityEvent<object, List<int>, int> OnValueDataReceived;
 
     public Vector3ChannelSO OnMyPlayerMoved;
 
@@ -47,6 +48,13 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         pendingMessages.Clear();
         hasPositionBeenSet = false;
         ((IMessageChecker)this).OnPreviousData.AddListener(OnReceiveDataEvent);
+    }
+
+    [ContextMenu("Test net Message")]
+    private void Test()
+    {
+        NetFloat a = new NetFloat(999, -1, new List<int>());
+        SendToServer(a.Serialize());
     }
 
     private void SendHitted(int obj)
@@ -101,9 +109,9 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     protected override void CouldntCreateUDPConnection(string errorMessage)
     {
-      //  OnErrorMessage.RaiseEvent(errorMessage);
+        //  OnErrorMessage.RaiseEvent(errorMessage);
         Debug.Log(errorMessage);
-    //    ChatScreen.Instance.SwitchToNetworkScreen();
+        //    ChatScreen.Instance.SwitchToNetworkScreen();
     }
 
     protected override void OnUpdate(float deltaTime)
@@ -189,7 +197,6 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 break;
             case MessageType.Error:
                 break;
-                break;
             case MessageType.TRS:
                 //CheckPlayerDamage(data, playerID);
                 break;
@@ -199,11 +206,25 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 (string, int) connectionData = messageReceived.Deserialize(data);
                 IPAddress newAdressToConnect = IPAddress.Parse(connectionData.Item1);
                 int newPortToConnect = System.Convert.ToInt32(connectionData.Item2);
-                connection = new UdpConnection(newAdressToConnect, newPortToConnect, tagName, CouldntCreateUDPConnection, this);
+                connection = new UdpConnection(newAdressToConnect, newPortToConnect, tagName,
+                    CouldntCreateUDPConnection, this);
                 break;
             case MessageType.Timer:
                 NetTime netTime = new NetTime();
                 OnTimerChanged.RaiseEvent(netTime.Deserialize(data));
+                break;
+            case MessageType.Float:
+                NetFloat netFloat = new NetFloat();
+                float aux = netFloat.Deserialize(data);
+                //      Debug.Log(aux); 
+                NetObjectBasicData auxT = netFloat.GetNetObjectData(data);
+                OnValueDataReceived.Invoke(aux, auxT.idValues, auxT.objectType);
+                break;
+            case MessageType.Char:
+                NetChar netChar = new NetChar();
+                char auxC = netChar.Deserialize(data);
+                NetObjectBasicData auxx = netChar.GetNetObjectData(data);
+                OnValueDataReceived.Invoke(auxC, auxx.idValues, auxx.objectType);
                 break;
         }
     }
@@ -241,7 +262,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         //  int damageData = damage.Deserialize(data);
         //  Debug.Log($"Player id {playerID}");
     }
-    
+
     private void CheckConfirmation(byte[] data)
     {
         // Debug.Log("Confirmation Message Appears");
@@ -300,16 +321,16 @@ public class ClientNetManager : NetworkManager, IMessageChecker
             {
                 NetworkScreen.Instance.SwitchToChatScreen();
             }
+
             if (isImportant && isConnected)
             {
                 //    Debug.Log("Confirmation Message" + getMessageID);
                 NetConfirmation confirmation = new NetConfirmation((type, getMessageID));
                 SendToServer(confirmation.Serialize());
             }
+
             isConnected = true;
-
         }
-
     }
 
 
@@ -405,7 +426,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         players = newPlayersList;
     }
 
-    private void SendToServer(byte[] data)
+    public void SendToServer(byte[] data)
     {
         connection.Send(data);
     }

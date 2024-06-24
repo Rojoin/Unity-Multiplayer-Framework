@@ -181,7 +181,11 @@ namespace RojoinNetworkSystem
     public abstract class INetObjectMessage<PayloadType> : OrderableMessage<PayloadType>
     {
         public int objectId;
-        public List<int> valueId;
+        public List<int> valueId = new List<int>();
+
+        public INetObjectMessage()
+        {
+        }
 
         protected INetObjectMessage(PayloadType data, int objId, List<int> valId,
             MessageFlags messageFlags = MessageFlags.CheckSum) : base(data, messageFlags)
@@ -209,7 +213,7 @@ namespace RojoinNetworkSystem
             SetOffset();
         }
 
-        protected NetObjectBasicData GetNetObjectData(byte[] data)
+        public NetObjectBasicData GetNetObjectData(byte[] data)
         {
             int objID = BitConverter.ToInt32(data, 20);
             int listOffset = 24;
@@ -222,13 +226,27 @@ namespace RojoinNetworkSystem
                 idValues.Add(BitConverter.ToInt32(data, listOffset));
             }
 
-            return new NetObjectBasicData(objectId, idValues);
+            return new NetObjectBasicData(objID, idValues);
         }
 
         protected override void SetOffset()
         {
             offsetSize = sizeof(int) * 5 + sizeof(ulong);
             offsetSize += valueId.Count * sizeof(int);
+            Console.WriteLine($"Reading byte:{offsetSize}");
+        }
+
+        protected int GetOffsetByBytes(byte[] data)
+        {
+            int listOffset = 24;
+            int intIndex = BitConverter.ToInt32(data, listOffset);
+
+            for (int i = 0; i < intIndex; i++)
+            {
+                listOffset += 4;
+            }
+
+            return listOffset + 4;
         }
     }
 
@@ -305,6 +323,7 @@ namespace RojoinNetworkSystem
             return aux.Deserialize(message);
         }
     }
+
     public class NetServerDirection : OrderableMessage<(string, int)>
     {
         private const MessageFlags DefaultFlags =
@@ -349,6 +368,7 @@ namespace RojoinNetworkSystem
             {
                 outData.Item1 += (char)message[offsetSize + 4 + i];
             }
+
             outData.Item2 = BitConverter.ToInt32(message, offsetSize + 4 + max);
             Data.Item1 = outData.Item1;
             Data.Item2 = outData.Item2;
@@ -361,6 +381,7 @@ namespace RojoinNetworkSystem
             return aux.Deserialize(message);
         }
     }
+
     public class NetHandShake : BaseMessage<string>
     {
         public NetHandShake(string tag) : base()
@@ -709,9 +730,17 @@ namespace RojoinNetworkSystem
     //11,(lista : 2,2),data
     public class NetFloat : INetObjectMessage<float>
     {
+        public NetFloat() : base()
+        {
+            MsgType = MessageType.Float;
+            SetOffset();
+        }
+
         public NetFloat(float data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
+            Data = data;
+            Console.WriteLine($"Data to change:{Data}");
             MsgType = MessageType.Float;
         }
 
@@ -719,18 +748,27 @@ namespace RojoinNetworkSystem
         {
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, playerId);
+            Console.WriteLine(Data);
             outData.AddRange(BitConverter.GetBytes(Data));
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
         public override float Deserialize(byte[] message)
         {
-            return BitConverter.ToSingle(message, offsetSize);
+            int offsetByBytes = GetOffsetByBytes(message);
+            Console.WriteLine(offsetByBytes);
+            return BitConverter.ToSingle(message, offsetByBytes);
         }
     }
 
     public class NetInt : INetObjectMessage<int>
     {
+        public NetInt() : base()
+        {
+            MsgType = MessageType.Int;
+        }
+
         public NetInt(int data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
@@ -742,12 +780,13 @@ namespace RojoinNetworkSystem
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, playerId);
             outData.AddRange(BitConverter.GetBytes(Data));
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
         public override int Deserialize(byte[] message)
         {
-            return BitConverter.ToInt32(message, offsetSize);
+            return BitConverter.ToInt32(message, GetOffsetByBytes(message));
         }
     }
 
@@ -764,12 +803,13 @@ namespace RojoinNetworkSystem
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, playerId);
             outData.AddRange(BitConverter.GetBytes(Data));
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
         public override uint Deserialize(byte[] message)
         {
-            return BitConverter.ToUInt32(message, offsetSize);
+            return BitConverter.ToUInt32(message, GetOffsetByBytes(message));
         }
     }
 
@@ -786,12 +826,13 @@ namespace RojoinNetworkSystem
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, playerId);
             outData.AddRange(BitConverter.GetBytes(Data));
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
         public override bool Deserialize(byte[] message)
         {
-            return BitConverter.ToBoolean(message, offsetSize);
+            return BitConverter.ToBoolean(message, GetOffsetByBytes(message));
         }
     }
 
@@ -820,10 +861,11 @@ namespace RojoinNetworkSystem
         public override string Deserialize(byte[] message)
         {
             string aux = "";
-            int stringSize = BitConverter.ToInt32(message, offsetSize);
+            int stringSize = BitConverter.ToInt32(message, GetOffsetByBytes(message));
             for (int i = 0; i < stringSize; i++)
             {
-                aux += (char)message[offsetSize + 4 + i];
+                int offsetByBytes = GetOffsetByBytes(message);
+                aux += (char)message[offsetByBytes + 4 + i];
             }
 
             return aux;
@@ -843,12 +885,13 @@ namespace RojoinNetworkSystem
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, playerId);
             outData.AddRange(BitConverter.GetBytes(Data));
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
         public override short Deserialize(byte[] message)
         {
-            return BitConverter.ToInt16(message, offsetSize);
+            return BitConverter.ToInt16(message, GetOffsetByBytes(message));
         }
     }
 
@@ -865,12 +908,13 @@ namespace RojoinNetworkSystem
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, playerId);
             outData.AddRange(BitConverter.GetBytes(Data));
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
         public override ushort Deserialize(byte[] message)
         {
-            return BitConverter.ToUInt16(message, offsetSize);
+            return BitConverter.ToUInt16(message, GetOffsetByBytes(message));
         }
     }
 
@@ -887,12 +931,13 @@ namespace RojoinNetworkSystem
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, playerId);
             outData.AddRange(BitConverter.GetBytes(Data));
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
         public override long Deserialize(byte[] message)
         {
-            return BitConverter.ToInt64(message, offsetSize);
+            return BitConverter.ToInt64(message, GetOffsetByBytes(message));
         }
     }
 
@@ -909,12 +954,13 @@ namespace RojoinNetworkSystem
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, playerId);
             outData.AddRange(BitConverter.GetBytes(Data));
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
         public override ulong Deserialize(byte[] message)
         {
-            return BitConverter.ToUInt64(message, offsetSize);
+            return BitConverter.ToUInt64(message, GetOffsetByBytes(message));
         }
     }
 
@@ -931,6 +977,7 @@ namespace RojoinNetworkSystem
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, playerId);
             outData.Add(Data);
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
@@ -953,17 +1000,23 @@ namespace RojoinNetworkSystem
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, playerId);
             outData.Add((byte)Data);
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
         public override sbyte Deserialize(byte[] message)
         {
-            return (sbyte)message[offsetSize];
+            return (sbyte)message[GetOffsetByBytes(message)];
         }
     }
 
     public class NetChar : INetObjectMessage<char>
     {
+        public NetChar() : base()
+        {
+            MsgType = MessageType.Char;
+        }
+
         public NetChar(char data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
@@ -975,12 +1028,13 @@ namespace RojoinNetworkSystem
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, playerId);
             outData.Add((byte)Data);
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
         public override char Deserialize(byte[] message)
         {
-            return (char)message[offsetSize];
+            return (char)message[GetOffsetByBytes(message)];
         }
     }
 
@@ -997,12 +1051,13 @@ namespace RojoinNetworkSystem
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, playerId);
             outData.AddRange(BitConverter.GetBytes(Data));
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
         public override double Deserialize(byte[] message)
         {
-            return BitConverter.ToDouble(message, offsetSize);
+            return BitConverter.ToDouble(message, GetOffsetByBytes(message));
         }
     }
 
@@ -1025,6 +1080,7 @@ namespace RojoinNetworkSystem
                 outData.AddRange(BitConverter.GetBytes(bit));
             }
 
+            DataCheckSumEncryption(outData);
             return outData.ToArray();
         }
 
@@ -1032,9 +1088,10 @@ namespace RojoinNetworkSystem
         {
             // Convert byte array back to decimal
             int[] bits = new int[4];
+            int offsetByBytes = GetOffsetByBytes(message);
             for (int i = 0; i < 4; i++)
             {
-                bits[i] = BitConverter.ToInt32(message, offsetSize + i * 4);
+                bits[i] = BitConverter.ToInt32(message, offsetByBytes + i * 4);
             }
 
             return new decimal(bits);
