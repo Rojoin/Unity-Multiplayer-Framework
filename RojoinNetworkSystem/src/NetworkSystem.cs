@@ -6,17 +6,33 @@ using System.Reflection;
 
 namespace RojoinNetworkSystem
 {
+    public class MessageData
+    {
+        public int ID;
+        public FieldInfo FieldInfo;
+        public MessageFlags MessageFlags;
+
+        public MessageData(FieldInfo fieldInfo, int id, MessageFlags messageFlags = MessageFlags.CheckSum)
+        {
+            this.FieldInfo = fieldInfo;
+            MessageFlags = messageFlags;
+            ID = id;
+        }
+    }
+
     public static class FieldInfoExtensions
     {
-        public static List<FieldInfo> GetFields(this Vector3 vector3)
+        [NetExtensionMethod]
+        public static List<MessageData> GetFields(this Vector3 vector3)
         {
-            List<FieldInfo> output = new List<FieldInfo>();
-            output.Add(vector3.GetType().GetField("x"));
-            output.Add(vector3.GetType().GetField("y"));
-            output.Add(vector3.GetType().GetField("z"));
+            List<MessageData> output = new List<MessageData>();
+            output.Add(new MessageData(vector3.GetType().GetField("x"), 0, MessageFlags.CheckSum));
+            output.Add(new MessageData(vector3.GetType().GetField("y"), 1, MessageFlags.CheckSum));
+            output.Add(new MessageData(vector3.GetType().GetField("z"), 2, MessageFlags.CheckSum));
             return output;
         }
 
+        [NetExtensionMethod]
         public static List<FieldInfo> GetFields(this Quaternion quaternion)
         {
             List<FieldInfo> output = new List<FieldInfo>();
@@ -27,6 +43,8 @@ namespace RojoinNetworkSystem
             return output;
         }
 
+
+        [NetExtensionMethod]
         public static List<FieldInfo> GetFields(this Color color)
         {
             List<FieldInfo> output = new List<FieldInfo>();
@@ -106,13 +124,14 @@ namespace RojoinNetworkSystem
         public void CheckNetObjectsToSend()
         {
             //Todo: can crash
+            //No, can trash
             foreach (INetObject netObject in netObjects)
             {
                 if (netObject.GetOwner() == owner)
                 {
                     Stack<int> route = new Stack<int>();
                     consoleMessage.Invoke("Preparing Object to send");
-                    InspectCreateMessage(netObject.GetType(), netObject, netObject.GetID(), route);
+                    InspectCreateMessage(netObject.GetType(), netObject, netObject.GetID(), route, MessageFlags.None);
                 }
             }
         }
@@ -143,26 +162,80 @@ namespace RojoinNetworkSystem
         }
 
 
-        public void InspectCreateMessage(Type type, object obj, int objID, Stack<int> route)
+        public void InspectCreateMessage(Type type, object obj, int objID, Stack<int> route, MessageFlags flagsFromBase)
         {
             if (obj != null)
             {
                 Stack<int> listBeforeIteration = new Stack<int>(route);
-                foreach (FieldInfo info in type.GetFields(BindingFlags.NonPublic | BindingFlags.Public |
-                                                          BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                //foreach (FieldInfo info in type.GetFields(BindingFlags.NonPublic | BindingFlags.Public |
+                //                                          BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                foreach (MessageData info in GetFieldsFromType(type))
                 {
                     route = listBeforeIteration;
-                    NetValue netValue = info.GetCustomAttribute<NetValue>();
-                    if (netValue != null)
+                    var currentFlag = info.MessageFlags;
+                    if (flagsFromBase.HasFlag(MessageFlags.Important) || flagsFromBase.HasFlag(MessageFlags.Ordenable))
                     {
-                        consoleMessage.Invoke($"The object has NetValue {netValue.id}");
-                        route.Push(netValue.id);
-                        ReadValue(info, obj, objID, route, netValue);
-                        route.Pop();
+                        currentFlag = flagsFromBase;
                     }
+
+                    consoleMessage.Invoke($"The object has Route {info.ID}");
+                    route.Push(info.ID);
+                    ReadValue(info.FieldInfo, obj, objID, route, flagsFromBase);
+                    route.Pop();
                 }
             }
         }
+
+        private List<MessageData> GetFieldsFromType(Type type)
+        {
+            List<MessageData> output = new List<MessageData>();
+            foreach (FieldInfo info in type.GetFields(BindingFlags.NonPublic | BindingFlags.Public |
+                                                      BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            {
+                NetValue netValue = info.GetCustomAttribute<NetValue>();
+                if (netValue != null)
+                {
+                    output.Add(new MessageData(info, netValue.id, netValue.messageFlags));
+                }
+            }
+
+            foreach (MethodInfo info in type.GetMethods(BindingFlags.NonPublic | BindingFlags.Public |
+                                                        BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            {
+                NetExtensionMethod netExt = info.GetCustomAttribute<NetExtensionMethod>();
+                if (netExt != null && info.ReturnType == typeof(List<MessageData>))
+                {
+                    object fields = info.Invoke(null, new object[0] { });
+                    if (fields != null)
+                    {
+                        output.AddRange((fields as List<MessageData>));
+                    }
+                }
+            }
+
+            return output;
+        }
+
+        //public void InspectCreateMessageMe(Type type, object obj, int objID, Stack<int> route)
+        //{
+        //    if (obj != null)
+        //    {
+        //        Stack<int> listBeforeIteration = new Stack<int>(route);
+        //        foreach (MethodInfo info in type.GetMethods(BindingFlags.NonPublic | BindingFlags.Public |
+        //                                                    BindingFlags.Instance | BindingFlags.DeclaredOnly))
+        //        {
+        //            route = listBeforeIteration;
+        //            NetExtensionMethod netExt = info.GetCustomAttribute<NetExtensionMethod>();
+        //            if (netExt != null)
+        //            {
+        //                consoleMessage.Invoke($"The object has NetValue {netExt.id}");
+        //                route.Push(netExt.id);
+        //                // ReadValue(info, obj, objID, route, netValue);
+        //                route.Pop();
+        //            }
+        //        }
+        //    }
+        //}
 
         public void InspectDataToChange(Type type, object obj, object data, List<int> route, int iterator)
         {
@@ -205,27 +278,33 @@ namespace RojoinNetworkSystem
         }
 
         //1
-        public void ReadValue(FieldInfo info, object obj, int objID, Stack<int> route, NetValue value)
+        public void ReadValue(FieldInfo info, object obj, int objID, Stack<int> route, MessageFlags flags)
         {
             if (info.FieldType.IsValueType || info.FieldType == typeof(string) || info.FieldType.IsEnum)
             {
                 List<int> valuesRoute = new List<int>(route);
-                SendMessage(info, obj, objID, valuesRoute, value);
+                SendMessage(info, obj, objID, valuesRoute, flags);
             }
             else if (typeof(System.Collections.ICollection).IsAssignableFrom(info.FieldType))
             {
                 foreach (object item in (info.GetValue(obj) as System.Collections.ICollection))
                 {
-                    InspectCreateMessage(item.GetType(), obj, objID, route);
+                    InspectCreateMessage(item.GetType(), obj, objID, route, flags);
                 }
             }
             else
             {
-                InspectCreateMessage(info.FieldType, info.GetValue(obj), objID, route);
+                MessageFlags currentFlag = MessageFlags.CheckSum;
+                if (flags.HasFlag(MessageFlags.Important) || flags.HasFlag(MessageFlags.Ordenable))
+                {
+                    currentFlag = flags;
+                }
+
+                InspectCreateMessage(info.FieldType, info.GetValue(obj), objID, route, currentFlag);
             }
         }
 
-        private void SendMessage(FieldInfo info, object obj, int objId, List<int> route, NetValue value)
+        private void SendMessage(FieldInfo info, object obj, int objId, List<int> route, MessageFlags value)
         {
             object package = info.GetValue(obj);
             Type packageType = package.GetType();
@@ -246,18 +325,19 @@ namespace RojoinNetworkSystem
                             consoleMessage?.Invoke($"{objId}");
                             consoleMessage?.Invoke($"Package of type {packageType}:{package}");
                             Type[] parametersToApply =
-                                { packageType, objId.GetType(), route.GetType(), value.messageFlags.GetType() };
-                            object[] parameters = new[] { package, objId, route, value.messageFlags };
+                                { packageType, objId.GetType(), route.GetType(), value.GetType() };
+                            object[] parameters = new[] { package, objId, route, value };
                             //ConstructorInfo? ctor = currentType.GetConstructor(parametersToApply);
                             object netMessage = Activator.CreateInstance(currentType, parameters);
                             if (netMessage != null)
                             {
-                              //  object message = ctor.Invoke(parameters);
+                                //  object message = ctor.Invoke(parameters);
                                 //var a = (message as BaseMessage);
                                 BaseMessage message = netMessage as BaseMessage;
                                 consoleMessage?.Invoke($"NetMessage Data: {(message as NetFloat).GetData()}");
                                 byte[] messageToSend = message.Serialize();
-                                consoleMessage?.Invoke($"DeseializedMessage Lib:{BitConverter.ToSingle(messageToSend, 32)}");
+                                consoleMessage?.Invoke(
+                                    $"DeseializedMessage Lib:{BitConverter.ToSingle(messageToSend, 32)}");
                                 //Todo: Send message
                                 dataToSend.Invoke(messageToSend);
                             }
