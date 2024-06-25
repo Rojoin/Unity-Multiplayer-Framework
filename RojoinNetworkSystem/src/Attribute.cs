@@ -19,5 +19,9 @@ namespace RojoinNetworkSystem
     public class NetNotSync : Attribute
     {
 
+    }  
+    public class NetExtensionMethod : Attribute
+    {
+
     }
 }
