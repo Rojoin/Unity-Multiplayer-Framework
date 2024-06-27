@@ -25,7 +25,8 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     public IntChannelSO OnHittedPlayer;
     private bool hasPositionBeenSet;
 
-    public UnityEvent<object, List<int>, int> OnValueDataReceived;
+    //   public UnityEvent<object, List<int>, int> OnValueDataReceived;
+    public UnityEvent<byte[]> OnValueDataReceived;
 
     public Vector3ChannelSO OnMyPlayerMoved;
 
@@ -41,8 +42,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         connection = new UdpConnection(ipAddress, port, tagName, CouldntCreateUDPConnection, this);
         OnServerDisconnect.AddListener(CloseConnection);
         OnMyPlayerMoved.Subscribe(SendPosition);
-        AskforBulletChannelSo.Subscribe(SendBulletRequest);
-        OnHittedPlayer.Subscribe(SendHitted);
+
         TimeOutTimer = 0;
         lastReceiveMessage.Clear();
         pendingMessages.Clear();
@@ -57,32 +57,12 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         SendToServer(a.Serialize());
     }
 
-    private void SendHitted(int obj)
-    {
-        // NetTRS netTRS = new NetTRS(obj);
-        // byte[] serialize = netTRS.Serialize();
-        // Debug.Log($"I have send the damagewith id {clientId}");
-        // SendToServer(serialize);
-    }
-
-    private void SendBulletRequest(int type, Vector3 pos, Vector3 forw)
-    {
-        // System.Numerics.Vector3 posToSend = new System.Numerics.Vector3(pos.x,pos.y,pos.z);
-        // System.Numerics.Vector3 forwToSend = new System.Numerics.Vector3(forw.x,forw.y,forw.z);
-        // NetSpawnObject netSpawnObject = new NetSpawnObject(type, posToSend, forwToSend);
-        // byte[] serialize = netSpawnObject.Serialize();
-        // SendToServer(serialize);
-        // AddMessageToCacheList(MessageType.AskForObject, serialize.ToList(), NetByteTranslator.GetMesaggeID(serialize),
-        //     true);
-    }
-
 
     protected override void OnDisconect()
     {
         base.OnDisconect();
         CloseConnection();
-        AskforBulletChannelSo.Unsubscribe(SendBulletRequest);
-        OnHittedPlayer.Unsubscribe(SendHitted);
+
         OnServerDisconnect.RemoveListener(CloseConnection);
         OnMyPlayerMoved.Unsubscribe(SendPosition);
         hasPositionBeenSet = false;
@@ -153,6 +133,8 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     public override void OnReceiveDataEvent(byte[] data, IPEndPoint ep = null)
     {
+        if (data == null || data.Length == 0)
+            return;
         MessageType type = NetByteTranslator.GetNetworkType(data);
         int playerID = NetByteTranslator.GetPlayerID(data);
         MessageFlags flags = NetByteTranslator.GetFlags(data);
@@ -177,9 +159,6 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
         switch (type)
         {
-            case MessageType.Position:
-                CheckPlayerPos(data, flags);
-                break;
             case MessageType.Message:
                 CheckChatMessage(data, getMessageID, type, playerID, isImportant);
                 break;
@@ -197,34 +176,26 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 break;
             case MessageType.Error:
                 break;
-            case MessageType.TRS:
-                //CheckPlayerDamage(data, playerID);
-                break;
             case MessageType.ServerDir:
                 connection.Close();
                 NetServerDirection messageReceived = new NetServerDirection();
-                (string, int) connectionData = messageReceived.Deserialize(data);
+                (string, int) connectionData = messageReceived.CastFromObj(messageReceived.Deserialize(data));
                 IPAddress newAdressToConnect = IPAddress.Parse(connectionData.Item1);
                 int newPortToConnect = System.Convert.ToInt32(connectionData.Item2);
                 connection = new UdpConnection(newAdressToConnect, newPortToConnect, tagName,
                     CouldntCreateUDPConnection, this);
                 break;
-            case MessageType.Timer:
-                NetTime netTime = new NetTime();
-                OnTimerChanged.RaiseEvent(netTime.Deserialize(data));
-                break;
-            case MessageType.Float:
-                NetFloat netFloat = new NetFloat();
-                float aux = netFloat.Deserialize(data);
-                //      Debug.Log(aux); 
-                NetObjectBasicData auxT = netFloat.GetNetObjectData(data);
-                OnValueDataReceived.Invoke(aux, auxT.idValues, auxT.objectType);
-                break;
-            case MessageType.Char:
-                NetChar netChar = new NetChar();
-                char auxC = netChar.Deserialize(data);
-                NetObjectBasicData auxx = netChar.GetNetObjectData(data);
-                OnValueDataReceived.Invoke(auxC, auxx.idValues, auxx.objectType);
+            default:
+                try
+                {
+                    OnValueDataReceived?.Invoke(data);
+                }
+                catch (Exception e)
+                {
+                    Debug.Log(e);
+                    throw;
+                }
+
                 break;
         }
     }
@@ -233,7 +204,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     {
         NetHandShake errorMessage = new NetHandShake();
         ChatScreen.Instance.SwitchToNetworkScreen();
-        OnErrorMessage.RaiseEvent(errorMessage.Deserialize(data));
+        //  OnErrorMessage.RaiseEvent(errorMessage. cas errorMessage.Deserialize(data));
         OnServerDisconnect.Invoke();
     }
 
@@ -241,7 +212,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     {
         NetExit exitMessage = new NetExit();
         ChatScreen.Instance.SwitchToNetworkScreen();
-        OnErrorMessage.RaiseEvent(exitMessage.Deserialize(data));
+        //  OnErrorMessage.RaiseEvent(exitMessage.Deserialize(data));
         OnServerDisconnect.Invoke();
     }
 
@@ -267,7 +238,8 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     {
         // Debug.Log("Confirmation Message Appears");
         NetConfirmation netConfirmation = new NetConfirmation();
-        CheckImportantMessageConfirmation(netConfirmation.Deserialize(data));
+        //ToDo:
+        // CheckImportantMessageConfirmation(netConfirmation.Deserialize(data));
     }
 
     private void CheckPlayerPos(byte[] data, MessageFlags flags)
@@ -312,7 +284,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     private void CheckHandShakeOKMessage(byte[] data, bool isImportant, MessageType type, ulong getMessageID)
     {
         NetHandShakeOK handOk = new();
-        List<Player> newPlayersList = handOk.Deserialize(data);
+        List<Player> newPlayersList = handOk.CastFromObj(handOk.Deserialize(data));
         MessageCache msgCache = new(type, data.ToList(), getMessageID);
         if (IsTheNextMessage(type, msgCache, handOk))
         {

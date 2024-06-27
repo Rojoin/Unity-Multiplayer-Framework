@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using RojoinNetworkSystem;
@@ -5,7 +6,7 @@ using UnityEngine;
 
 public class ClassB : MonoBehaviour, INetObject
 {
-    public float life = 2;
+    [NetValue(1)] public float life = 2;
     private NetObject _netObject;
     public int GetID() => _netObject.id;
 
@@ -13,15 +14,16 @@ public class ClassB : MonoBehaviour, INetObject
 
     public NetObject GetObject() => _netObject;
 }
-public class ClassC : INetObject
+
+[Serializable]
+public class ClassC
 {
-    public float magic = 10;
-    private NetObject _netObject;
-    public int GetID() => _netObject.id;
+    [SerializeField] [NetValue(1)] public float magic = 10;
 
-    public int GetOwner() => _netObject.owner;
-
-    public NetObject GetObject() => _netObject;
+    public void Value()
+    {
+        Debug.Log(magic);
+    }
 }
 
 // public class ClassB : MonoBehaviour

@@ -37,11 +37,11 @@ namespace RojoinNetworkSystem
 
     public class NetObjectBasicData
     {
-       public int objectType;
+       public int objectID;
         public List<int> idValues;
        public NetObjectBasicData(int objId, List<int> idValues)
        {
-           objectType = objId;
+           objectID = objId;
            this.idValues = idValues;
        }
     }

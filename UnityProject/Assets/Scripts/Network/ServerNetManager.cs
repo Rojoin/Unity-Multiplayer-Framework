@@ -7,7 +7,6 @@ using RojoinNetworkSystem;
 using UnityEngine;
 
 
-
 public class ServerNetManager : NetworkManager
 {
     public readonly Dictionary<int, Client> clients = new Dictionary<int, Client>();
@@ -32,7 +31,7 @@ public class ServerNetManager : NetworkManager
         clients.Clear();
         ipToId.Clear();
         countdownUntilGameStart = timerUntilStart;
-        connection = new UdpConnection(port, CouldntCreateUDPConnection,this);
+        connection = new UdpConnection(port, CouldntCreateUDPConnection, this);
         BaseMessage.PlayerID = -10;
         lastFiveSeconds = false;
         minimunPlayerToInitiate = 2;
@@ -43,7 +42,6 @@ public class ServerNetManager : NetworkManager
 
     protected override void ReSendMessage(MessageCache arg0)
     {
-
     }
 
     public override void CloseConnection()
@@ -191,7 +189,6 @@ public class ServerNetManager : NetworkManager
         data = $"Game will start in {time--}.";
         OnTextAdded(data);
         yield return waitOneSecond;
-
     }
 
     private void CreateMessage(string data)
@@ -456,7 +453,7 @@ public class ServerNetManager : NetworkManager
                 break;
 
             case MessageType.AskForObject when clients.ContainsKey(playerID):
-               // CheckAskForBullet(data, ep, playerID, type, getMessageID, isImportant);
+                // CheckAskForBullet(data, ep, playerID, type, getMessageID, isImportant);
                 break;
             case MessageType.TRS:
                 CheckDamage(data, playerID, ep);
@@ -467,14 +464,13 @@ public class ServerNetManager : NetworkManager
     //Todo: Add damage indicator
     private void CheckDamage(byte[] data, int playerID, IPEndPoint ip)
     {
-    
     }
-    
+
 
     private void CheckHandShake(byte[] data, IPEndPoint ep)
     {
         NetHandShake handShake = new NetHandShake();
-        string gameTag = handShake.Deserialize(data);
+        string gameTag = handShake.DeseliarizeObj(data);
         Debug.Log($"La ip de el cliente es: {ep.Address} y el nameTag es: {gameTag}");
 
         if (TryAddClient(ep, gameTag))
@@ -490,7 +486,7 @@ public class ServerNetManager : NetworkManager
             NetByteTranslator.GetMesaggeID(newData);
             NetPing ping = new();
             SendToClient(ping.Serialize(), gameTag, ep);
-            AddImportantMessageToClients(handData, MessageType.HandShakeOk, NetByteTranslator.GetMesaggeID(handData), true);
+            //   AddImportantMessageToClients(handData, MessageType.HandShakeOk, NetByteTranslator.GetMesaggeID(handData), true);
             foreach (KeyValuePair<int, Client> VARIABLE in clients)
             {
                 if (VARIABLE.Value.tag != gameTag &&
@@ -508,9 +504,9 @@ public class ServerNetManager : NetworkManager
         ulong getMessageID;
         if (flags.HasFlag(MessageFlags.Ordenable))
         {
-          //  NetPlayerPos netPlayerPos = new NetPlayerPos();
+            //  NetPlayerPos netPlayerPos = new NetPlayerPos();
             getMessageID = NetByteTranslator.GetMesaggeID(data);
-          //  MessageCache msgToCache = new MessageCache(netPlayerPos.GetMessageType(), data.ToList(), getMessageID);
+            //  MessageCache msgToCache = new MessageCache(netPlayerPos.GetMessageType(), data.ToList(), getMessageID);
             // if (clients[playerID].IsTheLastMesagge(MessageType.Position, msgToCache))
             // {
             //     var dataReceived = netPlayerPos.Deserialize(data);
@@ -529,14 +525,14 @@ public class ServerNetManager : NetworkManager
     {
         NetConfirmation confirmation = new NetConfirmation();
         //        Debug.Log($"Checking Confirmation form player {playerID}.");
-        clients[playerID].CheckImportantMessageConfirmation(confirmation.Deserialize(data));
+        clients[playerID].CheckImportantMessageConfirmation(confirmation.DeseliarizeObj(data));
     }
 
     private void CheckPing(byte[] data, IPEndPoint ep)
     {
         NetPing pingMessage = new();
         NetPing pongMessage = new();
-        int currentClientId = pingMessage.Deserialize(data);
+        int currentClientId = pingMessage.DeseliarizeObj(data);
         SendToClient(pingMessage.Serialize(), currentClientId, ep);
         DateTime currentTime = DateTime.UtcNow;
         if (showPing)
@@ -551,28 +547,27 @@ public class ServerNetManager : NetworkManager
     private void CheckChatMessage(byte[] data, IPEndPoint ep, int playerID, MessageType type, ulong getMessageID,
         bool isImportant)
     {
-        NetConsole message = new();
-        MessageCache msgToCache = new MessageCache(type, data.ToList(), getMessageID);
-        if (clients[playerID].IsTheNextMessage(type, msgToCache, message))
-        {
-            string deserializeMessage = message.Deserialize(data);
-            string textToWrite =
-                $"{GetPlayer(NetByteTranslator.GetPlayerID(data)).nameTag}:{deserializeMessage}";
-
-            OnChatMessage.Invoke(textToWrite);
-            message = new NetConsole(deserializeMessage);
-            byte[] messageDataToSend = message.Serialize(playerID);
-            Broadcast(messageDataToSend);
-            AddImportantMessageToClients(data, type, NetByteTranslator.GetMesaggeID(messageDataToSend), true);
-
-            if (isImportant)
-            {
-                //                Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
-                NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
-                SendToClient(netConfirmation.Serialize(), ep);
-            }
-        }
-
+        // NetConsole message = new();
+        // MessageCache msgToCache = new MessageCache(type, data.ToList(), getMessageID);
+        // if (clients[playerID].IsTheNextMessage(type, msgToCache, message))
+        // {
+        //     string deserializeMessage = message.Deserialize(data);
+        //     string textToWrite =
+        //         $"{GetPlayer(NetByteTranslator.GetPlayerID(data)).nameTag}:{deserializeMessage}";
+        //
+        //     OnChatMessage.Invoke(textToWrite);
+        //     message = new NetConsole(deserializeMessage);
+        //     byte[] messageDataToSend = message.Serialize(playerID);
+        //     Broadcast(messageDataToSend);
+        //     AddImportantMessageToClients(data, type, NetByteTranslator.GetMesaggeID(messageDataToSend), true);
+        //
+        //     if (isImportant)
+        //     {
+        //         //                Debug.Log($"Created the confirmation message for {type} with ID {getMessageID}");
+        //         NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
+        //         SendToClient(netConfirmation.Serialize(), ep);
+        //     }
+        //   }
     }
 
     private void AddImportantMessageToClients(byte[] data, MessageType type, ulong getMesaggeID,

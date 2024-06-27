@@ -246,15 +246,7 @@ class Server : IReceiveData
             case MessageType.TRS:
                 CheckDamage(data, playerID, ep);
                 break;
-            case MessageType.Float:
-                NetFloat a = new NetFloat();
-                Console.WriteLine($"Converter a mano:{BitConverter.ToSingle(data, 32)}");
-                Console.WriteLine($"Converter Deserialized:{a.Deserialize(data)}");
-                Broadcast(data);
-                break;
-            case MessageType.Char:
-                //  CheckDamage(data, playerID, ep);
-                Console.WriteLine("NetMessage appeared");
+             default:
                 Broadcast(data);
                 break;
         }
@@ -306,7 +298,7 @@ class Server : IReceiveData
     private void CheckHandShake(byte[] data, IPEndPoint ep)
     {
         NetHandShake handShake = new NetHandShake();
-        string gameTag = handShake.Deserialize(data);
+        string gameTag = handShake.DeseliarizeObj(data);
         Console.WriteLine($"La ip de el cliente es: {ep.Address} y el nameTag es: {gameTag}");
 
         if (TryAddClient(ep, gameTag))
@@ -361,14 +353,14 @@ class Server : IReceiveData
     {
         NetConfirmation confirmation = new NetConfirmation();
         //        Console.WriteLine($"Checking Confirmation form player {playerID}.");
-        clients[playerID].CheckImportantMessageConfirmation(confirmation.Deserialize(data));
+        clients[playerID].CheckImportantMessageConfirmation(confirmation.DeseliarizeObj(data));
     }
 
     private void CheckPing(byte[] data, IPEndPoint ep)
     {
         NetPing pingMessage = new();
         NetPing pongMessage = new();
-        int currentClientId = pingMessage.Deserialize(data);
+        int currentClientId = pingMessage.DeseliarizeObj(data);
         SendToClient(pingMessage.Serialize(), currentClientId, ep);
         DateTime currentTime = DateTime.UtcNow;
         // if (showPing)
@@ -387,7 +379,7 @@ class Server : IReceiveData
         MessageCache msgToCache = new MessageCache(type, data.ToList(), getMessageID);
         if (clients[playerID].IsTheNextMessage(type, msgToCache, message))
         {
-            string deserializeMessage = message.Deserialize(data);
+            string deserializeMessage = message.CastFromObj(message.Deserialize(data));
             string textToWrite =
                 $"{GetPlayer(NetByteTranslator.GetPlayerID(data)).nameTag}:{deserializeMessage}";
 

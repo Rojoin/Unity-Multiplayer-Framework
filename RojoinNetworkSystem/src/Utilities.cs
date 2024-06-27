@@ -13,6 +13,7 @@ namespace RojoinNetworkSystem
 
     public static class NetByteTranslator
     {
+        
         public static MessageType GetNetworkType(byte[] data)
         {
             if (data != null && data.Length > 0)
@@ -24,6 +25,21 @@ namespace RojoinNetworkSystem
             return MessageType.Error;
         }
 
+        internal static NetObjectBasicData GetNetObjectData(byte[] data)
+        {
+            int objID = BitConverter.ToInt32(data, 20);
+            int listOffset = 24;
+            int intIndex = BitConverter.ToInt32(data, listOffset);
+
+            List<int> idValues = new List<int>();
+            for (int i = 0; i < intIndex; i++)
+            {
+                listOffset += 4;
+                idValues.Add(BitConverter.ToInt32(data, listOffset));
+            }
+
+            return new NetObjectBasicData(objID, idValues);
+        }
         public static int GetPlayerID(byte[] data)
         {
             if (data != null && data.Length > 4)
