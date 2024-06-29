@@ -6,13 +6,13 @@ using UnityEngine.Serialization;
 
 public class ClassA : MonoBehaviour, INetObject
 {
-    [NetValue(1)] public string a = "213";
-    [NetValue(2)] public char publicChar = 'd';
-    [NetValue(3)] public string publicstring = "Okami";
-    [NetValue(4)] public ClassB classb = new(2);
-    [NetValue(5)] public Vector3 aector3 = new Vector3();
-    [NetValue(6)] public ClassC classC;
-    [NetValue(7)] private List<ClassB> classList = new();
+    [NetValue(1)] public float a = 2;
+    public char publicChar = 'd';
+    public string publicstring = "Okami";
+    public ClassB classb = new(2);
+    public Vector3 aector3 = new Vector3();
+    public ClassC classC;
+   [SerializeField] [NetValue(7)] private List<ClassB> classList = new();
     private NetObject _netObject = new NetObject();
 
     private void Awake()

@@ -60,6 +60,7 @@ class MatchMaker : IReceiveData
             if (activeServers.Count == 0)
             {
                 activeServers.Add(new ServerInfo(DateTime.UtcNow, 12346));
+                Thread.Sleep(500);
                 NetServerDirection netServerDirection = new(("127.0.0.1", activeServers[0].port));
                 connection.Send(netServerDirection.Serialize(), ipEndpoint);
             }

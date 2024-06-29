@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -137,18 +138,11 @@ namespace RojoinNetworkSystem
                 int iterator = 0;
                 if (owner != netObject.GetOwner())
                 {
-                    consoleMessage.Invoke($"The object id is {objId}  and the owned is{netObject.GetID()}");
-                    consoleMessage.Invoke($"The data is {data}");
-                    consoleMessage.Invoke($"The route is ");
-
-                    foreach (int VARIABLE in route)
-                    {
-                        consoleMessage.Invoke($"{VARIABLE}");
-                    }
-
                     if (objId == netObject.GetID())
                     {
-                        netObjects[index] = InspectDataToChange(netObject.GetType(), netObjects[index], data, route, iterator);
+                        consoleMessage.Invoke($"{data}");
+                        netObjects[index] = InspectDataToChange(netObject.GetType(), netObjects[index], data, route,
+                            iterator);
                     }
                     else
                     {
@@ -175,7 +169,6 @@ namespace RojoinNetworkSystem
                         currentFlag = flagsFromBase;
                     }
 
-                    consoleMessage.Invoke($"The object has Route {info.ID}");
                     route.Push(info.ID);
                     ReadValue(info.FieldInfo, obj, objID, route, currentFlag);
                     route.Pop();
@@ -237,7 +230,7 @@ namespace RojoinNetworkSystem
         //    }
         //}
 
-        public object InspectDataToChange(Type type, object obj, object data, List<int> route,
+        private object InspectDataToChange(Type type, object obj, object data, List<int> route,
             int iterator)
         {
             if (obj != null)
@@ -249,30 +242,55 @@ namespace RojoinNetworkSystem
                         iterator++;
                         if (iterator >= route.Count)
                         {
-                            //TODO: The problem is that the data obj cannot be converter from vector3
                             obj = SetValues(info.FieldInfo, obj, data);
                         }
                         else if (iterator < route.Count)
                         {
-                            object aux = info.FieldInfo.GetValue(obj);
-                            if (typeof(System.Collections.IEnumerable).IsAssignableFrom(info.FieldInfo.FieldType))
+                            object objectReference = info.FieldInfo.GetValue(obj);
+                            if (typeof(System.Collections.ICollection).IsAssignableFrom(info.FieldInfo.FieldType))
                             {
-                                foreach (object item in
-                                         (info.FieldInfo.GetValue(obj) as System.Collections.IEnumerable))
+                                object[] arrayToIterate = new object[(objectReference as ICollection).Count];
+                                (objectReference as ICollection).CopyTo(arrayToIterate, 0);
+
+                                for (int i = 0; i < arrayToIterate.Length; i++)
                                 {
-                                    aux = InspectDataToChange(info.FieldInfo.FieldType, item,
-                                        data,
-                                        route, iterator);
+                                    consoleMessage.Invoke(
+                                        $"{arrayToIterate[i].GetType()}:{info.FieldInfo.FieldType}:Data:{data}:Current{i}:Quantity: {arrayToIterate.Length}");
+                                    if (i == route[iterator])
+                                    {
+                                        var updated = InspectDataToChange(arrayToIterate[i].GetType(), arrayToIterate[i], data, route, iterator+1);
+                                        arrayToIterate[i] = updated;
+
+                                        consoleMessage.Invoke($"New value is :{arrayToIterate.GetValue(i)}");
+                                        break;
+                                    }
                                 }
+
+                                MethodInfo clearMethod = objectReference.GetType().GetMethod("Clear");
+                                clearMethod.Invoke(objectReference, null);
+                                MethodInfo addMethod = objectReference.GetType().GetMethod("Add");
+                                foreach (var updated in arrayToIterate)
+                                {
+                                    addMethod.Invoke(objectReference, new[] { updated });
+                                    consoleMessage.Invoke($"Value copied is:{arrayToIterate.GetType()}");
+                                }
+
+
+                                // // objectReference = info.FieldInfo.GetValue(arrayToIterate);
+                                //  // objectReference = SetValues(info.FieldInfo, collection, arrayToIterate);
+                                //  collection = arrayToIterate;
+                                //  objectReference = info.FieldInfo.GetValue(obj);
                             }
                             else
                             {
-                                aux = InspectDataToChange(info.FieldInfo.FieldType, aux, data,
+                                objectReference = InspectDataToChange(info.FieldInfo.FieldType, objectReference, data,
                                     route,
                                     iterator);
                             }
 
-                            info.FieldInfo.SetValue(obj, aux);
+                            consoleMessage.Invoke($"Set the end of the list{objectReference}");
+                            consoleMessage.Invoke($"Object to change{obj}");
+                            info.FieldInfo.SetValue(obj, objectReference);
                         }
 
                         iterator--;
@@ -287,11 +305,14 @@ namespace RojoinNetworkSystem
         {
             try
             {
+                consoleMessage.Invoke($"Data:{data} - Object:{obj}");
                 info.SetValue(obj, data);
+                consoleMessage.Invoke($"{info.GetValue(obj)}");
                 return obj;
             }
             catch (Exception e)
             {
+                consoleMessage.Invoke("Cannot value by custom method.");
                 consoleMessage.Invoke($"{e}");
                 throw;
             }
@@ -308,9 +329,12 @@ namespace RojoinNetworkSystem
             }
             else if (typeof(System.Collections.IEnumerable).IsAssignableFrom(info.FieldType))
             {
+                int aux = 0;
                 foreach (object item in (info.GetValue(obj) as System.Collections.IEnumerable))
                 {
+                    route.Push(aux++);
                     InspectCreateMessage(item.GetType(), item, objID, route, flags);
+                    route.Pop();
                 }
             }
             else

@@ -10,6 +10,7 @@ class Program
         bool isMatchMakerOn = true;
         while (isMatchMakerOn)
         {
+            Thread.Sleep(200);
             mm.OnUpdate();
         }
     }
