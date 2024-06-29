@@ -1,5 +1,5 @@
-﻿
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using RojoinNetworkSystem;
 using UnityEngine;
 
@@ -42,9 +42,8 @@ namespace DefaultNamespace
 
         private void WriteData(byte[] data)
         {
-            Debug.Log("Event To Write data Called");
-          //  Debug.Log($"Data:{arg0.GetType()}:{arg0}. Route {arg1}. ObjetNumber: {arg2}.");
-        //    _networkSystem.ChangeExternalNetObjects(arg0, arg1, arg2);
+            //  Debug.Log($"Data:{arg0.GetType()}:{arg0}. Route {arg1}. ObjetNumber: {arg2}.");
+            //    _networkSystem.ChangeExternalNetObjects(arg0, arg1, arg2);
             _networkSystem.HandlerMessage(data);
         }
 
@@ -62,44 +61,45 @@ namespace DefaultNamespace
 
         private void SendCustomData(byte[] obj)
         {
-          //  Debug.Log($"DeseializedMessage Lib:{BitConverter.ToSingle(obj, 32)}");
+            //  Debug.Log($"DeseializedMessage Lib:{BitConverter.ToSingle(obj, 32)}");
             _clientNetManager.SendToServer(obj);
         }
     }
-    
 }
+
+[NetExtensionClass]
 public static class FieldInfoExtensions
 {
-    [NetExtensionMethod]
+    [NetExtensionMethod(typeof(Vector3))]
     public static List<MessageData> GetFields(this Vector3 vector3)
     {
         List<MessageData> output = new List<MessageData>();
-        output.Add(new MessageData(vector3.GetType().GetField("x"), 0, MessageFlags.CheckSum));
-        output.Add(new MessageData(vector3.GetType().GetField("y"), 1, MessageFlags.CheckSum));
-        output.Add(new MessageData(vector3.GetType().GetField("z"), 2, MessageFlags.CheckSum));
+        output.Add(new MessageData(vector3.GetType().GetField(nameof(vector3.x)), 0, MessageFlags.CheckSum));
+        output.Add(new MessageData(vector3.GetType().GetField(nameof(vector3.y)), 1, MessageFlags.CheckSum));
+        output.Add(new MessageData(vector3.GetType().GetField(nameof(vector3.z)), 2, MessageFlags.CheckSum));
         return output;
     }
 
-    [NetExtensionMethod]
+    [NetExtensionMethod(typeof(Quaternion))]
     public static List<MessageData> GetFields(this Quaternion quaternion)
     {
         List<MessageData> output = new List<MessageData>();
-        output.Add(new MessageData(quaternion.GetType().GetField("x"), 0, MessageFlags.CheckSum));
-        output.Add(new MessageData(quaternion.GetType().GetField("y"), 1, MessageFlags.CheckSum));
-        output.Add(new MessageData(quaternion.GetType().GetField("z"), 2, MessageFlags.CheckSum));
-        output.Add(new MessageData(quaternion.GetType().GetField("w"), 3, MessageFlags.CheckSum));
+        output.Add(new MessageData(quaternion.GetType().GetField(nameof(quaternion.x)), 0, MessageFlags.CheckSum));
+        output.Add(new MessageData(quaternion.GetType().GetField(nameof(quaternion.y)), 1, MessageFlags.CheckSum));
+        output.Add(new MessageData(quaternion.GetType().GetField(nameof(quaternion.z)), 2, MessageFlags.CheckSum));
+        output.Add(new MessageData(quaternion.GetType().GetField(nameof(quaternion.w)), 3, MessageFlags.CheckSum));
         return output;
     }
 
 
-    [NetExtensionMethod]
+    [NetExtensionMethod(typeof(Color))]
     public static List<MessageData> GetFields(this Color color)
     {
         List<MessageData> output = new List<MessageData>();
-        output.Add(new MessageData(color.GetType().GetField("r"), 0, MessageFlags.CheckSum));
-        output.Add(new MessageData(color.GetType().GetField("g"), 1, MessageFlags.CheckSum));
-        output.Add(new MessageData(color.GetType().GetField("b"), 2, MessageFlags.CheckSum));
-        output.Add(new MessageData(color.GetType().GetField("a"), 3, MessageFlags.CheckSum));
+        output.Add(new MessageData(color.GetType().GetField(nameof(color.r)), 0, MessageFlags.CheckSum));
+        output.Add(new MessageData(color.GetType().GetField(nameof(color.g)), 1, MessageFlags.CheckSum));
+        output.Add(new MessageData(color.GetType().GetField(nameof(color.b)), 2, MessageFlags.CheckSum));
+        output.Add(new MessageData(color.GetType().GetField(nameof(color.a)), 3, MessageFlags.CheckSum));
         return output;
     }
 }

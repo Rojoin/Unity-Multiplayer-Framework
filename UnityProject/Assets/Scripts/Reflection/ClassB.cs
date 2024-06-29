@@ -4,15 +4,15 @@ using System.Collections.Generic;
 using RojoinNetworkSystem;
 using UnityEngine;
 
-public class ClassB : MonoBehaviour, INetObject
+[Serializable]
+public struct ClassB 
 {
-    [NetValue(1)] public float life = 2;
-    private NetObject _netObject;
-    public int GetID() => _netObject.id;
+    [NetValue(1)] public float life;
 
-    public int GetOwner() => _netObject.owner;
-
-    public NetObject GetObject() => _netObject;
+    public ClassB(int life)
+    {
+        this.life = life;
+    }
 }
 
 [Serializable]

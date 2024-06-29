@@ -22,6 +22,14 @@ namespace RojoinNetworkSystem
     }  
     public class NetExtensionMethod : Attribute
     {
+        public Type extensionType;
+        public NetExtensionMethod(Type extensionType)
+        {
+            this.extensionType = extensionType;
+        }
+    }   
+    public class NetExtensionClass : Attribute
+    {
 
     }
 }

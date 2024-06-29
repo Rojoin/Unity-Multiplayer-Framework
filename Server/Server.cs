@@ -190,10 +190,14 @@ class Server : IReceiveData
 
     public void OnReceiveDataEvent(byte[] data, IPEndPoint ep)
     {
+        if (data == null || data.Length == 0)
+        {
+            return;
+        }
         MessageType type = NetByteTranslator.GetNetworkType(data);
         int playerID = NetByteTranslator.GetPlayerID(data);
         MessageFlags flags = NetByteTranslator.GetFlags(data);
-
+   
 
         bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
         bool isImportant = flags.HasFlag(MessageFlags.Important);

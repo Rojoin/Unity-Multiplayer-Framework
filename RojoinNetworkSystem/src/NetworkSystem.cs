@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
 
 namespace RojoinNetworkSystem
 {
@@ -26,6 +27,7 @@ namespace RojoinNetworkSystem
     public class NetworkSystem
     {
         private Assembly gameAssembly;
+        private Dictionary<Type, MethodInfo> extensionMethods = new Dictionary<Type, MethodInfo>();
         private Assembly executingAssembly;
 
         private List<object> netObjects = new List<object>();
@@ -50,9 +52,33 @@ namespace RojoinNetworkSystem
         public void StartNetworkSystem(int ownerId, Action<string> consoleMessage)
         {
             gameAssembly = Assembly.GetCallingAssembly();
+            this.consoleMessage += consoleMessage;
+            foreach (var type in gameAssembly.GetTypes())
+            {
+                NetExtensionClass netExtensionClass = type.GetCustomAttribute<NetExtensionClass>();
+                if (netExtensionClass != null)
+                {
+                    foreach (MethodInfo methodInfo in type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+                    {
+                        NetExtensionMethod netExtensionMethod = methodInfo.GetCustomAttribute<NetExtensionMethod>();
+                        if (netExtensionMethod != null)
+                        {
+                            if (extensionMethods.TryAdd(netExtensionMethod.extensionType, methodInfo))
+                            {
+                                this.consoleMessage.Invoke(methodInfo.Name + netExtensionMethod.extensionType.Name);
+                            }
+                        }
+                    }
+                }
+            }
+
+            foreach (KeyValuePair<Type, MethodInfo> extensionMethod in extensionMethods)
+            {
+                this.consoleMessage.Invoke(extensionMethod.Key.Name + extensionMethod.Value.Name);
+            }
+
             executingAssembly = Assembly.GetExecutingAssembly();
             owner = ownerId;
-            this.consoleMessage += consoleMessage;
             List<Type> netObjectTypes = GetNetObjectImplementations();
             foreach (Type netObjectType in netObjectTypes)
             {
@@ -97,7 +123,6 @@ namespace RojoinNetworkSystem
                 if (netObject.GetOwner() == owner)
                 {
                     Stack<int> route = new Stack<int>();
-                    consoleMessage.Invoke("Preparing Object to send");
                     InspectCreateMessage(netObject.GetType(), netObject, netObject.GetID(), route,
                         MessageFlags.CheckSum);
                 }
@@ -106,8 +131,9 @@ namespace RojoinNetworkSystem
 
         public void ChangeExternalNetObjects(object data, List<int> route, int objId)
         {
-            foreach (INetObject netObject in netObjects)
+            for (int index = 0; index < netObjects.Count; index++)
             {
+                INetObject netObject = (INetObject)netObjects[index];
                 int iterator = 0;
                 if (owner != netObject.GetOwner())
                 {
@@ -122,7 +148,7 @@ namespace RojoinNetworkSystem
 
                     if (objId == netObject.GetID())
                     {
-                        InspectDataToChange(netObject.GetType(), netObject, data, route, iterator);
+                        netObjects[index] = InspectDataToChange(netObject.GetType(), netObjects[index], data, route, iterator);
                     }
                     else
                     {
@@ -141,10 +167,8 @@ namespace RojoinNetworkSystem
         {
             if (obj != null)
             {
-                Stack<int> listBeforeIteration = new Stack<int>(route);
                 foreach (MessageData info in GetFieldsFromType(type))
                 {
-                    route = listBeforeIteration;
                     var currentFlag = info.MessageFlags;
                     if (flagsFromBase.HasFlag(MessageFlags.Important) || flagsFromBase.HasFlag(MessageFlags.Ordenable))
                     {
@@ -171,230 +195,141 @@ namespace RojoinNetworkSystem
                     output.Add(new MessageData(info, netValue.id, netValue.messageFlags));
                 }
             }
-//Todo atributo extension method
-            foreach (MethodInfo info in type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+
+            if (extensionMethods.TryGetValue(type, out MethodInfo? method))
             {
-                if (info.IsDefined(typeof(System.Runtime.CompilerServices.ExtensionAttribute), false))
+                consoleMessage.Invoke($"{type.Name}");
+                object uninitializedObject = FormatterServices.GetUninitializedObject(type);
+
+                object fields = method.Invoke(null, new object[] { uninitializedObject });
+                if (fields != null)
                 {
-                    
-                }
-                //Todo: Debug struct types extension methods
-                NetExtensionMethod netExt = info.GetCustomAttribute<NetExtensionMethod>();
-                if (netExt != null && info.ReturnType == typeof(List<MessageData>))
-                {
-                    object fields = info.Invoke(null, new object[0] { });
-                    if (fields != null)
-                    {
-                        output.AddRange((fields as List<MessageData>));
-                    }
+                    //Todo: check if the method is being invoked.
+                    output.AddRange((fields as List<MessageData>));
                 }
             }
-            
-        return output;
-    }
 
-    //public void InspectCreateMessageMe(Type type, object obj, int objID, Stack<int> route)
-    //{
-    //    if (obj != null)
-    //    {
-    //        Stack<int> listBeforeIteration = new Stack<int>(route);
-    //        foreach (MethodInfo info in type.GetMethods(BindingFlags.NonPublic | BindingFlags.Public |
-    //                                                    BindingFlags.Instance | BindingFlags.DeclaredOnly))
-    //        {
-    //            route = listBeforeIteration;
-    //            NetExtensionMethod netExt = info.GetCustomAttribute<NetExtensionMethod>();
-    //            if (netExt != null)
-    //            {
-    //                consoleMessage.Invoke($"The object has NetValue {netExt.id}");
-    //                route.Push(netExt.id);
-    //                // ReadValue(info, obj, objID, route, netValue);
-    //                route.Pop();
-    //            }
-    //        }
-    //    }
-    //}
 
-    public void InspectDataToChange(Type type, object obj, object data, List<int> route, int iterator)
-    {
-        if (obj != null)
+            //Todo: Debug struct types extension methods
+
+
+            return output;
+        }
+
+        //public void InspectCreateMessageMe(Type type, object obj, int objID, Stack<int> route)
+        //{
+        //    if (obj != null)
+        //    {
+        //        Stack<int> listBeforeIteration = new Stack<int>(route);
+        //        foreach (MethodInfo info in type.GetMethods(BindingFlags.NonPublic | BindingFlags.Public |
+        //                                                    BindingFlags.Instance | BindingFlags.DeclaredOnly))
+        //        {
+        //            route = listBeforeIteration;
+        //            NetExtensionMethod netExt = info.GetCustomAttribute<NetExtensionMethod>();
+        //            if (netExt != null)
+        //            {
+        //                consoleMessage.Invoke($"The object has NetValue {netExt.id}");
+        //                route.Push(netExt.id);
+        //                // ReadValue(info, obj, objID, route, netValue);
+        //                route.Pop();
+        //            }
+        //        }
+        //    }
+        //}
+
+        public object InspectDataToChange(Type type, object obj, object data, List<int> route,
+            int iterator)
         {
-            foreach (MessageData info in GetFieldsFromType(type))
+            if (obj != null)
             {
-                if (info != null && info.ID == route[iterator])
+                foreach (MessageData info in GetFieldsFromType(type))
                 {
-                    iterator++;
-
-                    if (iterator >= route.Count)
+                    if (info != null && info.ID == route[iterator])
                     {
-                        SetValues(info.FieldInfo, obj, data);
-                    }
-                    else if (iterator < route.Count)
-                    {
-                        if (typeof(System.Collections.ICollection).IsAssignableFrom(info.FieldInfo.FieldType))
+                        iterator++;
+                        if (iterator >= route.Count)
                         {
-                            foreach (object item in
-                                     (info.FieldInfo.GetValue(obj) as System.Collections.ICollection))
+                            //TODO: The problem is that the data obj cannot be converter from vector3
+                            obj = SetValues(info.FieldInfo, obj, data);
+                        }
+                        else if (iterator < route.Count)
+                        {
+                            object aux = info.FieldInfo.GetValue(obj);
+                            if (typeof(System.Collections.IEnumerable).IsAssignableFrom(info.FieldInfo.FieldType))
                             {
-                                InspectDataToChange(info.FieldInfo.FieldType, info.FieldInfo.GetValue(obj), data,
-                                    route, iterator);
+                                foreach (object item in
+                                         (info.FieldInfo.GetValue(obj) as System.Collections.IEnumerable))
+                                {
+                                    aux = InspectDataToChange(info.FieldInfo.FieldType, item,
+                                        data,
+                                        route, iterator);
+                                }
                             }
-                        }
-                        else
-                        {
-                            InspectDataToChange(info.FieldInfo.FieldType, info.FieldInfo.GetValue(obj), data, route,
-                                iterator);
-                        }
-                    }
+                            else
+                            {
+                                aux = InspectDataToChange(info.FieldInfo.FieldType, aux, data,
+                                    route,
+                                    iterator);
+                            }
 
-                    iterator--;
+                            info.FieldInfo.SetValue(obj, aux);
+                        }
+
+                        iterator--;
+                    }
                 }
             }
-        }
-    }
 
-    private void SetValues(FieldInfo info, object obj, object data)
-    {
-        info.SetValue(obj, data);
-    }
-
-    //1
-    public void ReadValue(FieldInfo info, object obj, int objID, Stack<int> route, MessageFlags flags)
-    {
-        if (info.FieldType.IsValueType || info.FieldType == typeof(string) || info.FieldType.IsEnum)
-        {
-            List<int> valuesRoute = new List<int>(route.Reverse());
-            SendMessage(info, obj, objID, valuesRoute, flags);
+            return obj;
         }
-        else if (typeof(System.Collections.ICollection).IsAssignableFrom(info.FieldType))
+
+        private object SetValues(FieldInfo info, object obj, object data)
         {
-            foreach (object item in (info.GetValue(obj) as System.Collections.ICollection))
+            try
             {
-                InspectCreateMessage(item.GetType(), obj, objID, route, flags);
+                info.SetValue(obj, data);
+                return obj;
+            }
+            catch (Exception e)
+            {
+                consoleMessage.Invoke($"{e}");
+                throw;
             }
         }
-        else
+
+        //1
+        public void ReadValue(FieldInfo info, object obj, int objID, Stack<int> route, MessageFlags flags)
         {
-            MessageFlags currentFlag = MessageFlags.CheckSum;
-            if (flags.HasFlag(MessageFlags.Important) || flags.HasFlag(MessageFlags.Ordenable))
+            if ((info.FieldType.IsValueType && info.FieldType.IsPrimitive) || info.FieldType == typeof(string) ||
+                info.FieldType.IsEnum)
             {
-                currentFlag = flags;
+                List<int> valuesRoute = new List<int>(route.Reverse());
+                SendMessage(info, obj, objID, valuesRoute, flags);
             }
-
-            InspectCreateMessage(info.FieldType, info.GetValue(obj), objID, route, currentFlag);
-        }
-    }
-
-    private void SendMessage(FieldInfo info, object obj, int objId, List<int> route, MessageFlags value)
-    {
-        object package = info.GetValue(obj);
-        Type packageType = package.GetType();
-
-        foreach (Type currentType in executingAssembly.GetTypes())
-        {
-            if (currentType.BaseType != null && currentType.BaseType.IsGenericType &&
-                currentType.BaseType.GetGenericTypeDefinition() == typeof(INetObjectMessage<>))
+            else if (typeof(System.Collections.IEnumerable).IsAssignableFrom(info.FieldType))
             {
-                Type[] generic = currentType.BaseType.GetGenericArguments();
-                foreach (Type arg in generic)
+                foreach (object item in (info.GetValue(obj) as System.Collections.IEnumerable))
                 {
-                    if (packageType == arg)
-                    {
-                        //Create message
-                        BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance;
-                        Type[] parametersToApply =
-                            { packageType, objId.GetType(), route.GetType(), value.GetType() };
-                        object[] parameters = new[] { package, objId, route, value };
-                        object netMessage = Activator.CreateInstance(currentType, parameters);
-                        if (netMessage != null)
-                        {
-                            BaseMessage message = netMessage as BaseMessage;
-                            byte[] messageToSend = message.Serialize();
-                            //Todo: Send message
-                            dataToSend.Invoke(messageToSend);
-                        }
-                    }
+                    InspectCreateMessage(item.GetType(), item, objID, route, flags);
                 }
             }
-        }
-    }
-
-    public void HandlerMessage(byte[] data)
-    {
-        MessageType type = NetByteTranslator.GetNetworkType(data);
-        int playerID = NetByteTranslator.GetPlayerID(data);
-        MessageFlags flags = NetByteTranslator.GetFlags(data);
-
-        bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
-        bool isImportant = flags.HasFlag(MessageFlags.Important);
-        bool isOrdenable = flags.HasFlag(MessageFlags.Important);
-        ulong getMessageID = 0;
-        if (shouldCheckSum)
-        {
-            if (!BaseMessage<int>.IsMessageCorrectS(data.ToList()))
+            else
             {
-                consoleMessage.Invoke($"Message is corrupted");
-                return;
+                MessageFlags currentFlag = MessageFlags.CheckSum;
+                if (flags.HasFlag(MessageFlags.Important) || flags.HasFlag(MessageFlags.Ordenable))
+                {
+                    currentFlag = flags;
+                }
+
+                InspectCreateMessage(info.FieldType, info.GetValue(obj), objID, route, currentFlag);
             }
         }
 
-        if (isOrdenable)
+        private void SendMessage(FieldInfo info, object obj, int objId, List<int> route, MessageFlags value)
         {
-            getMessageID = NetByteTranslator.GetMesaggeID(data);
-        }
+            object package = info.GetValue(obj);
+            Type packageType = package.GetType();
 
-        Type dataType;
-        switch (type)
-        {
-            case MessageType.Float:
-                dataType = typeof(float);
-                break;
-            case MessageType.Int:
-                dataType = typeof(int);
-                break;
-            case MessageType.UInt:
-                dataType = typeof(uint);
-                break;
-            case MessageType.Short:
-                dataType = typeof(short);
-                break;
-            case MessageType.UShort:
-                dataType = typeof(ushort);
-                break;
-            case MessageType.Long:
-                dataType = typeof(long);
-                break;
-            case MessageType.ULong:
-                dataType = typeof(ulong);
-                break;
-            case MessageType.Byte:
-                dataType = typeof(byte);
-                break;
-            case MessageType.SByte:
-                dataType = typeof(sbyte);
-                break;
-            case MessageType.Char:
-                dataType = typeof(char);
-                break;
-            case MessageType.String:
-                dataType = typeof(string);
-                break;
-            case MessageType.Bool:
-                dataType = typeof(bool);
-                break;
-            case MessageType.Double:
-                dataType = typeof(double);
-                break;
-            case MessageType.Decimal:
-                dataType = typeof(decimal);
-                break;
-            default:
-                dataType = null;
-                Console.WriteLine("Not a valid type.");
-                break;
-        }
-
-        if (dataType != null)
-        {
             foreach (Type currentType in executingAssembly.GetTypes())
             {
                 if (currentType.BaseType != null && currentType.BaseType.IsGenericType &&
@@ -403,19 +338,127 @@ namespace RojoinNetworkSystem
                     Type[] generic = currentType.BaseType.GetGenericArguments();
                     foreach (Type arg in generic)
                     {
-                        if (dataType == arg)
+                        if (packageType == arg)
                         {
                             //Create message
                             BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance;
-                            object netMessage = Activator.CreateInstance(currentType);
+                            Type[] parametersToApply =
+                                { packageType, objId.GetType(), route.GetType(), value.GetType() };
+                            object[] parameters = new[] { package, objId, route, value };
+                            object netMessage = Activator.CreateInstance(currentType, parameters);
                             if (netMessage != null)
                             {
-                                //TOdo: Cheack a way to call deserialize,
                                 BaseMessage message = netMessage as BaseMessage;
-                                object messageData = message.Deserialize(data);
-                                NetObjectBasicData messageInfo = NetByteTranslator.GetNetObjectData(data);
-                                //Todo: call to the method that need  to set the value.
-                                ChangeExternalNetObjects(messageData, messageInfo.idValues, messageInfo.objectID);
+                                byte[] messageToSend = message.Serialize();
+                                //Todo: Send message
+                                dataToSend.Invoke(messageToSend);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public void HandlerMessage(byte[] data)
+        {
+            MessageType type = NetByteTranslator.GetNetworkType(data);
+            int playerID = NetByteTranslator.GetPlayerID(data);
+            MessageFlags flags = NetByteTranslator.GetFlags(data);
+
+            bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
+            bool isImportant = flags.HasFlag(MessageFlags.Important);
+            bool isOrdenable = flags.HasFlag(MessageFlags.Important);
+            ulong getMessageID = 0;
+            if (shouldCheckSum)
+            {
+                if (!BaseMessage<int>.IsMessageCorrectS(data.ToList()))
+                {
+                    consoleMessage.Invoke($"Message is corrupted");
+                    return;
+                }
+            }
+
+            if (isOrdenable)
+            {
+                getMessageID = NetByteTranslator.GetMesaggeID(data);
+            }
+
+            Type dataType;
+            switch (type)
+            {
+                case MessageType.Float:
+                    dataType = typeof(float);
+                    break;
+                case MessageType.Int:
+                    dataType = typeof(int);
+                    break;
+                case MessageType.UInt:
+                    dataType = typeof(uint);
+                    break;
+                case MessageType.Short:
+                    dataType = typeof(short);
+                    break;
+                case MessageType.UShort:
+                    dataType = typeof(ushort);
+                    break;
+                case MessageType.Long:
+                    dataType = typeof(long);
+                    break;
+                case MessageType.ULong:
+                    dataType = typeof(ulong);
+                    break;
+                case MessageType.Byte:
+                    dataType = typeof(byte);
+                    break;
+                case MessageType.SByte:
+                    dataType = typeof(sbyte);
+                    break;
+                case MessageType.Char:
+                    dataType = typeof(char);
+                    break;
+                case MessageType.String:
+                    dataType = typeof(string);
+                    break;
+                case MessageType.Bool:
+                    dataType = typeof(bool);
+                    break;
+                case MessageType.Double:
+                    dataType = typeof(double);
+                    break;
+                case MessageType.Decimal:
+                    dataType = typeof(decimal);
+                    break;
+                default:
+                    dataType = null;
+                    Console.WriteLine("Not a valid type.");
+                    break;
+            }
+
+            if (dataType != null)
+            {
+                foreach (Type currentType in executingAssembly.GetTypes())
+                {
+                    if (currentType.BaseType != null && currentType.BaseType.IsGenericType &&
+                        currentType.BaseType.GetGenericTypeDefinition() == typeof(INetObjectMessage<>))
+                    {
+                        Type[] generic = currentType.BaseType.GetGenericArguments();
+                        foreach (Type arg in generic)
+                        {
+                            if (dataType == arg)
+                            {
+                                //Create message
+                                BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance;
+                                object netMessage = Activator.CreateInstance(currentType);
+                                if (netMessage != null)
+                                {
+                                    //TOdo: Cheack a way to call deserialize,
+                                    BaseMessage message = netMessage as BaseMessage;
+                                    object messageData = message.Deserialize(data);
+                                    NetObjectBasicData messageInfo = NetByteTranslator.GetNetObjectData(data);
+                                    //Todo: call to the method that need  to set the value.
+                                    ChangeExternalNetObjects(messageData, messageInfo.idValues,
+                                        messageInfo.objectID);
+                                }
                             }
                         }
                     }
@@ -423,6 +466,4 @@ namespace RojoinNetworkSystem
             }
         }
     }
-}
-
 }
