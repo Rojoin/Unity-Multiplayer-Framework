@@ -277,17 +277,28 @@ namespace RojoinNetworkSystem
                             object objectReference = info.FieldInfo.GetValue(obj);
                             if (typeof(System.Collections.ICollection).IsAssignableFrom(info.FieldInfo.FieldType))
                             {
-                                bool isListCountDifferent = route[iterator].collectionSize != (objectReference as ICollection).Count;
+                                Type elementType = GetElementType(info.FieldInfo.FieldType);
                                 int collectionSize = (objectReference as ICollection).Count;
-                                if (isListCountDifferent)
-                                {
-                                    collectionSize = route[iterator].collectionSize;
-                                }
+                                bool isListCountDifferent = route[iterator].collectionSize != collectionSize;
 
-                                object[] arrayToIterate = new object[collectionSize];
+                                object[] arrayToIterate = new object[route[iterator].collectionSize];
                                 if (!isListCountDifferent)
                                 {
                                     (objectReference as ICollection).CopyTo(arrayToIterate, 0);
+                                }
+                                else
+                                {
+                                    for (int i = 0; i < route[iterator].collectionSize; i++)
+                                    {
+                                        if (i < collectionSize)
+                                        {
+                                            arrayToIterate[i] = (objectReference as ICollection).Cast<object>().ElementAt(i);
+                                        }
+                                        else
+                                        {
+                                            arrayToIterate[i] = Activator.CreateInstance(elementType);
+                                        }
+                                    }
                                 }
 
                                 for (int i = 0; i < arrayToIterate.Length; i++)
@@ -299,7 +310,7 @@ namespace RojoinNetworkSystem
                                         var updated = InspectDataToChange(arrayToIterate[i].GetType(),
                                             arrayToIterate[i], data, route, iterator +1);
                                         arrayToIterate[i] = updated;
-
+                                        iterator--;
                                         consoleMessage.Invoke($"New value is :{arrayToIterate.GetValue(i)}");
                                         break;
                                     }
@@ -502,6 +513,18 @@ namespace RojoinNetworkSystem
             }
 
             return arrayToTranslator;
+        }
+        private Type GetElementType(Type type)
+        {
+            if (type.IsArray)
+            {
+                return type.GetElementType();
+            }
+            else if (type.IsGenericType)
+            {
+                return type.GetGenericArguments()[0];
+            }
+            return typeof(object);
         }
     }
 }

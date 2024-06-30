@@ -12,8 +12,8 @@ public class ClassA : MonoBehaviour, INetObject
     public ClassB classb = new(2);
     public Vector3 aector3 = new Vector3();
     public ClassC classC;
-   [SerializeField] [NetValue(7)] private List<ClassB> classList = new();
-   [SerializeField] [NetValue(8)] private ClassB[] classArray = new ClassB[2];
+   [SerializeField]  private List<ClassB> classList = new();
+   [SerializeField]  private ClassB[] classArray = new ClassB[2];
    [SerializeField] [NetValue(9)] private List<Vector3> vector3s = new();
     private NetObject _netObject = new NetObject();
 
