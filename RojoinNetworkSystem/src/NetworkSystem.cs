@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
@@ -32,6 +33,7 @@ namespace RojoinNetworkSystem
         private Assembly executingAssembly;
 
         private List<object> netObjects = new List<object>();
+        private Dictionary<MessageType, (Type, Type)> typeOfMessage = new Dictionary<MessageType, (Type, Type)>();
         private int owner;
 
         public Action<byte[]> dataToSend;
@@ -54,7 +56,7 @@ namespace RojoinNetworkSystem
         {
             gameAssembly = Assembly.GetCallingAssembly();
             this.consoleMessage += consoleMessage;
-            foreach (var type in gameAssembly.GetTypes())
+            foreach (Type type in gameAssembly.GetTypes())
             {
                 NetExtensionClass netExtensionClass = type.GetCustomAttribute<NetExtensionClass>();
                 if (netExtensionClass != null)
@@ -79,6 +81,15 @@ namespace RojoinNetworkSystem
             }
 
             executingAssembly = Assembly.GetExecutingAssembly();
+            foreach (Type type in executingAssembly.GetTypes())
+            {
+                NetType netType = type.GetCustomAttribute<NetType>();
+                if (netType != null)
+                {
+                    typeOfMessage.Add(netType.msgType, (netType.Type, type));
+                }
+            }
+
             owner = ownerId;
             List<Type> netObjectTypes = GetNetObjectImplementations();
             foreach (Type netObjectType in netObjectTypes)
@@ -123,14 +134,14 @@ namespace RojoinNetworkSystem
             {
                 if (netObject.GetOwner() == owner)
                 {
-                    Stack<int> route = new Stack<int>();
+                    List<Route> route = new List<Route>();
                     InspectCreateMessage(netObject.GetType(), netObject, netObject.GetID(), route,
                         MessageFlags.CheckSum);
                 }
             }
         }
 
-        public void ChangeExternalNetObjects(object data, List<int> route, int objId)
+        public void ChangeExternalNetObjects(object data, List<Route> route, int objId)
         {
             for (int index = 0; index < netObjects.Count; index++)
             {
@@ -157,7 +168,8 @@ namespace RojoinNetworkSystem
         }
 
 
-        public void InspectCreateMessage(Type type, object obj, int objID, Stack<int> route, MessageFlags flagsFromBase)
+        public void InspectCreateMessage(Type type, object obj, int objID, List<Route> route,
+            MessageFlags flagsFromBase)
         {
             if (obj != null)
             {
@@ -169,9 +181,12 @@ namespace RojoinNetworkSystem
                         currentFlag = flagsFromBase;
                     }
 
-                    route.Push(info.ID);
+                    Route route1 = new Route(info.ID, -1, -1);
+                    route.Add(route1);
+                    consoleMessage.Invoke(
+                        $"Route id:{route1.id}-Colpos:{route1.collectionPos} -colsize{route1.collectionSize}");
                     ReadValue(info.FieldInfo, obj, objID, route, currentFlag);
-                    route.Pop();
+                    route.RemoveAt(route.Count - 1);
                 }
             }
         }
@@ -230,35 +245,59 @@ namespace RojoinNetworkSystem
         //    }
         //}
 
-        private object InspectDataToChange(Type type, object obj, object data, List<int> route,
+        private object InspectDataToChange(Type type, object obj, object data, List<Route> route,
             int iterator)
         {
             if (obj != null)
             {
                 foreach (MessageData info in GetFieldsFromType(type))
                 {
-                    if (info != null && info.ID == route[iterator])
+                    //Todo: Must change so each id comes with an specific
+                    if (info != null && info.ID == route[iterator].id)
                     {
-                        iterator++;
-                        if (iterator >= route.Count)
+                        if (route[iterator].collectionSize == -1)
                         {
-                            obj = SetValues(info.FieldInfo, obj, data);
+                            iterator++;
+                            if (iterator >= route.Count)
+                            {
+                                obj = SetValues(info.FieldInfo, obj, data);
+                            }
+                            else
+                            {
+                                object objectReference = info.FieldInfo.GetValue(obj);
+                                objectReference = InspectDataToChange(info.FieldInfo.FieldType, objectReference, data,
+                                    route,
+                                    iterator);
+                                info.FieldInfo.SetValue(obj, objectReference);
+                            }
+                            iterator--;
                         }
-                        else if (iterator < route.Count)
+                        else
                         {
                             object objectReference = info.FieldInfo.GetValue(obj);
                             if (typeof(System.Collections.ICollection).IsAssignableFrom(info.FieldInfo.FieldType))
                             {
-                                object[] arrayToIterate = new object[(objectReference as ICollection).Count];
-                                (objectReference as ICollection).CopyTo(arrayToIterate, 0);
+                                bool isListCountDifferent = route[iterator].collectionSize != (objectReference as ICollection).Count;
+                                int collectionSize = (objectReference as ICollection).Count;
+                                if (isListCountDifferent)
+                                {
+                                    collectionSize = route[iterator].collectionSize;
+                                }
+
+                                object[] arrayToIterate = new object[collectionSize];
+                                if (!isListCountDifferent)
+                                {
+                                    (objectReference as ICollection).CopyTo(arrayToIterate, 0);
+                                }
 
                                 for (int i = 0; i < arrayToIterate.Length; i++)
                                 {
                                     consoleMessage.Invoke(
                                         $"{arrayToIterate[i].GetType()}:{info.FieldInfo.FieldType}:Data:{data}:Current{i}:Quantity: {arrayToIterate.Length}");
-                                    if (i == route[iterator])
+                                    if (i == route[iterator].collectionPos)
                                     {
-                                        var updated = InspectDataToChange(arrayToIterate[i].GetType(), arrayToIterate[i], data, route, iterator+1);
+                                        var updated = InspectDataToChange(arrayToIterate[i].GetType(),
+                                            arrayToIterate[i], data, route, iterator +1);
                                         arrayToIterate[i] = updated;
 
                                         consoleMessage.Invoke($"New value is :{arrayToIterate.GetValue(i)}");
@@ -266,34 +305,39 @@ namespace RojoinNetworkSystem
                                     }
                                 }
 
-                                MethodInfo clearMethod = objectReference.GetType().GetMethod("Clear");
-                                clearMethod.Invoke(objectReference, null);
-                                MethodInfo addMethod = objectReference.GetType().GetMethod("Add");
-                                foreach (var updated in arrayToIterate)
+                                object arrayAsGenericList;
+                                if (info.FieldInfo.FieldType.IsArray)
                                 {
-                                    addMethod.Invoke(objectReference, new[] { updated });
-                                    consoleMessage.Invoke($"Value copied is:{arrayToIterate.GetType()}");
+                                    arrayAsGenericList = typeof(NetworkSystem)
+                                        .GetMethod(nameof(TransaltorArray),
+                                            BindingFlags.Instance | BindingFlags.NonPublic)
+                                        .MakeGenericMethod(info.FieldInfo.FieldType.GetElementType())
+                                        .Invoke(this, new[] { arrayToIterate });
+                                    objectReference = Array.CreateInstance(info.FieldInfo.FieldType.GetElementType(),
+                                        ((Array)arrayAsGenericList).Length);
+
+
+                                    Array.Copy((Array)arrayAsGenericList, (Array)objectReference,
+                                        (arrayAsGenericList as ICollection).Count);
+                                }
+                                else
+                                {
+                                    arrayAsGenericList = typeof(NetworkSystem)
+                                        .GetMethod(nameof(TransaltorICollection),
+                                            BindingFlags.Instance | BindingFlags.NonPublic)
+                                        .MakeGenericMethod(info.FieldInfo.FieldType.GenericTypeArguments[0])
+                                        .Invoke(this, new[] { arrayToIterate });
+                                    objectReference = Activator.CreateInstance(info.FieldInfo.FieldType,
+                                        arrayAsGenericList as ICollection);
                                 }
 
-
-                                // // objectReference = info.FieldInfo.GetValue(arrayToIterate);
-                                //  // objectReference = SetValues(info.FieldInfo, collection, arrayToIterate);
-                                //  collection = arrayToIterate;
-                                //  objectReference = info.FieldInfo.GetValue(obj);
+                                consoleMessage.Invoke($"Set the end of the list{objectReference}");
+                                consoleMessage.Invoke($"Object to change{obj}");
+                                info.FieldInfo.SetValue(obj, objectReference);
+                                consoleMessage.Invoke($"Going Back");
                             }
-                            else
-                            {
-                                objectReference = InspectDataToChange(info.FieldInfo.FieldType, objectReference, data,
-                                    route,
-                                    iterator);
-                            }
-
-                            consoleMessage.Invoke($"Set the end of the list{objectReference}");
-                            consoleMessage.Invoke($"Object to change{obj}");
-                            info.FieldInfo.SetValue(obj, objectReference);
                         }
 
-                        iterator--;
                     }
                 }
             }
@@ -319,22 +363,31 @@ namespace RojoinNetworkSystem
         }
 
         //1
-        public void ReadValue(FieldInfo info, object obj, int objID, Stack<int> route, MessageFlags flags)
+        public void ReadValue(FieldInfo info, object obj, int objID, List<Route> route, MessageFlags flags)
         {
             if ((info.FieldType.IsValueType && info.FieldType.IsPrimitive) || info.FieldType == typeof(string) ||
                 info.FieldType.IsEnum)
             {
-                List<int> valuesRoute = new List<int>(route.Reverse());
-                SendMessage(info, obj, objID, valuesRoute, flags);
+                consoleMessage.Invoke("Preparing Message");
+                SendMessage(info, obj, objID, route, flags);
             }
             else if (typeof(System.Collections.IEnumerable).IsAssignableFrom(info.FieldType))
             {
                 int aux = 0;
-                foreach (object item in (info.GetValue(obj) as System.Collections.IEnumerable))
+                foreach (object item in ((info.GetValue(obj) as System.Collections.ICollection)!))
                 {
-                    route.Push(aux++);
-                    InspectCreateMessage(item.GetType(), item, objID, route, flags);
-                    route.Pop();
+                    MessageFlags currentFlag = MessageFlags.CheckSum;
+                    if (flags.HasFlag(MessageFlags.Important) || flags.HasFlag(MessageFlags.Ordenable))
+                    {
+                        currentFlag = flags;
+                    }
+
+                    Route route1 = route[route.Count - 1];
+                    consoleMessage.Invoke($"{route.Count - 1}");
+                    route1.collectionSize = (info.GetValue(obj) as System.Collections.ICollection).Count;
+                    route1.collectionPos = aux++;
+                    route[route.Count - 1] = route1;
+                    InspectCreateMessage(item.GetType(), item, objID, route, currentFlag);
                 }
             }
             else
@@ -349,11 +402,11 @@ namespace RojoinNetworkSystem
             }
         }
 
-        private void SendMessage(FieldInfo info, object obj, int objId, List<int> route, MessageFlags value)
+        private void SendMessage(FieldInfo info, object obj, int objId, List<Route> route, MessageFlags value)
         {
             object package = info.GetValue(obj);
             Type packageType = package.GetType();
-
+//Todo: Change
             foreach (Type currentType in executingAssembly.GetTypes())
             {
                 if (currentType.BaseType != null && currentType.BaseType.IsGenericType &&
@@ -407,87 +460,48 @@ namespace RojoinNetworkSystem
                 getMessageID = NetByteTranslator.GetMesaggeID(data);
             }
 
-            Type dataType;
-            switch (type)
+            if (typeOfMessage.TryGetValue(type, out (Type, Type) dataType))
             {
-                case MessageType.Float:
-                    dataType = typeof(float);
-                    break;
-                case MessageType.Int:
-                    dataType = typeof(int);
-                    break;
-                case MessageType.UInt:
-                    dataType = typeof(uint);
-                    break;
-                case MessageType.Short:
-                    dataType = typeof(short);
-                    break;
-                case MessageType.UShort:
-                    dataType = typeof(ushort);
-                    break;
-                case MessageType.Long:
-                    dataType = typeof(long);
-                    break;
-                case MessageType.ULong:
-                    dataType = typeof(ulong);
-                    break;
-                case MessageType.Byte:
-                    dataType = typeof(byte);
-                    break;
-                case MessageType.SByte:
-                    dataType = typeof(sbyte);
-                    break;
-                case MessageType.Char:
-                    dataType = typeof(char);
-                    break;
-                case MessageType.String:
-                    dataType = typeof(string);
-                    break;
-                case MessageType.Bool:
-                    dataType = typeof(bool);
-                    break;
-                case MessageType.Double:
-                    dataType = typeof(double);
-                    break;
-                case MessageType.Decimal:
-                    dataType = typeof(decimal);
-                    break;
-                default:
-                    dataType = null;
-                    Console.WriteLine("Not a valid type.");
-                    break;
-            }
-
-            if (dataType != null)
-            {
-                foreach (Type currentType in executingAssembly.GetTypes())
+                //Create message
+                BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance;
+                object netMessage = Activator.CreateInstance(dataType.Item2);
+                if (netMessage != null)
                 {
-                    if (currentType.BaseType != null && currentType.BaseType.IsGenericType &&
-                        currentType.BaseType.GetGenericTypeDefinition() == typeof(INetObjectMessage<>))
-                    {
-                        Type[] generic = currentType.BaseType.GetGenericArguments();
-                        foreach (Type arg in generic)
-                        {
-                            if (dataType == arg)
-                            {
-                                //Create message
-                                BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance;
-                                object netMessage = Activator.CreateInstance(currentType);
-                                if (netMessage != null)
-                                {
-                                    //TOdo: Cheack a way to call deserialize,
-                                    BaseMessage message = netMessage as BaseMessage;
-                                    object messageData = message.Deserialize(data);
-                                    NetObjectBasicData messageInfo = NetByteTranslator.GetNetObjectData(data);
-                                    //Todo: call to the method that need  to set the value.
-                                    ChangeExternalNetObjects(messageData, messageInfo.idValues,
-                                        messageInfo.objectID);
-                                }
-                            }
-                        }
-                    }
+                    //TOdo: Cheack a way to call deserialize,
+                    BaseMessage message = netMessage as BaseMessage;
+                    object messageData = message.Deserialize(data);
+                    NetObjectBasicData messageInfo = NetByteTranslator.GetNetObjectData(data);
+                    //Todo: call to the method that need  to set the value.
+                    ChangeExternalNetObjects(messageData, messageInfo.idValues,
+                        messageInfo.objectID);
                 }
             }
+        }
+
+        private object TransaltorICollection<T>(object[] objs)
+        {
+            List<T> listToTranslate = new List<T>();
+            consoleMessage.Invoke($"Type of t:{typeof(T)}");
+            foreach (object elementsOfObjets in objs)
+            {
+                consoleMessage.Invoke($"Elements of Type:{elementsOfObjets.GetType()}");
+                listToTranslate.Add((T)elementsOfObjets);
+            }
+
+            return listToTranslate;
+        }
+
+        private object TransaltorArray<T>(object[] objs)
+        {
+            T[] arrayToTranslator = new T[objs.Length];
+            consoleMessage.Invoke($"Type of t:{typeof(T)}");
+            for (int i = 0; i < objs.Length; i++)
+            {
+                consoleMessage.Invoke($"Elements of Type:{objs.GetType()}");
+                arrayToTranslator[i] = ((T)objs[i]);
+            }
+
+            return arrayToTranslator;
         }
     }
 }

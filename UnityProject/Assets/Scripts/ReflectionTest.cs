@@ -42,8 +42,6 @@ namespace DefaultNamespace
 
         private void WriteData(byte[] data)
         {
-            //  Debug.Log($"Data:{arg0.GetType()}:{arg0}. Route {arg1}. ObjetNumber: {arg2}.");
-            //    _networkSystem.ChangeExternalNetObjects(arg0, arg1, arg2);
             _networkSystem.HandlerMessage(data);
         }
 

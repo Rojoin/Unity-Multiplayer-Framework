@@ -13,7 +13,6 @@ namespace RojoinNetworkSystem
 
     public static class NetByteTranslator
     {
-        
         public static MessageType GetNetworkType(byte[] data)
         {
             if (data != null && data.Length > 0)
@@ -31,15 +30,21 @@ namespace RojoinNetworkSystem
             int listOffset = 24;
             int intIndex = BitConverter.ToInt32(data, listOffset);
 
-            List<int> idValues = new List<int>();
+            List<Route> idValues = new List<Route>();
             for (int i = 0; i < intIndex; i++)
             {
                 listOffset += 4;
-                idValues.Add(BitConverter.ToInt32(data, listOffset));
+                int id = BitConverter.ToInt32(data, listOffset);
+                listOffset += 4;
+                int colPos = (BitConverter.ToInt32(data, listOffset));
+                listOffset += 4;
+                int colSize = (BitConverter.ToInt32(data, listOffset));
+                idValues.Add(new Route(id, colPos, colSize));
             }
 
             return new NetObjectBasicData(objID, idValues);
         }
+
         public static int GetPlayerID(byte[] data)
         {
             if (data != null && data.Length > 4)
@@ -148,6 +153,7 @@ namespace RojoinNetworkSystem
             return checkSum >>= 3;
         }
     }
+
     public static class Utilities
     {
         public static int Sorter(MessageCache cache1, MessageCache cache2)

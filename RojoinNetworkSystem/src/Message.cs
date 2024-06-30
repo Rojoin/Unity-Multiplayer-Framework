@@ -6,6 +6,31 @@ using System.Text;
 
 namespace RojoinNetworkSystem
 {
+    public struct Route
+    {
+        public int id;
+        public int collectionPos;
+        public int collectionSize;
+
+        public Route(int id, int colpos, int colSize)
+        {
+            this.id = id;
+            collectionPos = colpos;
+            collectionSize = colSize;
+        }
+        
+    }
+    public class NetType : Attribute
+    {
+        public MessageType msgType;
+        public Type Type;
+
+        public NetType(MessageType msgType,Type type)
+        {
+            Type = type;
+            this.msgType = msgType;
+        }
+    }
     public enum MessageType
     {
         Error = -3,
@@ -189,13 +214,13 @@ namespace RojoinNetworkSystem
     public abstract class INetObjectMessage<PayloadType> : OrderableMessage<PayloadType>
     {
         public int objectId;
-        public List<int> valueId = new List<int>();
+        public List<Route> valueId = new List<Route>();
 
         public INetObjectMessage()
         {
         }
 
-        protected INetObjectMessage(PayloadType data, int objId, List<int> valId,
+        protected INetObjectMessage(PayloadType data, int objId, List<Route> valId,
             MessageFlags messageFlags = MessageFlags.CheckSum) : base(data, messageFlags)
         {
             Data = data;
@@ -213,9 +238,11 @@ namespace RojoinNetworkSystem
             outData.AddRange(BitConverter.GetBytes(messageID++));
             outData.AddRange(BitConverter.GetBytes(objectId));
             outData.AddRange(BitConverter.GetBytes(valueId.Count));
-            foreach (int t in valueId)
+            foreach (Route t in valueId)
             {
-                outData.AddRange(BitConverter.GetBytes(t));
+                outData.AddRange(BitConverter.GetBytes(t.id));
+                outData.AddRange(BitConverter.GetBytes(t.collectionPos));
+                outData.AddRange(BitConverter.GetBytes(t.collectionSize));
             }
 
             SetOffset();
@@ -227,11 +254,16 @@ namespace RojoinNetworkSystem
             int listOffset = 24;
             int intIndex = BitConverter.ToInt32(data, listOffset);
 
-            List<int> idValues = new List<int>();
+            List<Route> idValues = new List<Route>();
             for (int i = 0; i < intIndex; i++)
             {
                 listOffset += 4;
-                idValues.Add(BitConverter.ToInt32(data, listOffset));
+                int id =BitConverter.ToInt32(data, listOffset);
+                listOffset += 4;
+               int colPos =(BitConverter.ToInt32(data, listOffset));
+                listOffset += 4;
+                int colSize = (BitConverter.ToInt32(data, listOffset));
+                idValues.Add(new Route(id,colPos,colSize));
             }
 
             return new NetObjectBasicData(objID, idValues);
@@ -240,7 +272,7 @@ namespace RojoinNetworkSystem
         protected override void SetOffset()
         {
             offsetSize = sizeof(int) * 5 + sizeof(ulong);
-            offsetSize += valueId.Count * sizeof(int);
+            offsetSize += valueId.Count * sizeof(int)*3;
             Console.WriteLine($"Reading byte:{offsetSize}");
         }
 
@@ -251,10 +283,10 @@ namespace RojoinNetworkSystem
 
             for (int i = 0; i < intIndex; i++)
             {
-                listOffset += 4;
+                listOffset += 4*3;
             }
 
-            return listOffset + 4;
+            return listOffset+4;
         }
     }
 
@@ -488,7 +520,7 @@ namespace RojoinNetworkSystem
 
     public class NetTRS : INetObjectMessage<TRS>
     {
-        public NetTRS(TRS data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetTRS(TRS data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.TRS;
@@ -734,8 +766,7 @@ namespace RojoinNetworkSystem
         }
     }
 
-    //Mando una list apara enviar todo el recorrido
-    //11,(lista : 2,2),data
+    [NetType(MessageType.Float,typeof(float))]
     public class NetFloat : INetObjectMessage<float>
     {
         public NetFloat() : base()
@@ -744,11 +775,10 @@ namespace RojoinNetworkSystem
             SetOffset();
         }
 
-        public NetFloat(float data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetFloat(float data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             Data = data;
-            Console.WriteLine($"Data to change:{Data}");
             MsgType = MessageType.Float;
         }
 
@@ -769,7 +799,7 @@ namespace RojoinNetworkSystem
             return BitConverter.ToSingle(message, offsetByBytes);
         }
     }
-
+    [NetType(MessageType.Int,typeof(int))]
     public class NetInt : INetObjectMessage<int>
     {
         public NetInt() : base()
@@ -777,7 +807,7 @@ namespace RojoinNetworkSystem
             MsgType = MessageType.Int;
         }
 
-        public NetInt(int data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetInt(int data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.Int;
@@ -797,10 +827,10 @@ namespace RojoinNetworkSystem
             return BitConverter.ToInt32(message, GetOffsetByBytes(message));
         }
     }
-
+    [NetType(MessageType.UInt,typeof(uint))]
     public class NetUInt : INetObjectMessage<uint>
     {
-        public NetUInt(uint data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetUInt(uint data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.UInt;
@@ -825,10 +855,10 @@ namespace RojoinNetworkSystem
             return BitConverter.ToUInt32(message, GetOffsetByBytes(message));
         }
     }
-
+    [NetType(MessageType.Bool,typeof(bool))]
     public class NetBool : INetObjectMessage<bool>
     {
-        public NetBool(bool data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetBool(bool data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.Bool;
@@ -853,10 +883,10 @@ namespace RojoinNetworkSystem
             return BitConverter.ToBoolean(message, GetOffsetByBytes(message));
         }
     }
-
+    [NetType(MessageType.String,typeof(string))]
     public class NetString : INetObjectMessage<string>
     {
-        public NetString(string data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetString(string data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.String;
@@ -894,7 +924,7 @@ namespace RojoinNetworkSystem
             return aux;
         }
     }
-
+    [NetType(MessageType.Short,typeof(short))]
     public class NetShort : INetObjectMessage<short>
     {
         NetShort()
@@ -902,7 +932,7 @@ namespace RojoinNetworkSystem
             MsgType = MessageType.Short;
         }
 
-        public NetShort(short data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetShort(short data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.Short;
@@ -922,7 +952,7 @@ namespace RojoinNetworkSystem
             return BitConverter.ToInt16(message, GetOffsetByBytes(message));
         }
     }
-
+    [NetType(MessageType.UShort,typeof(ushort))]
     public class NetUShort : INetObjectMessage<ushort>
     {
         NetUShort()
@@ -930,7 +960,7 @@ namespace RojoinNetworkSystem
             MsgType = MessageType.UShort;
         }
 
-        public NetUShort(ushort data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetUShort(ushort data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.UShort;
@@ -950,7 +980,7 @@ namespace RojoinNetworkSystem
             return BitConverter.ToUInt16(message, GetOffsetByBytes(message));
         }
     }
-
+    [NetType(MessageType.Long,typeof(long))]
     public class NetLong : INetObjectMessage<long>
     {
         NetLong()
@@ -958,7 +988,7 @@ namespace RojoinNetworkSystem
             MsgType = MessageType.Long;
         }
 
-        public NetLong(long data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetLong(long data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.Long;
@@ -978,7 +1008,7 @@ namespace RojoinNetworkSystem
             return BitConverter.ToInt64(message, GetOffsetByBytes(message));
         }
     }
-
+    [NetType(MessageType.ULong,typeof(ulong))]
     public class NetULong : INetObjectMessage<ulong>
     {
         NetULong()
@@ -986,7 +1016,7 @@ namespace RojoinNetworkSystem
             MsgType = MessageType.ULong;
         }
 
-        public NetULong(ulong data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetULong(ulong data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.ULong;
@@ -1006,7 +1036,7 @@ namespace RojoinNetworkSystem
             return BitConverter.ToUInt64(message, GetOffsetByBytes(message));
         }
     }
-
+    [NetType(MessageType.Byte,typeof(byte))]
     public class NetByte : INetObjectMessage<byte>
     {
         NetByte()
@@ -1014,7 +1044,7 @@ namespace RojoinNetworkSystem
             MsgType = MessageType.Byte;
         }
 
-        public NetByte(byte data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetByte(byte data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.Byte;
@@ -1034,7 +1064,7 @@ namespace RojoinNetworkSystem
             return message[offsetSize];
         }
     }
-
+    [NetType(MessageType.SByte,typeof(sbyte))]
     public class NetSByte : INetObjectMessage<sbyte>
     {
         public NetSByte() : base()
@@ -1042,7 +1072,7 @@ namespace RojoinNetworkSystem
             MsgType = MessageType.SByte;
         }
 
-        public NetSByte(sbyte data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetSByte(sbyte data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.SByte;
@@ -1062,7 +1092,7 @@ namespace RojoinNetworkSystem
             return (sbyte)message[GetOffsetByBytes(message)];
         }
     }
-
+    [NetType(MessageType.Char,typeof(char))]
     public class NetChar : INetObjectMessage<char>
     {
         public NetChar() : base()
@@ -1070,7 +1100,7 @@ namespace RojoinNetworkSystem
             MsgType = MessageType.Char;
         }
 
-        public NetChar(char data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetChar(char data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.Char;
@@ -1090,7 +1120,7 @@ namespace RojoinNetworkSystem
             return (char)message[GetOffsetByBytes(message)];
         }
     }
-
+    [NetType(MessageType.Double,typeof(double))]
     public class NetDouble : INetObjectMessage<double>
     {
         NetDouble()
@@ -1098,7 +1128,7 @@ namespace RojoinNetworkSystem
             MsgType = MessageType.Double;
         }
 
-        public NetDouble(double data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetDouble(double data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.Double;
@@ -1118,7 +1148,7 @@ namespace RojoinNetworkSystem
             return BitConverter.ToDouble(message, GetOffsetByBytes(message));
         }
     }
-
+    [NetType(MessageType.Decimal,typeof(decimal))]
     public class NetDecimal : INetObjectMessage<decimal>
     {
         NetDecimal()
@@ -1126,7 +1156,7 @@ namespace RojoinNetworkSystem
             MsgType = MessageType.Decimal;
         }
 
-        public NetDecimal(decimal data, int objId, List<int> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
+        public NetDecimal(decimal data, int objId, List<Route> valId, MessageFlags messageFlags = MessageFlags.CheckSum) :
             base(data, objId, valId, messageFlags)
         {
             MsgType = MessageType.Decimal;

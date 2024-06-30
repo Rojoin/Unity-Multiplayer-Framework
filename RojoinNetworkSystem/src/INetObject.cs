@@ -38,8 +38,8 @@ namespace RojoinNetworkSystem
     public class NetObjectBasicData
     {
        public int objectID;
-        public List<int> idValues;
-       public NetObjectBasicData(int objId, List<int> idValues)
+        public List<Route> idValues;
+       public NetObjectBasicData(int objId, List<Route> idValues)
        {
            objectID = objId;
            this.idValues = idValues;

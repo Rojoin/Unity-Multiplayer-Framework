@@ -53,7 +53,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
     [ContextMenu("Test net Message")]
     private void Test()
     {
-        NetFloat a = new NetFloat(999, -1, new List<int>());
+        NetFloat a = new NetFloat(999, -1, new List<Route>());
         SendToServer(a.Serialize());
     }
 

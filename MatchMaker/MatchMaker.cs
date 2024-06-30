@@ -32,8 +32,9 @@ class MatchMaker : IReceiveData
 
     private void OnError(string obj)
     {
-       Console.WriteLine(obj);
+        Console.WriteLine(obj);
     }
+
     ~MatchMaker()
     {
         connection.Close();
@@ -59,7 +60,7 @@ class MatchMaker : IReceiveData
         {
             if (activeServers.Count == 0)
             {
-                activeServers.Add(new ServerInfo(DateTime.UtcNow, 12346));
+                activeServers.Add(new ServerInfo(DateTime.UtcNow, 12346, "127.0.0.1"));
                 Thread.Sleep(500);
                 NetServerDirection netServerDirection = new(("127.0.0.1", activeServers[0].port));
                 connection.Send(netServerDirection.Serialize(), ipEndpoint);
@@ -83,29 +84,40 @@ class MatchMaker : IReceiveData
 
 class ServerInfo
 {
-    private static uint _serverId = 0;
+    private static uint serverCount = 0;
+    private uint serverId = 0;
     private int _currentPlayers;
     private DateTime _startTime;
     public int port;
     private Process _serverProcess;
     private GameState _gameState;
+    private IPAddress _ipAddress;
+    private List<Player> playersInServer = new List<Player>();
+    private UdpConnection connection;
 
-    public ServerInfo(DateTime startTime, int port)
+    public ServerInfo(DateTime startTime, int port, string serverIp)
     {
         _gameState = GameState.WaitingForPlayers;
         _startTime = startTime;
         this.port = port;
-        _serverId++;
+        serverId = serverCount++;
         _serverProcess = new Process();
-
+        _ipAddress = IPAddress.Parse(serverIp);
         _serverProcess.StartInfo.FileName = "Server.exe";
         _serverProcess.StartInfo.Arguments = $"{port}";
         _serverProcess.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
         _serverProcess.Start();
+       // connection = new UdpConnection(_ipAddress, port,,OnErrorMessage, this);
     }
-    
+
     public void CloseProcess()
     {
         _serverProcess.Close();
+    }
+
+    private void OnErrorMessage(string errorMessage)
+    {
+        Console.WriteLine($"Server {serverId}:{errorMessage}");
+
     }
 }
