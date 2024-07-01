@@ -6,7 +6,6 @@ using UnityEngine.Events;
 /// <summary>
 /// Class for the PlayerShooting
 /// </summary>
-[NetNotSync(TRSFlags.NotPos|TRSFlags.NotScale)]
 public class PlayerShooting : MonoBehaviour, INetObject
 {
     [Header("Channels")]
@@ -24,7 +23,7 @@ public class PlayerShooting : MonoBehaviour, INetObject
     public UnityEvent OnPrepareLaser;
 
     [Header("Variables")]
-   [NetValue(1)]public bool isPressingButton;
+    [NetValue(1)] public bool isPressingButton;
     private bool singleBulletShoot;
     [Header("Cooldowns Presets")]
     public float specialBeanCooldown;
@@ -48,13 +47,21 @@ public class PlayerShooting : MonoBehaviour, INetObject
     private float minShootTimer = 0.5f;
     private float currentSingleShootTimer;
 
+
     public TRS GetTRS()
     {
         return transform.GetTRS();
-    }public void SetTRS(TRS trs,TRSFlags flags)
+    }
+
+    public void SetTRS(TRS trs, TRSFlags flags)
     {
         Debug.Log(flags.ToString());
-        transform.SetTRS(trs,flags);
+        transform.SetTRS(trs, flags);
+    }
+
+    public void SendDeleteMessage()
+    {
+        NetObjectFactory.Instance.SendDeleteMessage(GetObject());
     }
 
     private void Awake()
@@ -72,6 +79,7 @@ public class PlayerShooting : MonoBehaviour, INetObject
     {
         OnFireChannel.Unsubscribe(Fire);
         OnBulletShoot.RemoveAllListeners();
+        SendDeleteMessage();
     }
 
     private void Fire()
@@ -124,7 +132,7 @@ public class PlayerShooting : MonoBehaviour, INetObject
 
     public int GetID()
     {
-       return _netObject.id;
+        return _netObject.id;
     }
 
     public int GetOwner()

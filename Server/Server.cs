@@ -275,6 +275,9 @@ class Server : IReceiveData
                 case MessageType.TRS:
                     Broadcast(data);
                     break;
+                case MessageType.Delete:
+                    Broadcast(data);
+                    break;
                 case MessageType.AskForObject:
                     byte[] newDataToSend = NetObjectServerFactory.CreateNetObjectFactoryMessage(data);
                     Broadcast(newDataToSend);

@@ -11,6 +11,7 @@ namespace RojoinNetworkSystem
         NetObject GetObject();
         TRS GetTRS();
         void SetTRS(TRS trs,TRSFlags flags);
+        void SendDeleteMessage();
     }
 
     public class NetObject

@@ -264,7 +264,7 @@ public class ServerNetManager : NetworkManager
 
                         players.Add(new Player(clientId, nameTag));
                         clientId++;
-                        OnPlayerCreated.RaiseEvent(id, nameTag);
+                        //OnPlayerCreated.RaiseEvent(id, nameTag);
                         Debug.Log("Entre");
                         if (clients.Count > minimunPlayerToInitiate)
                         {

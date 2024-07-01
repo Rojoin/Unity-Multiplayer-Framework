@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using RojoinNetworkSystem;
 using UnityEngine;
@@ -19,7 +20,11 @@ namespace DefaultNamespace
             _networkSystem.dataToSend += SendCustomData;
             _clientNetManager.OnValueDataReceived.AddListener(WriteData);
             NetObjectFactory.Instance.NetworkSystem = _networkSystem;
+            NetObjectFactory.Instance.dataToSend.AddListener(SendCustomData);
+            _networkSystem.idToDelete += NetObjectFactory.Instance.DeleteGameObjects;
         }
+
+        
 
         [ContextMenu("Add Objects")]
         private void AddObjects()
@@ -58,9 +63,11 @@ namespace DefaultNamespace
             _networkSystem.dataToSend -= SendCustomData;
             _networkSystem.consoleMessage -= DebugConsoleMessage;
             _clientNetManager.OnValueDataReceived.RemoveListener(WriteData);
+            NetObjectFactory.Instance.dataToSend.RemoveAllListeners();
+            _networkSystem.idToDelete -= NetObjectFactory.Instance.DeleteGameObjects;
         }
 
-        private void SendCustomData(byte[] obj)
+        public void SendCustomData(byte[] obj)
         {
             //  Debug.Log($"DeseializedMessage Lib:{BitConverter.ToSingle(obj, 32)}");
             _clientNetManager.SendToServer(obj);
@@ -71,6 +78,8 @@ namespace DefaultNamespace
 [NetExtensionClass]
 public static class FieldInfoExtensions
 {
+
+
     [NetExtensionMethod(typeof(Vector3))]
     public static List<MessageData> GetFields(this Vector3 vector3)
     {
@@ -125,19 +134,21 @@ public static class FieldInfoExtensions
 
     public static void SetTRS(this Transform transform, TRS aux, TRSFlags flags)
     {
-       
         if (!flags.HasFlag(TRSFlags.NotPos))
         {
             transform.position = new Vector3(aux.position.x, aux.position.y, aux.position.z);
         }
+
         if (!flags.HasFlag(TRSFlags.NotRotation))
         {
             transform.rotation = new Quaternion(aux.rotation.x, aux.rotation.y, aux.rotation.z, aux.rotation.w);
         }
+
         if (!flags.HasFlag(TRSFlags.NotScale))
         {
             transform.localScale = new Vector3(aux.scale.x, aux.scale.y, aux.scale.z);
         }
+
         if (!flags.HasFlag(TRSFlags.NotActive))
         {
             transform.gameObject.SetActive(aux.isActive);

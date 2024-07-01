@@ -34,10 +34,11 @@ namespace RojoinNetworkSystem
 
         private List<object> netObjects = new List<object>();
         private Dictionary<MessageType, (Type, Type)> typeOfMessage = new Dictionary<MessageType, (Type, Type)>();
-        private int owner;
+        public int owner { get; private set; }
 
         public Action<byte[]> dataToSend;
         public Action<string> consoleMessage;
+        public Action<int> idToDelete;
 
         public void StartNetworkSystem(int ownerId)
         {
@@ -120,8 +121,7 @@ namespace RojoinNetworkSystem
 
         public void CheckNetObjectsToSend()
         {
-            //Todo: can crash
-            //No, can trash
+
             foreach (INetObject netObject in netObjects)
             {
                 if (netObject.GetOwner() == owner)
@@ -135,6 +135,51 @@ namespace RojoinNetworkSystem
                     byte[] messageData = message.Serialize();
                     dataToSend.Invoke(messageData);
                 }
+            }
+        }
+
+        public List<MethodInfo> FindNetRPCMethods(Type type)
+        {
+            List<MethodInfo> netRPCMethods = new List<MethodInfo>();
+
+            MethodInfo[] methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic |
+                                                   BindingFlags.Instance | BindingFlags.Static);
+
+            foreach (var method in methods)
+            {
+                if (method.GetCustomAttribute(typeof(NetRPC)) != null)
+                {
+                    netRPCMethods.Add(method);
+                }
+            }
+
+            return netRPCMethods;
+        }
+
+        public void InspectCreateMethodMessage(Type type, object obj, int objID, List<Route> route,
+            MessageFlags flagsFromBase)
+        {
+            if (obj != null)
+            {
+                foreach (MessageData info in GetFieldsFromType(type))
+                {
+                    var currentFlag = info.MessageFlags;
+                    if (flagsFromBase.HasFlag(MessageFlags.Important) || flagsFromBase.HasFlag(MessageFlags.Ordenable))
+                    {
+                        currentFlag = flagsFromBase;
+                    }
+
+                    Route route1 = new Route(info.ID, -1, -1);
+                    route.Add(route1);
+                    consoleMessage.Invoke(
+                        $"Route id:{route1.id}-Colpos:{route1.collectionPos} -colsize{route1.collectionSize}");
+                    ReadValue(info.FieldInfo, obj, objID, route, currentFlag);
+                    route.RemoveAt(route.Count - 1);
+                }
+            }
+            else
+            {
+                SendNullData(objID, route, flagsFromBase);
             }
         }
 
@@ -215,6 +260,23 @@ namespace RojoinNetworkSystem
             }
         }
 
+        public void DeleteNetObj(int objId)
+        {
+            List<object> copyList = new List<object>(netObjects);
+            for (int index = 0; index < copyList.Count; index++)
+            {
+                INetObject netObject = (INetObject)copyList[index];
+                if (objId == netObject.GetID())
+                {
+                    netObjects.RemoveAt(index);
+                }
+                else
+                {
+                    consoleMessage.Invoke("The object has a different ID");
+                }
+            }
+        }
+
 
         public void InspectCreateMessage(Type type, object obj, int objID, List<Route> route,
             MessageFlags flagsFromBase)
@@ -249,7 +311,7 @@ namespace RojoinNetworkSystem
             aux.isNull = true;
             NetNullOrEmpty message = new NetNullOrEmpty(aux, objID, route, flagsFromBase);
             byte[] messageToSend = message.Serialize();
-            //Todo: Send message
+
             dataToSend.Invoke(messageToSend);
         }
 
@@ -274,13 +336,10 @@ namespace RojoinNetworkSystem
                 object fields = method.Invoke(null, new object[] { uninitializedObject });
                 if (fields != null)
                 {
-                    //Todo: check if the method is being invoked.
                     output.AddRange((fields as List<MessageData>));
                 }
             }
 
-
-            //Todo: Debug struct types extension methods
 
 
             return output;
@@ -295,7 +354,6 @@ namespace RojoinNetworkSystem
                 {
                     foreach (MessageData info in GetFieldsFromType(type))
                     {
-                        //Todo: Must change so each id comes with an specific
                         if (info != null && info.ID == route[iterator].id)
                         {
                             if (route[iterator].collectionSize == -1)
@@ -634,7 +692,6 @@ namespace RojoinNetworkSystem
             clear.isNull = false;
             NetNullOrEmpty message = new NetNullOrEmpty(clear, objID, route, flags);
             byte[] messageToSend = message.Serialize();
-            //Todo: Send message
             dataToSend.Invoke(messageToSend);
         }
 
@@ -642,7 +699,7 @@ namespace RojoinNetworkSystem
         {
             object package = info.GetValue(obj);
             Type packageType = package.GetType();
-//Todo: Change
+//Todo: Change to cleanner method
             foreach (Type currentType in executingAssembly.GetTypes())
             {
                 if (currentType.BaseType != null && currentType.BaseType.IsGenericType &&
@@ -663,7 +720,6 @@ namespace RojoinNetworkSystem
                             {
                                 BaseMessage message = netMessage as BaseMessage;
                                 byte[] messageToSend = message.Serialize();
-                                //Todo: Send message
                                 dataToSend.Invoke(messageToSend);
                             }
                         }
@@ -712,6 +768,22 @@ namespace RojoinNetworkSystem
                 ChangeTRS(messageData, messageInfo.idValues,
                     messageInfo.objectID);
             }
+            else if (type == MessageType.Method)
+            {
+                NetObjectBasicData messageInfo = NetByteTranslator.GetNetObjectData(data);
+                NetTRS aux = new NetTRS();
+                TRS messageData = aux.DeseliarizeObj(data);
+                InvokeMethod(messageData, messageInfo.idValues,
+                    messageInfo.objectID);
+            }
+            else if (type == MessageType.Delete)
+            {
+                NetObjectBasicData messageInfo = NetByteTranslator.GetNetObjectData(data);
+                NetDelete aux = new NetDelete();
+                int messageData = aux.DeseliarizeObj(data);
+                idToDelete.Invoke(messageData);
+                DeleteNetObj(messageData);
+            }
             else if (typeOfMessage.TryGetValue(type, out (Type, Type) dataType))
             {
                 //Create message
@@ -719,15 +791,18 @@ namespace RojoinNetworkSystem
                 object netMessage = Activator.CreateInstance(dataType.Item2);
                 if (netMessage != null)
                 {
-                    //TOdo: Cheack a way to call deserialize,
                     BaseMessage message = netMessage as BaseMessage;
                     object messageData = message.Deserialize(data);
                     NetObjectBasicData messageInfo = NetByteTranslator.GetNetObjectData(data);
-                    //Todo: call to the method that need  to set the value.
                     ChangeExternalNetObjects(messageData, messageInfo.idValues,
                         messageInfo.objectID);
                 }
             }
+        }
+
+        private void InvokeMethod(TRS messageData, List<Route> messageInfoIDValues, int messageInfoObjectID)
+        {
+            //FindNetRPCMethods;
         }
 
         private object TransaltorICollection<T>(object[] objs)

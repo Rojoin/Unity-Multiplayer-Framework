@@ -21,8 +21,8 @@ namespace RojoinNetworkSystem
             //parameterType = type
             //parameterType = parameterAsString
             //Crear mensajes tipo Metodo
-           //TypeConverter converter = TypeDescriptor.GetConverter(parameterType);
-           //converter.ConvertFromInvariantString(parameterAsString);
+            //TypeConverter converter = TypeDescriptor.GetConverter(parameterType);
+            //converter.ConvertFromInvariantString(parameterAsString);
         }
     }
     public class NetValue : Attribute

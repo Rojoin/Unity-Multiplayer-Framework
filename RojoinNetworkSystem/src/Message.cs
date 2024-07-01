@@ -61,7 +61,9 @@ namespace RojoinNetworkSystem
         Double,
         Decimal,
         NullorEmpty,
-        Close
+        Close,
+        Method,
+        Delete
     }
 
 
@@ -637,6 +639,123 @@ namespace RojoinNetworkSystem
         }
     }
 
+    public class NetDelete : INetObjectMessage<int>
+    {
+        public NetDelete() : base()
+        {
+            MsgType = MessageType.Delete;
+            Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
+        }
+
+        public NetDelete(int data, int objId, List<Route> valId,
+            MessageFlags messageFlags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum) : base(
+            data, objId, valId, messageFlags)
+        {
+            Data = data;
+            MsgType = MessageType.Delete;
+            Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
+        }
+        
+        public override byte[] Serialize(int playerId, MessageFlags flags)
+        {
+            List<byte> outData = new List<byte>();
+            BasicSerialize(outData, MsgType, playerId, flags);
+            outData.AddRange(BitConverter.GetBytes(Data));
+            DataCheckSumEncryption(outData);
+            return outData.ToArray();
+        }
+
+        public override object Deserialize(byte[] message)
+        {
+            return BitConverter.ToInt32(message, GetOffsetByBytes(message));;
+        }
+    }
+
+    public class NetMethod : INetObjectMessage<List<(string, string)>>
+    {
+        public NetMethod(List<(string, string)> data, int objId, List<Route> valId,
+            MessageFlags messageFlags = MessageFlags.CheckSum | MessageFlags.Ordenable) :
+            base(data, objId, valId, messageFlags)
+        {
+            MsgType = MessageType.Method;
+            Flags = messageFlags;
+            Data = data;
+        }
+
+        public NetMethod() : base()
+        {
+            MsgType = MessageType.Method;
+        }
+
+        public override byte[] Serialize(int newPlayerId, MessageFlags flags)
+        {
+            List<byte> outData = new List<byte>();
+            BasicSerialize(outData, MsgType, newPlayerId, flags);
+            outData.AddRange(BitConverter.GetBytes(Data.Count));
+            foreach ((string type, string data) tuple in Data)
+            {
+                outData.AddRange(BitConverter.GetBytes(tuple.type.Length));
+                foreach (char charS in tuple.type)
+                {
+                    outData.Add((byte)charS);
+                }
+
+                outData.AddRange(BitConverter.GetBytes(tuple.data.Length));
+                foreach (char c in tuple.data)
+                {
+                    outData.Add((byte)c);
+                }
+            }
+
+            DataCheckSumEncryption(outData);
+            return outData.ToArray();
+        }
+
+        public override object Deserialize(byte[] message)
+        {
+            offsetSize = GetOffsetByBytes(message);
+            List<(string, string)> dataList = new List<(string, string)>();
+
+            // Read the count of items in the list
+            int count = BitConverter.ToInt32(message, offsetSize);
+            offsetSize += sizeof(int);
+
+            for (int i = 0; i < count; i++)
+            {
+                // Read the length of the type string
+                int typeLength = BitConverter.ToInt32(message, offsetSize);
+                offsetSize += sizeof(int);
+
+                // Read the type string byte by byte
+                char[] typeChars = new char[typeLength];
+                for (int j = 0; j < typeLength; j++)
+                {
+                    typeChars[j] = (char)message[offsetSize];
+                    offsetSize++;
+                }
+
+                string type = new string(typeChars);
+
+                // Read the length of the data string
+                int dataLength = BitConverter.ToInt32(message, offsetSize);
+                offsetSize += sizeof(int);
+
+                // Read the data string byte by byte
+                char[] dataChars = new char[dataLength];
+                for (int j = 0; j < dataLength; j++)
+                {
+                    dataChars[j] = (char)message[offsetSize];
+                    offsetSize++;
+                }
+
+                string data = new string(dataChars);
+                dataList.Add((type, data));
+            }
+
+            return dataList;
+        }
+    }
+
     public class NetGetObjectID : OrderableMessage<AskForNetObject>
     {
         public NetGetObjectID() : base()
@@ -651,8 +770,7 @@ namespace RojoinNetworkSystem
             MsgType = MessageType.AskForObject;
             Flags = MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.CheckSum;
         }
-
-        //Todo: Change to list
+        
         public override byte[] Serialize(int playerId, MessageFlags flags)
         {
             List<byte> outData = new List<byte>();
@@ -693,7 +811,6 @@ namespace RojoinNetworkSystem
     }
 
 //Send int of position, int of type of object, position and forward
-//Todo: Player id(variable de quien pisar)
 //object id (el valor unico que le asigno con el factory)
 //el id de la variable ( que voy a pisar)
 //los bytes a pisar

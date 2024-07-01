@@ -4,7 +4,7 @@ using RojoinNetworkSystem;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-public class ClassA : MonoBehaviour, INetObject
+public class ClassA : MonoBehaviour
 {
     [NetValue(1)] public float a = 2;
     public char publicChar = 'd';
@@ -16,6 +16,7 @@ public class ClassA : MonoBehaviour, INetObject
     [SerializeField] [NetValue(9)] private ClassB[] classArray = new ClassB[2];
     [SerializeField] private List<Vector3> vector3s = new();
     private NetObject _netObject = new NetObject();
+    private INetObject _netObjectImplementation;
 
     private void Awake()
     {
@@ -54,6 +55,7 @@ public class ClassA : MonoBehaviour, INetObject
     {
        transform.SetTRS(trs,flags);
     }
+    
 
     [ContextMenu("NUll Object")]
     public void KillObject()

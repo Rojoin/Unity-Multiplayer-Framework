@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using RojoinNetworkSystem;
 using ScriptableObjects;
 using UnityEngine;
 using UnityEngine.Events;
@@ -23,6 +24,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private AskForPlayerChannelSo OnMyPlayerCreated;
     [SerializeField] private MovePlayerChannelSO OnPlayerMoved;
     [SerializeField] private IntChannelSO OnPlayerDestroyed;
+      [SerializeField]  ClientNetManager clientNetManager;
     [SerializeField] private IntChannelSO OnHittedPlayer;
     [SerializeField] private AskforBulletChannelSO askforBulletChannelSo;
     [SerializeField] private FloatChannelSO OnTimerChanged;
@@ -100,9 +102,8 @@ public class GameManager : MonoBehaviour
         this.enabled = false;
     }
 
-    private void CreateNewPlayer(int id, string nameTag)
+    public void CreateNewPlayer(int id, string nameTag,GameObject newObject)
     {
-        GameObject newObject = Instantiate(playerPrefab);
         newObject.name = $"Player{currentPlayersConnected}";
         PlayerController newPlayer = newObject.GetComponent<PlayerController>();
         newPlayer.id = id;
@@ -113,9 +114,9 @@ public class GameManager : MonoBehaviour
         currentPlayersConnected++;
     }
 
-    private void CreateMyNewPlayer(int id, string newNameTag)
+    public void CreateMyNewPlayer(int id, string newNameTag, GameObject newObject)
     {
-        GameObject newObject = Instantiate(playerPrefab);
+        //ameObject newObject = Instantiate(playerPrefab);
         newObject.name = $"Player{currentPlayersConnected}";
         PlayerController newPlayer = newObject.GetComponent<PlayerController>();
         newPlayer.id = id;
@@ -137,7 +138,15 @@ public class GameManager : MonoBehaviour
     private void AskForBullet(Transform trans)
     {
         Debug.Log(trans.name);
-        askforBulletChannelSo.RaiseEvent(1, trans.position, trans.forward);
+        AskForNetObject data = new AskForNetObject();
+        data.owner = NetObjectFactory.Instance.NetworkSystem.owner;
+        data.scale = trans.localScale.ToSystemVector3();
+        data.pos = trans.position.ToSystemVector3();
+        data.rot = trans.rotation.eulerAngles.ToSystemVector3();
+        data.parentId = -1;
+        data.objectType = 1;
+        NetGetObjectID netGetObjectID = new NetGetObjectID(data);
+        clientNetManager.SendToServer(netGetObjectID.Serialize());
     }
 
     public void DisconnectPlayer(int id)

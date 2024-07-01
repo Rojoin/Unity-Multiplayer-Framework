@@ -390,12 +390,12 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 {
                     clientId = player.id;
                     Debug.Log("Entre por player");
-                    OnMyPlayerCreated.RaiseEvent(player.id, player.nameTag);
+                  //  OnMyPlayerCreated.RaiseEvent(player.id, player.nameTag);
                     BaseMessage.PlayerID = clientId;
                 }
                 else
                 {
-                    OnPlayerCreated.RaiseEvent(player.id, player.nameTag);
+                    //OnPlayerCreated.RaiseEvent(player.id, player.nameTag);
                 }
             }
         }
