@@ -19,7 +19,7 @@ class MatchMaker : IReceiveData
     //Quienes tiene
     //Estado del juego
     //port
-    //Todo: Fijarme si hay server
+  
     //Sino hay server y hay minimo 2 personas
     //Creo server
     //Si ya hay server
