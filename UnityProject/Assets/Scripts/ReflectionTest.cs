@@ -14,7 +14,7 @@ namespace DefaultNamespace
         [SerializeField] private ClientNetManager _clientNetManager;
         [SerializeField] private ClassA _classA;
 
-        private void Awake()
+        private void OnEnable()
         {
             _networkSystem.StartNetworkSystem(onwner, DebugConsoleMessage);
             _networkSystem.dataToSend += SendCustomData;
