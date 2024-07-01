@@ -17,7 +17,7 @@ public abstract class NetworkManager : MonoBehaviour ,IReceiveData
     public int port { get; set; }
 
     public int timeOut = 30;
-
+ 
     public UdpConnection connection;
 
     public List<Player> players = new List<Player>();

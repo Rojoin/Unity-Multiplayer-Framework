@@ -93,11 +93,21 @@ public class PlayerShooting : MonoBehaviour, INetObject
     private void Start()
     {
         NetObjectFactory.Instance.NetworkSystem.CallAsRPC(this, nameof(TestParameters), 5);
+        NetObjectFactory.Instance.NetworkSystem.CallAsRPC(this, nameof(TestParameters2), true);
+        NetObjectFactory.Instance.NetworkSystem.CallAsRPC(this, nameof(TestParameters3), 5);
     }
 
     [NetRPC(2)] private void TestParameters(float number)
     {
         Debug.Log($"The number is : {number}");
+    }  
+    [NetRPC(3)] private void TestParameters2(bool value)
+    {
+        Debug.Log($"The value is : {value}");
+    } 
+    [NetRPC(4)] private void TestParameters3(int value)
+    {
+        Debug.Log($"The int value is : {value}");
     }
 
     private void Update()

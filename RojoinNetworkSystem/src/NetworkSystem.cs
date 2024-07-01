@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
@@ -843,29 +844,27 @@ namespace RojoinNetworkSystem
                 if (obj.GetID() == objID && obj.GetOwner() != owner)
                 {
                     List<object> parametersToApply = new List<object>();
-                    foreach ((string type, string data) valueTuple in parametrs)
+                    foreach ((string typeOfData, string data) valueTuple in parametrs)
                     {
-                        TypeConverter converter = TypeDescriptor.GetConverter(valueTuple.type);
+                        TypeConverter converter = TypeDescriptor.GetConverter(Type.GetType(valueTuple.typeOfData));
+                        consoleMessage.Invoke($"Type:{valueTuple.typeOfData} - Data:{valueTuple.data}");
                         object parameterValue = converter.ConvertFromInvariantString(valueTuple.data);
                         parametersToApply.Add(parameterValue);
                     }
-
-                    parametersToApply.ToArray();
+                    
                     int length = obj.GetType()
                         .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Length;
                     consoleMessage.Invoke($"Length:{length}");
-                    for (int index = 0;
-                         index < length;
-                         index++)
+                    
+                    for (int index = 0; index < length; index++)
                     {
-                        MethodInfo methodInfo =
-                            obj.GetType()
-                                .GetMethods(BindingFlags.Instance | BindingFlags.Public |
-                                            BindingFlags.NonPublic)[index];
+                        MethodInfo methodInfo = obj.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public |
+                                                                         BindingFlags.NonPublic)[index];
                         NetRPC netRPC = methodInfo.GetCustomAttribute<NetRPC>();
                         if (netRPC != null && netRPC.id == rpcID)
                         {
-                            object invokedMethod = methodInfo.Invoke(obj, parametersToApply.ToArray());
+                            object[] pObjects = parametersToApply.ToArray();
+                            object invokedMethod = methodInfo.Invoke(obj,pObjects);
                         }
                     }
                 }
