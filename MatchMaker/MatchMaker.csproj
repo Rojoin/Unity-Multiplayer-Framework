@@ -14,7 +14,7 @@
     </ItemGroup>
 
     <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-      <Exec Command="xcopy &quot;$(TargetDir)&quot; &quot;$(ProjectDir)..\Builds&quot; /Y&#xA;" />
+      <Exec Command="xcopy &quot;$(TargetDir)&quot; &quot;$(ProjectDir)..\Builds\&quot; /F /R /Y /I&#xA;" />
     </Target>
 
 </Project>

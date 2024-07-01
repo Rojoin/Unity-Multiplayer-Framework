@@ -31,7 +31,7 @@ namespace DefaultNamespace
         {
             AskForNetObject aux = new AskForNetObject();
             aux.objectType = 0;
-            aux.owner = onwner;
+            aux.owner = _networkSystem.owner;
             aux.intanceID = 0;
             aux.parentId = -1;
             aux.pos = new System.Numerics.Vector3(1, 1, 1);
