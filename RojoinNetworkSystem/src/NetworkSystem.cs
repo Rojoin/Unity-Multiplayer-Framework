@@ -25,6 +25,20 @@ namespace RojoinNetworkSystem
         }
     }
 
+    public class MethodData
+    {
+        public int ID;
+        public MethodInfo methodInfo;
+        public MessageFlags MessageFlags;
+
+        public MethodData(MethodInfo methodInfo, int id, MessageFlags messageFlags = MessageFlags.CheckSum)
+        {
+            this.methodInfo = methodInfo;
+            MessageFlags = messageFlags;
+            ID = id;
+        }
+    }
+
 
     public class NetworkSystem
     {
@@ -34,6 +48,7 @@ namespace RojoinNetworkSystem
 
         private List<object> netObjects = new List<object>();
         private Dictionary<MessageType, (Type, Type)> typeOfMessage = new Dictionary<MessageType, (Type, Type)>();
+
         public int owner { get; private set; }
 
         public Action<byte[]> dataToSend;
@@ -102,6 +117,7 @@ namespace RojoinNetworkSystem
         public void AddNetObject(INetObject netObject)
         {
             netObjects.Add(netObject);
+            Type netObjectType = netObject.GetType();
         }
 
         public List<Type> GetNetObjectImplementations()
@@ -121,7 +137,6 @@ namespace RojoinNetworkSystem
 
         public void CheckNetObjectsToSend()
         {
-
             foreach (INetObject netObject in netObjects)
             {
                 if (netObject.GetOwner() == owner)
@@ -138,22 +153,44 @@ namespace RojoinNetworkSystem
             }
         }
 
-        public List<MethodInfo> FindNetRPCMethods(Type type)
+
+        public object CallAsRPC(INetObject invoker, string methodName, params object[] parameters)
         {
-            List<MethodInfo> netRPCMethods = new List<MethodInfo>();
-
-            MethodInfo[] methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic |
-                                                   BindingFlags.Instance | BindingFlags.Static);
-
-            foreach (var method in methods)
+            object toReturn = null;
+            if (invoker.GetOwner() != owner)
             {
-                if (method.GetCustomAttribute(typeof(NetRPC)) != null)
-                {
-                    netRPCMethods.Add(method);
-                }
+                return toReturn;
             }
 
-            return netRPCMethods;
+            MethodInfo methodInfo = invoker.GetType().GetMethod(methodName,
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            NetRPC netRPC = methodInfo.GetCustomAttribute<NetRPC>();
+            if (netRPC != null)
+            {
+                object invokedMethod = methodInfo.Invoke(invoker, parameters);
+                if (methodInfo.ReturnParameter.GetType() != typeof(void))
+                {
+                    toReturn = invokedMethod;
+                }
+
+                methodInfo.GetParameters();
+                List<(string, string)> parametersInfo = new List<(string, string)>();
+                foreach (object parameter in parameters)
+                {
+                    (string type, string data) aux;
+                    aux.type = parameter.GetType().ToString();
+                    aux.data = parameter.ToString();
+                    parametersInfo.Add(aux);
+                }
+
+                (int, List<(string, string)>) parametersToSend;
+                parametersToSend.Item1 = netRPC.id;
+                parametersToSend.Item2 = parametersInfo;
+                NetMethod netMethod = new NetMethod(parametersToSend, invoker.GetID(), new List<Route>());
+                dataToSend.Invoke(netMethod.Serialize());
+            }
+
+            return toReturn;
         }
 
         public void InspectCreateMethodMessage(Type type, object obj, int objID, List<Route> route,
@@ -339,7 +376,6 @@ namespace RojoinNetworkSystem
                     output.AddRange((fields as List<MessageData>));
                 }
             }
-
 
 
             return output;
@@ -770,11 +806,11 @@ namespace RojoinNetworkSystem
             }
             else if (type == MessageType.Method)
             {
-                NetObjectBasicData messageInfo = NetByteTranslator.GetNetObjectData(data);
-                NetTRS aux = new NetTRS();
-                TRS messageData = aux.DeseliarizeObj(data);
-                InvokeMethod(messageData, messageInfo.idValues,
-                    messageInfo.objectID);
+                NetMethod message = new NetMethod();
+                NetObjectBasicData aux = message.GetNetObjectData(data);
+                (int, List<(string, string)>) parameters = message.DeseliarizeObj(data);
+
+                InvokeMethod(parameters.Item1, parameters.Item2, aux.objectID);
             }
             else if (type == MessageType.Delete)
             {
@@ -800,9 +836,40 @@ namespace RojoinNetworkSystem
             }
         }
 
-        private void InvokeMethod(TRS messageData, List<Route> messageInfoIDValues, int messageInfoObjectID)
+        private void InvokeMethod(int rpcID, List<(string, string)> parametrs, int objID)
         {
-            //FindNetRPCMethods;
+            foreach (INetObject obj in netObjects)
+            {
+                if (obj.GetID() == objID && obj.GetOwner() != owner)
+                {
+                    List<object> parametersToApply = new List<object>();
+                    foreach ((string type, string data) valueTuple in parametrs)
+                    {
+                        TypeConverter converter = TypeDescriptor.GetConverter(valueTuple.type);
+                        object parameterValue = converter.ConvertFromInvariantString(valueTuple.data);
+                        parametersToApply.Add(parameterValue);
+                    }
+
+                    parametersToApply.ToArray();
+                    int length = obj.GetType()
+                        .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Length;
+                    consoleMessage.Invoke($"Length:{length}");
+                    for (int index = 0;
+                         index < length;
+                         index++)
+                    {
+                        MethodInfo methodInfo =
+                            obj.GetType()
+                                .GetMethods(BindingFlags.Instance | BindingFlags.Public |
+                                            BindingFlags.NonPublic)[index];
+                        NetRPC netRPC = methodInfo.GetCustomAttribute<NetRPC>();
+                        if (netRPC != null && netRPC.id == rpcID)
+                        {
+                            object invokedMethod = methodInfo.Invoke(obj, parametersToApply.ToArray());
+                        }
+                    }
+                }
+            }
         }
 
         private object TransaltorICollection<T>(object[] objs)

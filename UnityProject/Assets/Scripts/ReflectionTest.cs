@@ -9,7 +9,7 @@ namespace DefaultNamespace
     public class ReflectionTest : MonoBehaviour
     {
         private NetworkSystem _networkSystem = new NetworkSystem();
-        [SerializeField] private int onwner = 1;
+        [SerializeField] public int onwner = 1;
         [SerializeField] private List<GameObject> objectsToAdd;
         [SerializeField] private ClientNetManager _clientNetManager;
         [SerializeField] private ClassA _classA;

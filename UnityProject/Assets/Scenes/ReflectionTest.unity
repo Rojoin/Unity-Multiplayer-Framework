@@ -133,7 +133,6 @@ GameObject:
   m_Component:
   - component: {fileID: 393344360}
   - component: {fileID: 393344359}
-  - component: {fileID: 393344361}
   m_Layer: 0
   m_Name: Test
   m_TagString: Untagged
@@ -148,7 +147,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 393344358}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2c7286df0c3d4e85bb5091784b6bae9c, type: 3}
   m_Name: 
@@ -173,18 +172,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &393344361
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 393344358}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 930189d081d64f71825367c921c0dd02, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &575796112
 GameObject:
   m_ObjectHideFlags: 0
@@ -388,6 +375,11 @@ PrefabInstance:
       propertyPath: timeOut
       value: 1149
       objectReference: {fileID: 0}
+    - target: {fileID: 457917307280148397, guid: b41d08bb45566694e8e20f3b23dad290,
+        type: 3}
+      propertyPath: reflection
+      value: 
+      objectReference: {fileID: 393344359}
     - target: {fileID: 5447296571653415456, guid: b41d08bb45566694e8e20f3b23dad290,
         type: 3}
       propertyPath: m_LocalPosition.x

@@ -671,9 +671,9 @@ namespace RojoinNetworkSystem
         }
     }
 
-    public class NetMethod : INetObjectMessage<List<(string, string)>>
+    public class NetMethod : INetObjectMessage<(int, List<(string, string)>)>
     {
-        public NetMethod(List<(string, string)> data, int objId, List<Route> valId,
+        public NetMethod((int, List<(string, string)>) data, int objId, List<Route> valId,
             MessageFlags messageFlags = MessageFlags.CheckSum | MessageFlags.Ordenable) :
             base(data, objId, valId, messageFlags)
         {
@@ -691,8 +691,9 @@ namespace RojoinNetworkSystem
         {
             List<byte> outData = new List<byte>();
             BasicSerialize(outData, MsgType, newPlayerId, flags);
-            outData.AddRange(BitConverter.GetBytes(Data.Count));
-            foreach ((string type, string data) tuple in Data)
+            outData.AddRange(BitConverter.GetBytes(Data.Item1));
+            outData.AddRange(BitConverter.GetBytes(Data.Item2.Count));
+            foreach ((string type, string data) tuple in Data.Item2)
             {
                 outData.AddRange(BitConverter.GetBytes(tuple.type.Length));
                 foreach (char charS in tuple.type)
@@ -714,6 +715,9 @@ namespace RojoinNetworkSystem
         public override object Deserialize(byte[] message)
         {
             offsetSize = GetOffsetByBytes(message);
+            int methodID = BitConverter.ToInt32(message, offsetSize);
+            offsetSize += sizeof(int);
+            
             List<(string, string)> dataList = new List<(string, string)>();
 
             // Read the count of items in the list
@@ -752,7 +756,10 @@ namespace RojoinNetworkSystem
                 dataList.Add((type, data));
             }
 
-            return dataList;
+            (int, List<(string, string)>) aux;
+            aux.Item1 = methodID;
+            aux.Item2 = dataList;
+            return aux;
         }
     }
 

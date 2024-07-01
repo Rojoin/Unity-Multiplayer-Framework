@@ -86,12 +86,18 @@ public class PlayerShooting : MonoBehaviour, INetObject
     {
         if (currentSingleShootTimer > minShootTimer)
         {
-            ShootBullet();
+            NetObjectFactory.Instance.NetworkSystem.CallAsRPC(this, nameof(ShootBullet));
         }
     }
 
     private void Start()
     {
+        NetObjectFactory.Instance.NetworkSystem.CallAsRPC(this, nameof(TestParameters), 5);
+    }
+
+    [NetRPC(2)] private void TestParameters(float number)
+    {
+        Debug.Log($"The number is : {number}");
     }
 
     private void Update()
@@ -120,8 +126,9 @@ public class PlayerShooting : MonoBehaviour, INetObject
     }
 
 
-    private void ShootBullet()
+    [NetRPC(1)] private void ShootBullet()
     {
+        Debug.Log("Shoot");
         foreach (Transform point in shootingPoints)
         {
             OnBulletShoot.Invoke(point);

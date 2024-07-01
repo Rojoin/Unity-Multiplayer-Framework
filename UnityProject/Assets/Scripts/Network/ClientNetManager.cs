@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Runtime;
+using DefaultNamespace;
 using RojoinNetworkSystem;
 using ScriptableObjects;
 using UnityEngine;
@@ -27,6 +28,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
 
     //   public UnityEvent<object, List<int>, int> OnValueDataReceived;
     public UnityEvent<byte[]> OnValueDataReceived;
+    public ReflectionTest reflection;
 
     public Vector3ChannelSO OnMyPlayerMoved;
 
@@ -178,7 +180,7 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 break;
             case MessageType.AskForObject:
                 NetGetObjectID aux = new NetGetObjectID();
-                AskForNetObject dataToSpawn =aux.DeseliarizeObj(data);
+                AskForNetObject dataToSpawn = aux.DeseliarizeObj(data);
                 NetObjectFactory.Instance.InstanceNetObject(dataToSpawn);
                 break;
             case MessageType.ServerDir:
@@ -197,7 +199,6 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 }
                 catch (Exception e)
                 {
-                    Debug.Log(e);
                     throw;
                 }
 
@@ -390,8 +391,10 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 {
                     clientId = player.id;
                     Debug.Log("Entre por player");
-                  //  OnMyPlayerCreated.RaiseEvent(player.id, player.nameTag);
+                    //  OnMyPlayerCreated.RaiseEvent(player.id, player.nameTag);
                     BaseMessage.PlayerID = clientId;
+                 //   reflection.onwner = clientId;
+                 //   reflection.enabled = (true);
                 }
                 else
                 {
