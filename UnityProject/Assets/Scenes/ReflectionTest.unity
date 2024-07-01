@@ -152,7 +152,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2c7286df0c3d4e85bb5091784b6bae9c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  onwner: 1
+  onwner: 0
   objectsToAdd:
   - {fileID: 575796112}
   _clientNetManager: {fileID: 920656997}

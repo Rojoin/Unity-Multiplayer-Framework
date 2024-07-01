@@ -393,8 +393,8 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                     Debug.Log("Entre por player");
                     //  OnMyPlayerCreated.RaiseEvent(player.id, player.nameTag);
                     BaseMessage.PlayerID = clientId;
-                 //   reflection.onwner = clientId;
-                 //   reflection.enabled = (true);
+                    reflection.onwner = clientId;
+                    reflection.enabled = (true);
                 }
                 else
                 {
