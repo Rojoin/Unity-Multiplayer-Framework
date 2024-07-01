@@ -9,6 +9,8 @@ namespace RojoinNetworkSystem
         int GetID();
         int GetOwner();
         NetObject GetObject();
+        TRS GetTRS();
+        void SetTRS(TRS trs,TRSFlags flags);
     }
 
     public class NetObject
@@ -30,63 +32,21 @@ namespace RojoinNetworkSystem
 
     public class TRS
     {
-        public Vector3 position;
-        public Vector3 rotation;
-        public Vector3 scale;
+        public (float x, float y, float z) position;
+        public (float x, float y, float z, float w) rotation;
+        public (float x, float y, float z) scale;
+        public bool isActive;
     }
 
     public class NetObjectBasicData
     {
-       public int objectID;
+        public int objectID;
         public List<Route> idValues;
-       public NetObjectBasicData(int objId, List<Route> idValues)
-       {
-           objectID = objId;
-           this.idValues = idValues;
-       }
-    }
 
-    public class ClassA : INetObject
-    {
-        [NetValue(1, MessageFlags.Important)] private string name;
-        [NetValue(2)] private ClassB b;
-        private NetObject net;
-
-        public int GetID()
+        public NetObjectBasicData(int objId, List<Route> idValues)
         {
-            return net.id;
-        }
-
-        public int GetOwner()
-        {
-            return net.owner;
-        }
-
-        public NetObject GetObject()
-        {
-            return net;
-        }
-    }
-
-    public class ClassB : INetObject
-    {
-        [NetValue(1)] private float aa;
-        [NetValue(2)] private float bb;
-        [NetValue(3)] private float cc;
-
-        public int GetID()
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public int GetOwner()
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public NetObject GetObject()
-        {
-            throw new System.NotImplementedException();
+            objectID = objId;
+            this.idValues = idValues;
         }
     }
 }

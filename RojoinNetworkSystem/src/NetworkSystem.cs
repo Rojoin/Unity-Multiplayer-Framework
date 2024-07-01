@@ -98,17 +98,9 @@ namespace RojoinNetworkSystem
             }
         }
 
-        public void AddNetObject(object netObject)
+        public void AddNetObject(INetObject netObject)
         {
-            if (netObject is INetObject)
-            {
-                netObjects.Add(netObject);
-            }
-            else
-            {
-                Console.Error.WriteLine("The item doesnt have the INetObject interface.");
-                consoleMessage.Invoke("The item doesnt have the INetObject interface.");
-            }
+            netObjects.Add(netObject);
         }
 
         public List<Type> GetNetObjectImplementations()
@@ -137,6 +129,11 @@ namespace RojoinNetworkSystem
                     List<Route> route = new List<Route>();
                     InspectCreateMessage(netObject.GetType(), netObject, netObject.GetID(), route,
                         MessageFlags.CheckSum);
+
+                    TRS trs = netObject.GetTRS();
+                    NetTRS message = new NetTRS(trs, netObject.GetID(), new List<Route>());
+                    byte[] messageData = message.Serialize();
+                    dataToSend.Invoke(messageData);
                 }
             }
         }
@@ -154,6 +151,57 @@ namespace RojoinNetworkSystem
                         consoleMessage.Invoke($"{data}");
                         netObjects[index] = InspectDataToChange(netObject.GetType(), netObjects[index], data, route,
                             iterator);
+                    }
+                    else
+                    {
+                        consoleMessage.Invoke("The object has a different ID");
+                    }
+                }
+                else
+                {
+                    consoleMessage.Invoke("The object cant be changed");
+                }
+            }
+        }
+
+        public void ChangeNullOrEmptyNetObjects(bool data, List<Route> route, int objId)
+        {
+            for (int index = 0; index < netObjects.Count; index++)
+            {
+                INetObject netObject = (INetObject)netObjects[index];
+                int iterator = 0;
+                if (owner != netObject.GetOwner())
+                {
+                    if (objId == netObject.GetID())
+                    {
+                        netObjects[index] = InspectNullOrEmptyData(netObject.GetType(), netObjects[index], data, route,
+                            iterator);
+                    }
+                    else
+                    {
+                        consoleMessage.Invoke("The object has a different ID");
+                    }
+                }
+                else
+                {
+                    consoleMessage.Invoke("The object cant be changed");
+                }
+            }
+        }
+
+        public void ChangeTRS(TRS data, List<Route> route, int objId)
+        {
+            for (int index = 0; index < netObjects.Count; index++)
+            {
+                INetObject netObject = (INetObject)netObjects[index];
+                int iterator = 0;
+                if (owner != netObject.GetOwner())
+                {
+                    if (objId == netObject.GetID())
+                    {
+                        NetNotSync netNotSync = netObject.GetType().GetCustomAttribute<NetNotSync>();
+
+                        netObject.SetTRS(data, netNotSync != null ? netNotSync.flags : TRSFlags.Default);
                     }
                     else
                     {
@@ -189,6 +237,20 @@ namespace RojoinNetworkSystem
                     route.RemoveAt(route.Count - 1);
                 }
             }
+            else
+            {
+                SendNullData(objID, route, flagsFromBase);
+            }
+        }
+
+        private void SendNullData(int objID, List<Route> route, MessageFlags flagsFromBase)
+        {
+            NullObject aux = new NullObject();
+            aux.isNull = true;
+            NetNullOrEmpty message = new NetNullOrEmpty(aux, objID, route, flagsFromBase);
+            byte[] messageToSend = message.Serialize();
+            //Todo: Send message
+            dataToSend.Invoke(messageToSend);
         }
 
         private List<MessageData> GetFieldsFromType(Type type)
@@ -224,35 +286,157 @@ namespace RojoinNetworkSystem
             return output;
         }
 
-        //public void InspectCreateMessageMe(Type type, object obj, int objID, Stack<int> route)
-        //{
-        //    if (obj != null)
-        //    {
-        //        Stack<int> listBeforeIteration = new Stack<int>(route);
-        //        foreach (MethodInfo info in type.GetMethods(BindingFlags.NonPublic | BindingFlags.Public |
-        //                                                    BindingFlags.Instance | BindingFlags.DeclaredOnly))
-        //        {
-        //            route = listBeforeIteration;
-        //            NetExtensionMethod netExt = info.GetCustomAttribute<NetExtensionMethod>();
-        //            if (netExt != null)
-        //            {
-        //                consoleMessage.Invoke($"The object has NetValue {netExt.id}");
-        //                route.Push(netExt.id);
-        //                // ReadValue(info, obj, objID, route, netValue);
-        //                route.Pop();
-        //            }
-        //        }
-        //    }
-        //}
-
         private object InspectDataToChange(Type type, object obj, object data, List<Route> route,
+            int iterator)
+        {
+            try
+            {
+                if (obj != null)
+                {
+                    foreach (MessageData info in GetFieldsFromType(type))
+                    {
+                        //Todo: Must change so each id comes with an specific
+                        if (info != null && info.ID == route[iterator].id)
+                        {
+                            if (route[iterator].collectionSize == -1)
+                            {
+                                iterator++;
+                                if (iterator >= route.Count)
+                                {
+                                    obj = SetValues(info.FieldInfo, obj, data);
+                                }
+                                else
+                                {
+                                    object objectReference = info.FieldInfo.GetValue(obj);
+                                    objectReference = InspectDataToChange(info.FieldInfo.FieldType, objectReference,
+                                        data,
+                                        route,
+                                        iterator);
+                                    info.FieldInfo.SetValue(obj, objectReference);
+                                }
+
+                                iterator--;
+                            }
+                            else
+                            {
+                                object objectReference = info.FieldInfo.GetValue(obj);
+                                if (typeof(System.Collections.ICollection).IsAssignableFrom(info.FieldInfo.FieldType))
+                                {
+                                    if (route[iterator].collectionSize == 0)
+                                    {
+                                        objectReference = CreateEmptyCollection(info.FieldInfo.FieldType);
+                                        info.FieldInfo.SetValue(obj, objectReference);
+                                        return obj;
+                                    }
+
+                                    Type elementType = GetElementType(info.FieldInfo.FieldType);
+                                    int collectionSize = (objectReference as ICollection).Count;
+                                    bool isListCountDifferent = route[iterator].collectionSize != collectionSize;
+
+                                    object[] arrayToIterate = new object[route[iterator].collectionSize];
+                                    if (!isListCountDifferent)
+                                    {
+                                        (objectReference as ICollection).CopyTo(arrayToIterate, 0);
+                                    }
+                                    else
+                                    {
+                                        for (int i = 0; i < route[iterator].collectionSize; i++)
+                                        {
+                                            if (i < collectionSize)
+                                            {
+                                                arrayToIterate[i] = (objectReference as ICollection).Cast<object>()
+                                                    .ElementAt(i);
+                                            }
+                                            else
+                                            {
+                                                arrayToIterate[i] = Activator.CreateInstance(elementType);
+                                            }
+                                        }
+                                    }
+
+                                    for (int i = 0; i < arrayToIterate.Length; i++)
+                                    {
+                                        consoleMessage.Invoke(
+                                            $"{arrayToIterate[i].GetType()}:{info.FieldInfo.FieldType}:Data:{data}:Current{i}:Quantity: {arrayToIterate.Length}");
+                                        if (i == route[iterator].collectionPos)
+                                        {
+                                            var updated = InspectDataToChange(arrayToIterate[i].GetType(),
+                                                arrayToIterate[i], data, route, iterator + 1);
+                                            arrayToIterate[i] = updated;
+                                            iterator--;
+                                            consoleMessage.Invoke($"New value is :{arrayToIterate.GetValue(i)}");
+                                            break;
+                                        }
+                                    }
+
+                                    object arrayAsGenericList;
+                                    if (info.FieldInfo.FieldType.IsArray)
+                                    {
+                                        arrayAsGenericList = typeof(NetworkSystem)
+                                            .GetMethod(nameof(TransaltorArray),
+                                                BindingFlags.Instance | BindingFlags.NonPublic)
+                                            .MakeGenericMethod(info.FieldInfo.FieldType.GetElementType())
+                                            .Invoke(this, new[] { arrayToIterate });
+                                        objectReference = Array.CreateInstance(
+                                            info.FieldInfo.FieldType.GetElementType(),
+                                            ((Array)arrayAsGenericList).Length);
+
+
+                                        Array.Copy((Array)arrayAsGenericList, (Array)objectReference,
+                                            (arrayAsGenericList as ICollection).Count);
+                                    }
+                                    else
+                                    {
+                                        arrayAsGenericList = typeof(NetworkSystem)
+                                            .GetMethod(nameof(TransaltorICollection),
+                                                BindingFlags.Instance | BindingFlags.NonPublic)
+                                            .MakeGenericMethod(info.FieldInfo.FieldType.GenericTypeArguments[0])
+                                            .Invoke(this, new[] { arrayToIterate });
+                                        objectReference = Activator.CreateInstance(info.FieldInfo.FieldType,
+                                            arrayAsGenericList as ICollection);
+                                    }
+
+                                    consoleMessage.Invoke($"Set the end of the list{objectReference}");
+                                    consoleMessage.Invoke($"Object to change{obj}");
+                                    info.FieldInfo.SetValue(obj, objectReference);
+                                    consoleMessage.Invoke($"Going Back");
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return obj;
+            }
+            catch (Exception e)
+            {
+                object objectReference;
+                objectReference = typeof(System.Collections.ICollection).IsAssignableFrom(type)
+                    ? CreateEmptyCollection(type)
+                    : Activator.CreateInstance(type);
+                objectReference = InspectDataToChange(type, objectReference, data, route, iterator);
+
+                //BUG: cannot trace back the last route
+                foreach (MessageData info in GetFieldsFromType(type))
+                {
+                    if (route[iterator].id == info.ID)
+                    {
+                        info.FieldInfo.SetValue(obj, objectReference);
+                    }
+                }
+
+                return objectReference;
+                throw;
+            }
+        }
+
+        private object InspectNullOrEmptyData(Type type, object obj, bool data, List<Route> route,
             int iterator)
         {
             if (obj != null)
             {
                 foreach (MessageData info in GetFieldsFromType(type))
                 {
-                    //Todo: Must change so each id comes with an specific
                     if (info != null && info.ID == route[iterator].id)
                     {
                         if (route[iterator].collectionSize == -1)
@@ -260,7 +444,17 @@ namespace RojoinNetworkSystem
                             iterator++;
                             if (iterator >= route.Count)
                             {
-                                obj = SetValues(info.FieldInfo, obj, data);
+                                if (data)
+                                {
+                                    obj = SetValues(info.FieldInfo, obj, null);
+                                }
+                                else
+                                {
+                                    object objectReference = info.FieldInfo.GetValue(obj);
+                                    objectReference = CreateEmptyCollection(info.FieldInfo.FieldType);
+                                    info.FieldInfo.SetValue(obj, objectReference);
+                                    return obj;
+                                }
                             }
                             else
                             {
@@ -270,6 +464,7 @@ namespace RojoinNetworkSystem
                                     iterator);
                                 info.FieldInfo.SetValue(obj, objectReference);
                             }
+
                             iterator--;
                         }
                         else
@@ -292,7 +487,8 @@ namespace RojoinNetworkSystem
                                     {
                                         if (i < collectionSize)
                                         {
-                                            arrayToIterate[i] = (objectReference as ICollection).Cast<object>().ElementAt(i);
+                                            arrayToIterate[i] = (objectReference as ICollection).Cast<object>()
+                                                .ElementAt(i);
                                         }
                                         else
                                         {
@@ -308,7 +504,7 @@ namespace RojoinNetworkSystem
                                     if (i == route[iterator].collectionPos)
                                     {
                                         var updated = InspectDataToChange(arrayToIterate[i].GetType(),
-                                            arrayToIterate[i], data, route, iterator +1);
+                                            arrayToIterate[i], data, route, iterator + 1);
                                         arrayToIterate[i] = updated;
                                         iterator--;
                                         consoleMessage.Invoke($"New value is :{arrayToIterate.GetValue(i)}");
@@ -348,7 +544,6 @@ namespace RojoinNetworkSystem
                                 consoleMessage.Invoke($"Going Back");
                             }
                         }
-
                     }
                 }
             }
@@ -384,21 +579,36 @@ namespace RojoinNetworkSystem
             }
             else if (typeof(System.Collections.IEnumerable).IsAssignableFrom(info.FieldType))
             {
-                int aux = 0;
-                foreach (object item in ((info.GetValue(obj) as System.Collections.ICollection)!))
+                try
                 {
-                    MessageFlags currentFlag = MessageFlags.CheckSum;
-                    if (flags.HasFlag(MessageFlags.Important) || flags.HasFlag(MessageFlags.Ordenable))
+                    int aux = 0;
+                    bool isCleared = true;
+                    foreach (object item in ((info.GetValue(obj) as System.Collections.ICollection)!))
                     {
-                        currentFlag = flags;
+                        MessageFlags currentFlag = MessageFlags.CheckSum;
+                        if (flags.HasFlag(MessageFlags.Important) || flags.HasFlag(MessageFlags.Ordenable))
+                        {
+                            currentFlag = flags;
+                        }
+
+                        Route route1 = route[route.Count - 1];
+                        consoleMessage.Invoke($"{route.Count - 1}");
+                        route1.collectionSize = (info.GetValue(obj) as System.Collections.ICollection).Count;
+                        route1.collectionPos = aux++;
+                        isCleared = false;
+                        route[route.Count - 1] = route1;
+                        InspectCreateMessage(item.GetType(), item, objID, route, currentFlag);
                     }
 
-                    Route route1 = route[route.Count - 1];
-                    consoleMessage.Invoke($"{route.Count - 1}");
-                    route1.collectionSize = (info.GetValue(obj) as System.Collections.ICollection).Count;
-                    route1.collectionPos = aux++;
-                    route[route.Count - 1] = route1;
-                    InspectCreateMessage(item.GetType(), item, objID, route, currentFlag);
+                    if (isCleared)
+                    {
+                        SendEmptyCollectionData(objID, route, flags);
+                    }
+                }
+                catch (Exception e)
+                {
+                    SendNullData(objID, route, flags);
+                    throw;
                 }
             }
             else
@@ -411,6 +621,21 @@ namespace RojoinNetworkSystem
 
                 InspectCreateMessage(info.FieldType, info.GetValue(obj), objID, route, currentFlag);
             }
+        }
+
+        private void SendEmptyCollectionData(int objID, List<Route> route, MessageFlags flags)
+        {
+            Route route1 = route[route.Count - 1];
+            consoleMessage.Invoke($"{route.Count - 1}");
+            route1.collectionSize = 0;
+            route1.collectionPos = -1;
+            route[route.Count - 1] = route1;
+            NullObject clear = new NullObject();
+            clear.isNull = false;
+            NetNullOrEmpty message = new NetNullOrEmpty(clear, objID, route, flags);
+            byte[] messageToSend = message.Serialize();
+            //Todo: Send message
+            dataToSend.Invoke(messageToSend);
         }
 
         private void SendMessage(FieldInfo info, object obj, int objId, List<Route> route, MessageFlags value)
@@ -471,7 +696,23 @@ namespace RojoinNetworkSystem
                 getMessageID = NetByteTranslator.GetMesaggeID(data);
             }
 
-            if (typeOfMessage.TryGetValue(type, out (Type, Type) dataType))
+            if (type == MessageType.NullorEmpty)
+            {
+                NetObjectBasicData messageInfo = NetByteTranslator.GetNetObjectData(data);
+                NetNullOrEmpty aux = new NetNullOrEmpty();
+                bool messageData = (bool)aux.Deserialize(data);
+                ChangeNullOrEmptyNetObjects(messageData, messageInfo.idValues,
+                    messageInfo.objectID);
+            }
+            else if (type == MessageType.TRS)
+            {
+                NetObjectBasicData messageInfo = NetByteTranslator.GetNetObjectData(data);
+                NetTRS aux = new NetTRS();
+                TRS messageData = aux.DeseliarizeObj(data);
+                ChangeTRS(messageData, messageInfo.idValues,
+                    messageInfo.objectID);
+            }
+            else if (typeOfMessage.TryGetValue(type, out (Type, Type) dataType))
             {
                 //Create message
                 BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance;
@@ -514,6 +755,7 @@ namespace RojoinNetworkSystem
 
             return arrayToTranslator;
         }
+
         private Type GetElementType(Type type)
         {
             if (type.IsArray)
@@ -524,7 +766,24 @@ namespace RojoinNetworkSystem
             {
                 return type.GetGenericArguments()[0];
             }
+
             return typeof(object);
+        }
+
+        private object CreateEmptyCollection(Type type)
+        {
+            if (type.IsArray)
+            {
+                return Array.CreateInstance(type.GetElementType(), 0);
+            }
+            else if (typeof(ICollection).IsAssignableFrom(type) && type.IsGenericType)
+            {
+                Type elementType = GetElementType(type);
+                var genericListType = typeof(List<>).MakeGenericType(elementType);
+                return Activator.CreateInstance(genericListType);
+            }
+
+            return null;
         }
     }
 }

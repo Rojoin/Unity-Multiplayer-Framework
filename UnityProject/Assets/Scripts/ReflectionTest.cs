@@ -18,21 +18,24 @@ namespace DefaultNamespace
             _networkSystem.StartNetworkSystem(onwner, DebugConsoleMessage);
             _networkSystem.dataToSend += SendCustomData;
             _clientNetManager.OnValueDataReceived.AddListener(WriteData);
+            NetObjectFactory.Instance.NetworkSystem = _networkSystem;
         }
 
         [ContextMenu("Add Objects")]
         private void AddObjects()
         {
-            // foreach (GameObject VARIABLE in objectsToAdd)
-            // {
-            //     foreach (var components in VARIABLE.GetComponents(typeof(Component)))
-            //     {
-            //         Debug.Log(components.name);
-            //         _networkSystem.AddNetObject(VARIABLE);
-            //     }
-            // }
+            AskForNetObject aux = new AskForNetObject();
+            aux.objectType = 0;
+            aux.owner = onwner;
+            aux.intanceID = 0;
+            aux.parentId = -1;
+            aux.pos = new System.Numerics.Vector3(1, 1, 1);
+            aux.rot = new System.Numerics.Vector3(0, 0, 0);
+            aux.scale = new System.Numerics.Vector3(1, 1, 1);
 
-            _networkSystem.AddNetObject(_classA);
+            NetGetObjectID messageToSend = new NetGetObjectID(aux);
+            SendCustomData(messageToSend.Serialize());
+            //_networkSystem.AddNetObject(_classA);
         }
 
         private void DebugConsoleMessage(string obj)
@@ -99,5 +102,45 @@ public static class FieldInfoExtensions
         output.Add(new MessageData(color.GetType().GetField(nameof(color.b)), 2, MessageFlags.CheckSum));
         output.Add(new MessageData(color.GetType().GetField(nameof(color.a)), 3, MessageFlags.CheckSum));
         return output;
+    }
+
+//BUG:NotUsable
+    public static TRS GetTRS(this Transform transform)
+    {
+        TRS aux = new TRS();
+        aux.position.x = (transform.position.x);
+        aux.position.y = (transform.position.y);
+        aux.position.z = (transform.position.z);
+        aux.rotation.x = (transform.rotation.x);
+        aux.rotation.y = (transform.rotation.y);
+        aux.rotation.z = (transform.rotation.z);
+        aux.rotation.w = (transform.rotation.w);
+        aux.scale.x = (transform.localScale.x);
+        aux.scale.y = (transform.localScale.y);
+        aux.scale.z = (transform.localScale.z);
+        Debug.Log($"GameObject:{transform.gameObject.activeSelf}");
+        aux.isActive = (transform.gameObject.activeSelf);
+        return aux;
+    }
+
+    public static void SetTRS(this Transform transform, TRS aux, TRSFlags flags)
+    {
+       
+        if (!flags.HasFlag(TRSFlags.NotPos))
+        {
+            transform.position = new Vector3(aux.position.x, aux.position.y, aux.position.z);
+        }
+        if (!flags.HasFlag(TRSFlags.NotRotation))
+        {
+            transform.rotation = new Quaternion(aux.rotation.x, aux.rotation.y, aux.rotation.z, aux.rotation.w);
+        }
+        if (!flags.HasFlag(TRSFlags.NotScale))
+        {
+            transform.localScale = new Vector3(aux.scale.x, aux.scale.y, aux.scale.z);
+        }
+        if (!flags.HasFlag(TRSFlags.NotActive))
+        {
+            transform.gameObject.SetActive(aux.isActive);
+        }
     }
 }

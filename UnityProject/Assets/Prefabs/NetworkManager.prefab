@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5447296571653415456}
   - component: {fileID: 457917307280148397}
   - component: {fileID: 7639079347095868083}
+  - component: {fileID: 6626068525078925304}
   m_Layer: 0
   m_Name: NetworkManager
   m_TagString: Untagged
@@ -26,7 +27,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9129184151379659106}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 648.8062, y: 449.30316, z: -80}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -45,7 +46,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d79dc5cad72c4f66933556af1e1e491f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  timeOut: 10
+  timeOut: 1149
   players: []
   tagName: 
   clientId: 0
@@ -107,6 +108,9 @@ MonoBehaviour:
         m_CallState: 2
   OnMyPlayerCreated: {fileID: 11400000, guid: 811ae01799f8b1c4f86dcec49d5a2dd4, type: 2}
   OnHittedPlayer: {fileID: 11400000, guid: 86b6dbc34bac2c347acca1f502c4b6cc, type: 2}
+  OnValueDataReceived:
+    m_PersistentCalls:
+      m_Calls: []
   OnMyPlayerMoved: {fileID: 11400000, guid: 88e35fbf41b0b0649a12cfb82a93e968, type: 2}
 --- !u!114 &7639079347095868083
 MonoBehaviour:
@@ -170,3 +174,18 @@ MonoBehaviour:
   OnGameEnding: {fileID: 11400000, guid: e43b04731a0cc084a9be8ed75e4fb410, type: 2}
   gameManager: {fileID: 0}
   minimunPlayerToInitiate: 2
+--- !u!114 &6626068525078925304
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9129184151379659106}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b563e14041014b7e996855442e059183, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  prefabsToInstatiate:
+  - {fileID: 4561208014810438877, guid: 8a103cee92a2ec049bcecb61ad8a3e8b, type: 3}
+  instatiateObjects: []

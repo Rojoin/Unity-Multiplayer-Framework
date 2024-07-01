@@ -60,7 +60,7 @@ public class UdpConnection
             OnSocketError?.Invoke($"Error: The port {port} doesnt have a server initialized.");
         }
     }
-    public UdpConnection(IPAddress ip, int port, in Action<string> handler, IReceiveData receiver = null)
+    public UdpConnection(IPAddress ip, int port, in Action<string> handler,int serverId ,IReceiveData receiver = null)
     {
         OnSocketError += handler;
         try
@@ -71,7 +71,7 @@ public class UdpConnection
 
             connection.BeginReceive(OnReceive, null);
 
-            NetHandShake handShake = new NetHandShake();
+            NetHandShake handShake = new NetHandShake($"{serverId}",MessageFlags.MatchMakerMessage);
             byte[] serialize = handShake.Serialize();
             Send(serialize);
             OnSocketError?.Invoke($"Data size.{serialize.Length}");

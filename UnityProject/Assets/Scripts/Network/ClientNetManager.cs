@@ -176,6 +176,11 @@ public class ClientNetManager : NetworkManager, IMessageChecker
                 break;
             case MessageType.Error:
                 break;
+            case MessageType.AskForObject:
+                NetGetObjectID aux = new NetGetObjectID();
+                AskForNetObject dataToSpawn =aux.DeseliarizeObj(data);
+                NetObjectFactory.Instance.InstanceNetObject(dataToSpawn);
+                break;
             case MessageType.ServerDir:
                 connection.Close();
                 NetServerDirection messageReceived = new NetServerDirection();

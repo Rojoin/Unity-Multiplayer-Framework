@@ -1,11 +1,13 @@
 ﻿using System.Linq;
+using RojoinNetworkSystem;
 using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
 /// Class for the PlayerShooting
 /// </summary>
-public class PlayerShooting : MonoBehaviour
+[NetNotSync(TRSFlags.NotPos|TRSFlags.NotScale)]
+public class PlayerShooting : MonoBehaviour, INetObject
 {
     [Header("Channels")]
     [SerializeField] private VoidChannelSO OnFireChannel;
@@ -22,12 +24,13 @@ public class PlayerShooting : MonoBehaviour
     public UnityEvent OnPrepareLaser;
 
     [Header("Variables")]
-    private bool isPressingButton;
+   [NetValue(1)]public bool isPressingButton;
     private bool singleBulletShoot;
     [Header("Cooldowns Presets")]
     public float specialBeanCooldown;
     private float _specialBeanCooldownTimer = 0.0f;
     private float currentBeanTimer;
+    private NetObject _netObject = new NetObject();
     private bool canFireSpecialBeam;
     public float SpecialBeanCooldownTimer
     {
@@ -45,6 +48,14 @@ public class PlayerShooting : MonoBehaviour
     private float minShootTimer = 0.5f;
     private float currentSingleShootTimer;
 
+    public TRS GetTRS()
+    {
+        return transform.GetTRS();
+    }public void SetTRS(TRS trs,TRSFlags flags)
+    {
+        Debug.Log(flags.ToString());
+        transform.SetTRS(trs,flags);
+    }
 
     private void Awake()
     {
@@ -109,5 +120,20 @@ public class PlayerShooting : MonoBehaviour
         }
 
         ResetTimers();
+    }
+
+    public int GetID()
+    {
+       return _netObject.id;
+    }
+
+    public int GetOwner()
+    {
+        return _netObject.owner;
+    }
+
+    public NetObject GetObject()
+    {
+        return _netObject;
     }
 }

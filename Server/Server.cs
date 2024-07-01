@@ -15,6 +15,7 @@ class Server : IReceiveData
     public readonly Dictionary<int, Client> clients = new Dictionary<int, Client>();
     protected readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
     public IPAddress ipAddress { get; set; }
+    public IPEndPoint matchMaker;
     public int port { get; set; } = 12345;
     public int timeOut = 30;
     public UdpConnection connection;
@@ -31,6 +32,7 @@ class Server : IReceiveData
     private float timeUntilResend = 3.0f;
     private IReceiveData _receiveDataImplementation;
     private bool closeServer;
+    private int serverId;
 
     public Server(ref bool isServerRunning)
     {
@@ -96,7 +98,7 @@ class Server : IReceiveData
                         if (importantMessage.timerForResend > timeUntilResend)
                         {
                             importantMessage.timerForResend = 0;
-                            SendToClient(importantMessage.data.ToArray(), client.Value.ipEndPoint);
+                            SendToEP(importantMessage.data.ToArray(), client.Value.ipEndPoint);
                         }
                     }
                 }
@@ -194,14 +196,16 @@ class Server : IReceiveData
         {
             return;
         }
+
         MessageType type = NetByteTranslator.GetNetworkType(data);
         int playerID = NetByteTranslator.GetPlayerID(data);
         MessageFlags flags = NetByteTranslator.GetFlags(data);
-   
+
 
         bool shouldCheckSum = flags.HasFlag(MessageFlags.CheckSum);
         bool isImportant = flags.HasFlag(MessageFlags.Important);
         bool isOrdenable = flags.HasFlag(MessageFlags.Ordenable);
+        bool isMatchMaker = flags.HasFlag(MessageFlags.MatchMakerMessage);
         ulong getMessageID = 0;
         if (shouldCheckSum)
         {
@@ -212,47 +216,73 @@ class Server : IReceiveData
             }
         }
 
+        Console.WriteLine($"New Data of type:{type}");
         if (isOrdenable)
         {
             getMessageID = NetByteTranslator.GetMesaggeID(data);
         }
 
-        switch (type)
+        if (isMatchMaker)
         {
-            case MessageType.HandShake:
-                CheckHandShake(data, ep);
-                break;
-            case MessageType.Position when clients.ContainsKey(playerID):
-                CheckPositionMessage(data, flags, playerID);
-                break;
-            case MessageType.Message when !clients.ContainsKey(playerID):
-                break;
-            case MessageType.Message:
-                CheckChatMessage(data, ep, playerID, type, getMessageID, isImportant);
-                break;
-            case MessageType.Exit when clients.ContainsKey(playerID):
-                DisconnectPlayer(clients[playerID]);
-                break;
-            case MessageType.Ping when !clients.ContainsKey(playerID):
-                break;
-            case MessageType.Ping:
-                CheckPing(data, ep);
-                break;
-            case MessageType.HandShakeOk:
-                break;
-            case MessageType.Confirmation when clients.ContainsKey(playerID):
-                CheckConfirmation(data, playerID);
-                break;
-
-            case MessageType.AskForObject when clients.ContainsKey(playerID):
-                CheckAskForBullet(data, ep, playerID, type, getMessageID, isImportant);
-                break;
-            case MessageType.TRS:
-                CheckDamage(data, playerID, ep);
-                break;
-             default:
-                Broadcast(data);
-                break;
+            switch (type)
+            {
+                case MessageType.HandShake:
+                    NetHandShake a = new NetHandShake();
+                    int value = Int32.Parse(a.DeseliarizeObj(data));
+                    serverId = value;
+                    matchMaker = ep;
+                    //NetExit w = new NetExit("The Server has been closed.");
+                    //SendToEP(w.Serialize(serverId, MessageFlags.ServerMessage),matchMaker);
+                    Console.WriteLine($"I contacted the matchmaker and his ip is = {matchMaker}");
+                    break;
+                case MessageType.Close:
+                {
+                    NetExit closeServer = new NetExit("The Server has been closed.");
+                    Broadcast(closeServer.Serialize());
+                    break;
+                }
+            }
+        }
+        else
+        {
+            switch (type)
+            {
+                case MessageType.HandShake:
+                    CheckHandShake(data, ep);
+                    break;
+                case MessageType.Position when clients.ContainsKey(playerID):
+                    CheckPositionMessage(data, flags, playerID);
+                    break;
+                case MessageType.Message when !clients.ContainsKey(playerID):
+                    break;
+                case MessageType.Message:
+                    CheckChatMessage(data, ep, playerID, type, getMessageID, isImportant);
+                    break;
+                case MessageType.Exit when clients.ContainsKey(playerID):
+                    DisconnectPlayer(clients[playerID]);
+                    break;
+                case MessageType.Ping when !clients.ContainsKey(playerID):
+                    break;
+                case MessageType.Ping:
+                    CheckPing(data, ep);
+                    break;
+                case MessageType.HandShakeOk:
+                    break;
+                case MessageType.Confirmation when clients.ContainsKey(playerID):
+                    CheckConfirmation(data, playerID);
+                    break;
+                
+                case MessageType.TRS:
+                    Broadcast(data);
+                    break;
+                case MessageType.AskForObject:
+                    byte[] newDataToSend = NetObjectServerFactory.CreateNetObjectFactoryMessage(data);
+                    Broadcast(newDataToSend);
+                    break;
+                default:
+                    Broadcast(data);
+                    break;
+            }
         }
     }
 
@@ -308,8 +338,10 @@ class Server : IReceiveData
         if (TryAddClient(ep, gameTag))
         {
             NetHandShakeOK handOK = new(players);
-            byte[] handData = handOK.Serialize();
+            byte[] handData = handOK.Serialize(serverId,
+                MessageFlags.CheckSum | MessageFlags.Ordenable | MessageFlags.Important | MessageFlags.ServerMessage);
             Broadcast(handData);
+            SendToEP(handData, matchMaker);
             string welcomeMessage = $"Server:The player {gameTag} has joined the game.";
             CreateMessage(welcomeMessage);
             NetConsole netConsole = new NetConsole(welcomeMessage);
@@ -326,7 +358,7 @@ class Server : IReceiveData
                     VARIABLE.Value.lastReceiveMessage.ContainsKey(MessageType.Position))
                 {
                     var msg = VARIABLE.Value.GetLastMessage(MessageType.Position);
-                    SendToClient(msg.data.ToArray(), ep);
+                    SendToEP(msg.data.ToArray(), ep);
                 }
             }
         }
@@ -397,7 +429,7 @@ class Server : IReceiveData
             {
                 //                Console.WriteLine($"Created the confirmation message for {type} with ID {getMessageID}");
                 NetConfirmation netConfirmation = new NetConfirmation((type, getMessageID));
-                SendToClient(netConfirmation.Serialize(), ep);
+                SendToEP(netConfirmation.Serialize(), ep);
             }
         }
     }
@@ -449,7 +481,9 @@ class Server : IReceiveData
         client.isActive = false;
         players.Remove(playerToRemove);
         NetHandShakeOK newPlayerList = new NetHandShakeOK(players, MessageFlags.None);
-        Broadcast(newPlayerList.Serialize());
+        byte[] serialize = newPlayerList.Serialize();
+        Broadcast(serialize);
+        SendToEP(serialize, matchMaker);
     }
 
     public void RemoveClient(IPEndPoint ip)
@@ -497,19 +531,19 @@ class Server : IReceiveData
                     else
                     {
                         NetExit errorHandshake = new NetExit("Error: Tagname already exist.");
-                        SendToClient(errorHandshake.Serialize(), ip);
+                        SendToEP(errorHandshake.Serialize(), ip);
                     }
                 }
                 else
                 {
                     NetExit errorHandshake = new NetExit("Error: The Player limit has been reach.");
-                    SendToClient(errorHandshake.Serialize(), ip);
+                    SendToEP(errorHandshake.Serialize(), ip);
                 }
             }
             else
             {
                 NetExit errorHandshake = new NetExit("Error: Game has Already Started.");
-                SendToClient(errorHandshake.Serialize(), ip);
+                SendToEP(errorHandshake.Serialize(), ip);
             }
         }
 
@@ -546,7 +580,7 @@ class Server : IReceiveData
         connection.Send(data, clientIp);
     }
 
-    public void SendToClient(byte[] data, IPEndPoint ep)
+    public void SendToEP(byte[] data, IPEndPoint ep)
     {
         connection.Send(data, ep);
     }
