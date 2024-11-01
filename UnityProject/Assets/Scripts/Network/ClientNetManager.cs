@@ -59,7 +59,6 @@ public class ClientNetManager : NetworkManager, IMessageChecker
         SendToServer(a.Serialize());
     }
 
-
     protected override void OnDisconect()
     {
         base.OnDisconect();

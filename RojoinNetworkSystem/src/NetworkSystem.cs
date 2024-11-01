@@ -207,6 +207,7 @@ namespace RojoinNetworkSystem
                         currentFlag = flagsFromBase;
                     }
 
+
                     Route route1 = new Route(info.ID, -1, -1);
                     route.Add(route1);
                     consoleMessage.Invoke(
@@ -476,17 +477,12 @@ namespace RojoinNetworkSystem
                                             info.FieldInfo.FieldType.GetElementType(),
                                             ((Array)arrayAsGenericList).Length);
 
-
                                         Array.Copy((Array)arrayAsGenericList, (Array)objectReference,
                                             (arrayAsGenericList as ICollection).Count);
                                     }
                                     else
                                     {
-                                        arrayAsGenericList = typeof(NetworkSystem)
-                                            .GetMethod(nameof(TransaltorICollection),
-                                                BindingFlags.Instance | BindingFlags.NonPublic)
-                                            .MakeGenericMethod(info.FieldInfo.FieldType.GenericTypeArguments[0])
-                                            .Invoke(this, new[] { arrayToIterate });
+                                        arrayAsGenericList = typeof(NetworkSystem).GetMethod(nameof(TransaltorICollection), BindingFlags.Instance | BindingFlags.NonPublic).MakeGenericMethod(info.FieldInfo.FieldType.GenericTypeArguments[0]).Invoke(this, new[] { arrayToIterate });
                                         objectReference = Activator.CreateInstance(info.FieldInfo.FieldType,
                                             arrayAsGenericList as ICollection);
                                     }
@@ -851,11 +847,11 @@ namespace RojoinNetworkSystem
                         object parameterValue = converter.ConvertFromInvariantString(valueTuple.data);
                         parametersToApply.Add(parameterValue);
                     }
-                    
+
                     int length = obj.GetType()
                         .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Length;
                     consoleMessage.Invoke($"Length:{length}");
-                    
+
                     for (int index = 0; index < length; index++)
                     {
                         MethodInfo methodInfo = obj.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public |
@@ -864,7 +860,7 @@ namespace RojoinNetworkSystem
                         if (netRPC != null && netRPC.id == rpcID)
                         {
                             object[] pObjects = parametersToApply.ToArray();
-                            object invokedMethod = methodInfo.Invoke(obj,pObjects);
+                            object invokedMethod = methodInfo.Invoke(obj, pObjects);
                         }
                     }
                 }

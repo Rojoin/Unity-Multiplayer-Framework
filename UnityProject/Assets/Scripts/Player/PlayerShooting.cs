@@ -6,6 +6,7 @@ using UnityEngine.Events;
 /// <summary>
 /// Class for the PlayerShooting
 /// </summary>
+
 public class PlayerShooting : MonoBehaviour, INetObject
 {
     [Header("Channels")]

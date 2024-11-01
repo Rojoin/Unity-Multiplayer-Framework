@@ -78,8 +78,6 @@ namespace DefaultNamespace
 [NetExtensionClass]
 public static class FieldInfoExtensions
 {
-
-
     [NetExtensionMethod(typeof(Vector3))]
     public static List<MessageData> GetFields(this Vector3 vector3)
     {
